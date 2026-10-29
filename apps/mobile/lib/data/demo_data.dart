@@ -1,5 +1,6 @@
 import '../models/family_activity.dart';
 import '../models/family_member.dart';
+import '../models/family_profile.dart';
 
 /// Static demo data for the first Flutter milestone.
 ///
@@ -8,9 +9,21 @@ import '../models/family_member.dart';
 /// repository calls.
 abstract final class DemoData {
   static const String familyId = 'family_zhang';
-  static const String familyName = '张氏家族';
-  static const String familyMotto = '寻根溯源 · 传承家风';
-  static const String familySubtitle = '江南 · 青溪张氏';
+
+  /// Family branding is session data, not application identity.
+  ///
+  /// When authentication is connected, this object comes from the signed-in
+  /// account's family. The product itself is deliberately multi-family.
+  static const FamilyProfile family = FamilyProfile(
+    id: familyId,
+    name: '张氏家族',
+    surname: '张',
+    motto: '寻根溯源 · 传承家风',
+    region: '江南 · 青溪',
+    subtitle: '江南 · 青溪张氏',
+    memberCount: 128,
+    branchCount: 5,
+  );
 
   static const FamilyMember currentUser = FamilyMember(
     id: 'person_zhang_san',

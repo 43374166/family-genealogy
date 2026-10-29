@@ -273,7 +273,7 @@ class _FamilyIdentity extends StatelessWidget {
             children: [
               Flexible(
                 child: Text(
-                  DemoData.familyName,
+                  DemoData.family.name,
                   style: AppTheme.serif(
                     fontSize: 42,
                     height: 1.08,
@@ -299,7 +299,7 @@ class _FamilyIdentity extends StatelessWidget {
               ),
               const SizedBox(width: 9),
               Text(
-                DemoData.familyMotto,
+                DemoData.family.motto,
                 style: const TextStyle(
                   fontSize: 14.5,
                   height: 1.3,
@@ -393,7 +393,7 @@ class _SummaryCard extends StatelessWidget {
                 color: AppColors.primary,
                 softColor: AppColors.primarySoft,
                 label: '家族成员',
-                value: '128',
+                value: '${DemoData.family.memberCount}',
                 onTap: onMembersTap,
               ),
             ),
@@ -404,7 +404,7 @@ class _SummaryCard extends StatelessWidget {
                 color: AppColors.jade,
                 softColor: AppColors.jadeSoft,
                 label: '家支',
-                value: '5',
+                value: '${DemoData.family.branchCount}',
                 onTap: onBranchesTap,
               ),
             ),
@@ -914,7 +914,7 @@ class _HomeFooter extends StatelessWidget {
             ),
             const SizedBox(width: 9),
             Text(
-              DemoData.familySubtitle,
+              DemoData.family.subtitle,
               style: const TextStyle(
                 fontSize: 10,
                 letterSpacing: 1.5,
@@ -931,7 +931,7 @@ class _HomeFooter extends StatelessWidget {
         ),
         const SizedBox(height: 7),
         Text(
-          'ZHANG FAMILY GENEALOGY · 2026',
+          'FAMILY GENEALOGY · 2026',
           style: TextStyle(
             fontSize: 8,
             letterSpacing: 1.7,
@@ -1018,10 +1018,10 @@ class _SettingsSheet extends StatelessWidget {
           _SettingsRow(icon: Icons.person_outline_rounded, label: '账户与资料'),
           _SettingsRow(icon: Icons.privacy_tip_outlined, label: '隐私与展示范围'),
           _SettingsRow(icon: Icons.contrast_rounded, label: '外观与字号'),
-          _SettingsRow(icon: Icons.info_outline_rounded, label: '关于张氏族谱'),
+          _SettingsRow(icon: Icons.info_outline_rounded, label: '关于家族族谱'),
           const SizedBox(height: 12),
           const Text(
-            'v0.1.0 · Flutter 原型',
+            'v0.2.0 · Flutter 原型',
             style: TextStyle(fontSize: 11, color: AppColors.inkMuted),
           ),
         ],

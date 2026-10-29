@@ -23,180 +23,205 @@ class TreePage extends StatefulWidget {
 
 class _TreePageState extends State<TreePage>
     with SingleTickerProviderStateMixin {
-  static const double _canvasWidth = 720;
-  static const double _canvasHeight = 990;
+  static const double _canvasWidth = 800;
+  static const double _canvasHeight = 1010;
   static const double _detailReserve = 154;
 
+  // A couple is laid out side by side. The child line starts from the centre
+  // of the small marriage bridge between the two cards and drops straight to
+  // the next generation. The direct bloodline therefore steps to the right by
+  // one spouse width per generation, which keeps the actual relationship
+  // unambiguous instead of drawing a line out of one person's card.
   static const List<_TreePlacement> _placements = [
     _TreePlacement(
       id: 'person_zhang_tianming',
-      left: 310,
-      top: 28,
-      width: 164,
+      left: 130,
+      top: 40,
+      width: 140,
       height: 82,
       generation: 6,
       compact: false,
     ),
     _TreePlacement(
       id: 'person_lin_shi',
-      left: 310,
-      top: 122,
-      width: 164,
+      left: 290,
+      top: 40,
+      width: 140,
       height: 82,
       generation: 6,
       compact: false,
     ),
     _TreePlacement(
       id: 'person_zhang_hongyuan',
-      left: 198,
-      top: 254,
-      width: 164,
+      left: 210,
+      top: 245,
+      width: 140,
       height: 82,
       generation: 7,
       compact: false,
     ),
     _TreePlacement(
       id: 'person_su_shi',
-      left: 438,
-      top: 254,
-      width: 164,
+      left: 370,
+      top: 245,
+      width: 140,
       height: 82,
       generation: 7,
       compact: false,
     ),
     _TreePlacement(
       id: 'person_zhang_yi',
-      left: 198,
-      top: 418,
-      width: 164,
+      left: 290,
+      top: 465,
+      width: 140,
       height: 82,
       generation: 8,
       compact: false,
     ),
     _TreePlacement(
       id: 'person_yu_meng',
-      left: 438,
-      top: 418,
-      width: 164,
+      left: 450,
+      top: 465,
+      width: 140,
       height: 82,
       generation: 8,
       compact: false,
     ),
     _TreePlacement(
       id: 'person_zhang_xu',
-      left: 64,
-      top: 606,
-      width: 92,
-      height: 134,
+      left: 206,
+      top: 635,
+      width: 84,
+      height: 126,
       generation: 9,
       compact: true,
     ),
     _TreePlacement(
       id: 'person_zhang_yao',
-      left: 189,
-      top: 606,
-      width: 92,
-      height: 134,
+      left: 302,
+      top: 635,
+      width: 84,
+      height: 126,
       generation: 9,
       compact: true,
     ),
     _TreePlacement(
       id: 'person_zhang_lang',
-      left: 314,
-      top: 606,
-      width: 92,
-      height: 134,
+      left: 398,
+      top: 635,
+      width: 84,
+      height: 126,
       generation: 9,
       compact: true,
     ),
     _TreePlacement(
       id: 'person_zhang_xue',
-      left: 439,
-      top: 606,
-      width: 92,
-      height: 134,
+      left: 494,
+      top: 635,
+      width: 84,
+      height: 126,
       generation: 9,
       compact: true,
     ),
     _TreePlacement(
       id: 'person_zhang_xuan',
-      left: 564,
-      top: 606,
-      width: 92,
-      height: 134,
+      left: 590,
+      top: 635,
+      width: 84,
+      height: 126,
       generation: 9,
       compact: true,
     ),
     _TreePlacement(
       id: 'person_zhang_xiaohu',
-      left: 134,
-      top: 816,
-      width: 92,
-      height: 134,
+      left: 254,
+      top: 840,
+      width: 84,
+      height: 126,
       generation: 10,
       compact: true,
     ),
     _TreePlacement(
       id: 'person_zhang_xiaoyu',
-      left: 254,
-      top: 816,
-      width: 92,
-      height: 134,
+      left: 350,
+      top: 840,
+      width: 84,
+      height: 126,
       generation: 10,
       compact: true,
     ),
     _TreePlacement(
       id: 'person_zhang_xiaoyue',
-      left: 474,
-      top: 816,
-      width: 92,
-      height: 134,
+      left: 542,
+      top: 840,
+      width: 84,
+      height: 126,
       generation: 10,
       compact: true,
     ),
     _TreePlacement(
       id: 'person_zhang_xiaoyu_junior',
-      left: 594,
-      top: 816,
-      width: 92,
-      height: 134,
+      left: 638,
+      top: 840,
+      width: 84,
+      height: 126,
       generation: 10,
       compact: true,
     ),
   ];
 
   static const List<List<Offset>> _edges = [
-    [Offset(392, 110), Offset(392, 122)],
-    [Offset(392, 204), Offset(392, 228), Offset(280, 228), Offset(280, 254)],
-    [Offset(362, 295), Offset(438, 295)],
-    [Offset(280, 336), Offset(280, 418)],
-    [Offset(362, 459), Offset(438, 459)],
-    // Parent to the five children.
-    [Offset(280, 500), Offset(280, 566)],
-    [Offset(110, 566), Offset(610, 566)],
-    [Offset(110, 566), Offset(110, 606)],
-    [Offset(235, 566), Offset(235, 606)],
-    [Offset(360, 566), Offset(360, 606)],
-    [Offset(485, 566), Offset(485, 606)],
-    [Offset(610, 566), Offset(610, 606)],
-    // Grandchildren under the second child.
-    [Offset(235, 740), Offset(235, 776)],
-    [Offset(180, 776), Offset(300, 776)],
-    [Offset(180, 776), Offset(180, 816)],
-    [Offset(300, 776), Offset(300, 816)],
-    // Grandchildren under the fifth child.
-    [Offset(610, 740), Offset(610, 776)],
-    [Offset(520, 776), Offset(640, 776)],
-    [Offset(520, 776), Offset(520, 816)],
-    [Offset(640, 776), Offset(640, 816)],
+    // 张天明 + 林氏 → 张宏远
+    [Offset(280, 81), Offset(280, 245)],
+    // 张宏远 + 苏氏 → 张一
+    [Offset(360, 286), Offset(360, 465)],
+    // 张一 + 余梦 → five children
+    [Offset(440, 506), Offset(440, 595)],
+    [Offset(248, 595), Offset(632, 595)],
+    [Offset(248, 595), Offset(248, 635)],
+    [Offset(344, 595), Offset(344, 635)],
+    [Offset(440, 595), Offset(440, 635)],
+    [Offset(536, 595), Offset(536, 635)],
+    [Offset(632, 595), Offset(632, 635)],
+    // Grandchildren under 张瑶
+    [Offset(344, 761), Offset(344, 800)],
+    [Offset(296, 800), Offset(392, 800)],
+    [Offset(296, 800), Offset(296, 840)],
+    [Offset(392, 800), Offset(392, 840)],
+    // Grandchildren under 张轩
+    [Offset(632, 761), Offset(632, 800)],
+    [Offset(584, 800), Offset(680, 800)],
+    [Offset(584, 800), Offset(584, 840)],
+    [Offset(680, 800), Offset(680, 840)],
+  ];
+
+  /// Short bridges inside the gap between each husband and wife.
+  static const List<(Offset, Offset)> _marriageBridges = [
+    (Offset(270, 81), Offset(290, 81)),
+    (Offset(350, 286), Offset(370, 286)),
+    (Offset(430, 506), Offset(450, 506)),
+  ];
+
+  /// A tiny junction where the marriage bridge meets the descent line.
+  static const List<Offset> _unionNodes = [
+    Offset(280, 81),
+    Offset(360, 286),
+    Offset(440, 506),
+  ];
+
+  /// Branch junctions on the sibling buses.
+  static const List<Offset> _branchNodes = [
+    Offset(440, 595),
+    Offset(344, 800),
+    Offset(632, 800),
   ];
 
   static const List<(int, double)> _generationLabels = [
-    (6, 186),
-    (7, 295),
-    (8, 459),
-    (9, 674),
-    (10, 885),
+    (6, 81),
+    (7, 286),
+    (8, 506),
+    (9, 698),
+    (10, 903),
   ];
 
   final TransformationController _transformation = TransformationController();
@@ -247,7 +272,7 @@ class _TreePageState extends State<TreePage>
               children: [
                 _TreeHeader(
                   subtitle:
-                      '${DemoData.familyName} · ${_selected.generationLabel} · 共 128 人',
+                      '${DemoData.family.name} · ${_selected.generationLabel} · 共 ${DemoData.family.memberCount} 人',
                   onBack: widget.onBack,
                   onSearch: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
@@ -321,7 +346,12 @@ class _TreePageState extends State<TreePage>
                               children: [
                                 Positioned.fill(
                                   child: CustomPaint(
-                                    painter: _TreeLinesPainter(edges: _edges),
+                                    painter: _TreeLinesPainter(
+                                      edges: _edges,
+                                      marriageBridges: _marriageBridges,
+                                      unionNodes: _unionNodes,
+                                      branchNodes: _branchNodes,
+                                    ),
                                   ),
                                 ),
                                 _GenerationRail(
@@ -727,50 +757,82 @@ class _GenerationFilters extends StatelessWidget {
 }
 
 class _TreeLinesPainter extends CustomPainter {
-  _TreeLinesPainter({required this.edges});
+  _TreeLinesPainter({
+    required this.edges,
+    required this.marriageBridges,
+    required this.unionNodes,
+    required this.branchNodes,
+  });
 
   final List<List<Offset>> edges;
+  final List<(Offset, Offset)> marriageBridges;
+  final List<Offset> unionNodes;
+  final List<Offset> branchNodes;
 
   @override
   void paint(Canvas canvas, Size size) {
     final linePaint = Paint()
-      ..color = const Color(0xFF9AACB2).withValues(alpha: 0.56)
+      ..color = const Color(0xFF829BA1).withValues(alpha: 0.72)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.25
+      ..strokeWidth = 1.3
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
+    final bridgePaint = Paint()
+      ..color = const Color(0xFFAE9673).withValues(alpha: 0.92)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.7
+      ..strokeCap = StrokeCap.round;
     final glowPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.42)
+      ..color = Colors.white.withValues(alpha: 0.52)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 4
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
 
-    for (final edge in edges) {
+    void drawPolyline(List<Offset> edge, Paint paint) {
       final path = Path()..moveTo(edge.first.dx, edge.first.dy);
       for (var i = 1; i < edge.length; i++) {
         path.lineTo(edge[i].dx, edge[i].dy);
       }
       canvas.drawPath(path, glowPaint);
-      canvas.drawPath(path, linePaint);
+      canvas.drawPath(path, paint);
     }
 
-    // Quiet jade rings at junction points give the tree a measured rhythm.
-    final junctionPaint = Paint()
-      ..color = const Color(0xFFAABABD).withValues(alpha: 0.38)
+    for (final edge in edges) {
+      drawPolyline(edge, linePaint);
+    }
+
+    // A short bridge joins the two cards; the child line starts exactly at its
+    // centre. This makes the relationship read as a couple, never as a line
+    // drawn from only one parent.
+    for (final bridge in marriageBridges) {
+      drawPolyline([bridge.$1, bridge.$2], bridgePaint);
+    }
+
+    final unionFill = Paint()..color = const Color(0xFFFFFEFA);
+    final unionStroke = Paint()
+      ..color = const Color(0xFFB09875).withValues(alpha: 0.95)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+    for (final point in unionNodes) {
+      canvas.drawCircle(point, 3.6, unionFill);
+      canvas.drawCircle(point, 3.6, unionStroke);
+    }
+
+    final branchPaint = Paint()
+      ..color = const Color(0xFF9FB0B3).withValues(alpha: 0.62)
       ..style = PaintingStyle.fill;
-    for (final point in const [
-      Offset(280, 566),
-      Offset(235, 776),
-      Offset(610, 776),
-    ]) {
-      canvas.drawCircle(point, 2.0, junctionPaint);
+    for (final point in branchNodes) {
+      canvas.drawCircle(point, 2.2, branchPaint);
     }
   }
 
   @override
   bool shouldRepaint(_TreeLinesPainter oldDelegate) =>
-      oldDelegate.edges != edges;
+      oldDelegate.edges != edges ||
+      oldDelegate.marriageBridges != marriageBridges ||
+      oldDelegate.unionNodes != unionNodes ||
+      oldDelegate.branchNodes != branchNodes;
 }
 
 class _GenerationRail extends StatelessWidget {
@@ -786,26 +848,28 @@ class _GenerationRail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final firstY = labels.first.$2;
+    final lastY = labels.last.$2;
     return Positioned(
-      left: 5,
-      top: 90,
-      bottom: 40,
-      width: 48,
+      left: 4,
+      top: 0,
+      bottom: 0,
+      width: 62,
       child: Stack(
         children: [
           Positioned(
-            left: 13,
-            top: 0,
-            bottom: 0,
+            left: 3,
+            top: firstY,
+            height: lastY - firstY,
             child: Container(
               width: 1,
-              color: AppColors.inkMuted.withValues(alpha: 0.22),
+              color: AppColors.inkMuted.withValues(alpha: 0.24),
             ),
           ),
           for (final label in labels)
             Positioned(
               left: 0,
-              top: label.$2 - 98,
+              top: label.$2 - 7,
               child: _GenerationLabel(
                 generation: label.$1,
                 active:
@@ -947,8 +1011,8 @@ class _WideNodeContent extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        _PortraitWithDot(person: person, width: 46, height: 64, radius: 10),
-        const SizedBox(width: 8),
+        _PortraitWithDot(person: person, width: 42, height: 60, radius: 9),
+        const SizedBox(width: 7),
         Expanded(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -959,7 +1023,7 @@ class _WideNodeContent extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  fontSize: 17,
+                  fontSize: 15.5,
                   height: 1.15,
                   fontWeight: FontWeight.w600,
                   color: AppColors.ink,
@@ -1022,14 +1086,14 @@ class _CompactNodeContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        _PortraitWithDot(person: person, width: 52, height: 59, radius: 8),
+        _PortraitWithDot(person: person, width: 50, height: 55, radius: 8),
         const SizedBox(height: 4),
         Text(
           person.name,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(
-            fontSize: 13,
+            fontSize: 12.5,
             height: 1.1,
             fontWeight: FontWeight.w600,
             color: AppColors.ink,

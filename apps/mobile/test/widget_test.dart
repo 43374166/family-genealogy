@@ -1,4 +1,5 @@
 import 'package:family_tree/app.dart';
+import 'package:family_tree/data/demo_data.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -14,7 +15,7 @@ void main() {
     await tester.pumpWidget(const FamilyTreeApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('张氏家族'), findsWidgets);
+    expect(find.text(DemoData.family.name), findsWidgets);
     expect(find.text('最新动态'), findsOneWidget);
     expect(find.text('族谱树'), findsWidgets);
     expect(tester.takeException(), isNull);

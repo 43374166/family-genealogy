@@ -10,7 +10,7 @@ class FamilyTreeApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: '张氏族谱',
+      title: '家族族谱',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       scrollBehavior: const _AppScrollBehavior(),

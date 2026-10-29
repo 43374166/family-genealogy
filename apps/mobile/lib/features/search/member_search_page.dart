@@ -54,7 +54,8 @@ class _MemberSearchPageState extends State<MemberSearchPage> {
           children: [
             AppPageHeader(
               title: '成员查询',
-              subtitle: '张氏家族 · 共 128 人',
+              subtitle:
+                  '${DemoData.family.name} · 共 ${DemoData.family.memberCount} 人',
               actions: [
                 HeaderIconButton(
                   icon: Icons.tune_rounded,

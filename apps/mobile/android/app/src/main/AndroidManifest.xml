@@ -2,7 +2,7 @@
     <!-- Reserved for the future Go API. The current prototype is offline-only. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <application
-        android:label="张氏族谱"
+        android:label="家族族谱"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

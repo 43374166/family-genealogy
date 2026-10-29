@@ -1,7 +1,8 @@
 # apps/mobile · Flutter（iOS / Android）
 
-张氏族谱的 Flutter 移动端原型。目前以 Android 为验证目标；iOS 工程已生成，
-需在 macOS + Xcode 上完成签名和构建验证。
+「家族族谱」多家族 Flutter 移动端原型。APP 品牌不绑定任何姓氏；当前登录账户
+所属的家庭空间由 `DemoData.family` 提供，接入后端后由会话决定。目前以 Android
+为日常验证目标；iOS 工程已生成，并通过 GitHub Actions 的 macOS Runner 构建。
 
 ## 运行
 
@@ -51,7 +52,13 @@ python tool/generate_assets.py
 首页、族谱树、人物档案、成员查询、我的申请、资料申请、消息、我的、
 家族相册、家族故事；底部导航内的「添加」会打开动作面板。
 
-族谱树目前使用固定演示坐标；接入后端后，应根据 Relationship 图计算布局。
+族谱树当前使用固定演示坐标，布局规则是：夫妻卡片并排，婚姻连线落在两张卡片之间，
+子代线从这段中间连线垂直向下，不再从某一个人的卡片单独引线。
+
+- Android 应用名：`家族族谱`
+- iOS 应用名：`FamilyTree`（Apple 签名对应用名有 ASCII 限制）
+- 家庭标题：来自登录账户的家庭资料，演示数据中为「张氏家族」，不代表产品品牌
+
 关系数据（配偶 / 父母 / 子女）已在 `DemoData` 中显式维护，不应从姓名推断。
 
 ## iOS 无签名打包

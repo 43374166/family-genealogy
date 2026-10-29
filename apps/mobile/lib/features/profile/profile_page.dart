@@ -25,7 +25,7 @@ class ProfilePage extends StatelessWidget {
           children: [
             AppPageHeader(
               title: '我的',
-              subtitle: DemoData.familyName,
+              subtitle: DemoData.family.name,
               showBack: false,
               padding: const EdgeInsets.fromLTRB(22, 8, 16, 8),
               actions: [
@@ -130,8 +130,8 @@ class ProfilePage extends StatelessWidget {
                           icon: Icons.info_outline_rounded,
                           color: AppColors.inkMuted,
                           background: AppColors.slateSoft,
-                          label: '关于张氏族谱',
-                          trailing: 'v0.1.0',
+                          label: '关于家族族谱',
+                          trailing: 'v0.2.0',
                           onTap: () => _showAbout(context),
                         ),
                       ],
@@ -219,10 +219,10 @@ class ProfilePage extends StatelessWidget {
                 color: AppColors.cinnabarSoft,
                 borderRadius: BorderRadius.circular(18),
               ),
-              child: const Center(
+              child: Center(
                 child: Text(
-                  '张',
-                  style: TextStyle(
+                  DemoData.family.surname,
+                  style: const TextStyle(
                     fontFamily: AppTheme.serifFamily,
                     fontSize: 30,
                     color: AppColors.cinnabar,
@@ -232,12 +232,12 @@ class ProfilePage extends StatelessWidget {
             ),
             const SizedBox(height: 13),
             Text(
-              DemoData.familyName,
+              DemoData.family.name,
               style: AppTheme.serif(fontSize: 22, letterSpacing: 1),
             ),
             const SizedBox(height: 5),
             const Text(
-              '数字族谱 · Flutter 原型 v0.1.0',
+              '家族族谱 · Flutter 原型 v0.2.0',
               style: TextStyle(fontSize: 10.5, color: AppColors.inkMuted),
             ),
             const SizedBox(height: 16),

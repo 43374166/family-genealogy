@@ -11,7 +11,7 @@ class StoriesPage extends StatelessWidget {
 
   static const _stories = [
     (
-      title: '青溪张氏：一部写了三百年的家谱',
+      title: '青溪家谱：一部写了三百年的家族记忆',
       excerpt: '从康熙年间的第一册手抄谱，到今天的数字族谱，记录的不只是姓名，更是几代人的生活。',
       tag: '族史',
       date: '2025-04-12',
@@ -234,7 +234,7 @@ class _FeaturedStory extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '青溪张氏',
+                    '青溪家谱',
                     style: TextStyle(
                       fontFamily: AppTheme.serifFamily,
                       fontSize: 30,
@@ -523,7 +523,7 @@ class StoryDetailPage extends StatelessWidget {
                       ),
                       const SizedBox(height: 16),
                       const _Paragraph(
-                        '谱序里写着：“水有源，木有本，族之有谱，所以别亲疏、明世次、敦孝悌也。”对张氏后人来说，族谱并不是一份名单，而是一条可以把今天的人带回从前的路。',
+                        '谱序里写着：“水有源，木有本，族之有谱，所以别亲疏、明世次、敦孝悌也。”对族人来说，族谱并不是一份名单，而是一条可以把今天的人带回从前的路。',
                       ),
                       const SizedBox(height: 16),
                       const _Paragraph(
@@ -577,7 +577,7 @@ class StoryDetailPage extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                '张氏族谱编委会',
+                                '家族族谱编委会',
                                 style: TextStyle(
                                   fontSize: 10.5,
                                   fontWeight: FontWeight.w600,
