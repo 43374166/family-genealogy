@@ -54,6 +54,18 @@ python tool/generate_assets.py
 族谱树目前使用固定演示坐标；接入后端后，应根据 Relationship 图计算布局。
 关系数据（配偶 / 父母 / 子女）已在 `DemoData` 中显式维护，不应从姓名推断。
 
+## iOS 无签名打包
+
+`.github/workflows/ios-unsigned.yml` 会在 GitHub 的 macOS Runner 上执行：
+
+```bash
+flutter build ios --release --no-codesign
+```
+
+然后把 `Runner.app` 打包为 `Runner-unsigned.ipa` 和 `.app.zip`，作为 Actions
+Artifact 保存。该包没有签名，不能直接安装到正常 iPhone，也不能上传 TestFlight；
+签名材料准备好之后，再增加证书、Provisioning Profile 和导出步骤即可。
+
 ## 已验证
 
 - Pixel 7 / Android 15 模拟器安装运行成功。

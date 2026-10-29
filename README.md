@@ -106,6 +106,18 @@ flutter --no-version-check test
 > 脚本也会把 `FLUTTER_STORAGE_BASE_URL` 指向 `https://storage.flutter-io.cn`。
 > Gradle 发行包则通过 `gradle-wrapper.properties` 中的华为云镜像获取。
 
+## iOS 云端打包（无签名）
+
+仓库已包含 [.github/workflows/ios-unsigned.yml](.github/workflows/ios-unsigned.yml)：
+
+- 在 GitHub Actions 的 `macos-15` Runner 上使用 Flutter 3.35.5 编译 iOS
+- 不执行 Apple 签名，产出：
+  - `Runner-unsigned.ipa`
+  - `Runner-unsigned.app.zip`
+  - `SHA256SUMS.txt`
+- 推送到 `master` 且改动 `apps/mobile/**` 时自动触发，也可在 Actions 页面手动运行
+- **无签名 IPA 不能安装到普通 iPhone，也不能上传 TestFlight**；它只用于验证 iOS 编译链路和提前产出待签名包
+
 ## 目录结构
 
 ```text
