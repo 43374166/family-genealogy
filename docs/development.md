@@ -123,6 +123,10 @@ apps/mobile/lib/
 3. 首页、族谱树、人物档案、成员查询、申请、消息、我的、相册、故事、添加面板
    均在模拟器实际打开并截图。
 4. `flutter analyze` 无问题；`flutter test` 5 项通过。
+5. GitHub Actions 首次 macOS 无签名 iOS 构建成功：run
+   [40920458742](https://github.com/43374166/family-genealogy/actions/runs/40920458742)，
+   Artifact `family-tree-ios-unsigned-1` 约 31 MB，包含未签名 IPA、Runner.app.zip
+   与 SHA256 校验和。
 
 网络注意事项：
 

@@ -130,6 +130,13 @@ flutter --no-version-check test
 - 推送到 `master` 且改动 `apps/mobile/**` 时自动触发，也可在 Actions 页面手动运行
 - **无签名 IPA 不能安装到普通 iPhone，也不能上传 TestFlight**；它只用于验证 iOS 编译链路和提前产出待签名包
 
+首次 GitHub Actions 构建已通过（2026-10-30，macOS 15 / Xcode）：
+[Actions 运行记录](https://github.com/43374166/family-genealogy/actions/runs/40920458742)
+
+- Artifact：`family-tree-ios-unsigned-1`（约 31 MB）
+- 含 `Runner-unsigned.ipa`、`Runner-unsigned.app.zip`、`SHA256SUMS.txt`
+- Artifact 下载需要登录 GitHub；保留 14 天，过期可在 Actions 页面重新运行
+
 ## 目录结构
 
 ```text
