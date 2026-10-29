@@ -4,6 +4,11 @@
 Android 端已经可以运行，iOS 工程已生成；Web、鸿蒙、小程序与 Go 服务端先保留清晰的扩展位置，
 暂时不写后端。
 
+**GitHub：** https://github.com/43374166/family-genealogy
+**Gitee：** https://gitee.com/fish-ling/family-genealogy
+
+[![iOS unsigned package](https://github.com/43374166/family-genealogy/actions/workflows/ios-unsigned.yml/badge.svg?branch=master)](https://github.com/43374166/family-genealogy/actions/workflows/ios-unsigned.yml)
+
 > 设计参考：`docs/reference/ui-home.png`、`docs/reference/ui-tree.png`
 > 产品规划：`docs/reference/项目开发规划报告.docx`
 
@@ -76,6 +81,13 @@ flutter --no-version-check run -d emulator-5554
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\run-android.ps1
+```
+
+同步到两个远端：
+
+```powershell
+git push origin master   # Gitee
+git push github master   # GitHub
 ```
 
 构建安装包：

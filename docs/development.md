@@ -111,7 +111,9 @@ apps/mobile/lib/
 | Gradle | 8.12（wrapper 华为云镜像） |
 | Gradle 缓存 | `D:\AppData\Local\Gradle` |
 | Flutter Engine AAR | Flutter 中国镜像 / 官方仓库回退 |
-| Git 远端 | 尚未配置 |
+| Git 远端 | Gitee `origin` + GitHub `github` |
+| GitHub 仓库 | `43374166/family-genealogy`（Public） |
+| iOS CI | `.github/workflows/ios-unsigned.yml`，macOS 15 无签名构建 |
 
 2026-10-30 完成的真实构建验证：
 
