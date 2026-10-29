@@ -9,7 +9,7 @@ on:
       - ".github/workflows/ios-unsigned.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ios-unsigned-${{ github.ref }}
@@ -85,3 +85,22 @@ jobs:
             apps/mobile/build/ios/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 14
+
+      - name: Publish unsigned IPA release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ios-unsigned-build-${{ github.run_number }}
+          name: iOS unsigned build ${{ github.run_number }}
+          prerelease: true
+          fail_on_unmatched_files: true
+          body: |
+            Unsigned iOS build produced by GitHub Actions.
+
+            - Flutter 3.35.5 / macOS 15
+            - No Apple signing certificate or provisioning profile applied
+            - The IPA must be signed before normal iPhone installation
+            - Includes SHA256SUMS.txt for integrity verification
+          files: |
+            apps/mobile/build/ios/Runner-unsigned.ipa
+            apps/mobile/build/ios/Runner-unsigned.app.zip
+            apps/mobile/build/ios/SHA256SUMS.txt
