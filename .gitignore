@@ -1,0 +1,103 @@
+# ---------------------------------------------------------------------------
+# Operating system and editors
+# ---------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.iml
+*.swp
+
+# ---------------------------------------------------------------------------
+# Flutter / Dart
+# ---------------------------------------------------------------------------
+.dart_tool/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+build/
+**/build/
+**/.gradle/
+**/.gradle-home/
+**/local.properties
+**/GeneratedPluginRegistrant.java
+**/GeneratedPluginRegistrant.swift
+apps/mobile/ios/Flutter/App.framework
+apps/mobile/ios/Flutter/Flutter.framework
+apps/mobile/ios/Flutter/Flutter.podspec
+apps/mobile/ios/Flutter/Generated.xcconfig
+apps/mobile/ios/Flutter/ephemeral/
+apps/mobile/ios/Flutter/flutter_export_environment.sh
+apps/mobile/ios/Pods/
+apps/mobile/ios/.symlinks/
+apps/mobile/ios/Runner.xcworkspace/xcuserdata/
+apps/mobile/ios/Runner.xcodeproj/xcuserdata/
+*.g.dart
+*.freezed.dart
+
+# Android signing and local machine configuration
+*.jks
+*.keystore
+key.properties
+apps/mobile/android/app/debug/
+apps/mobile/android/app/profile/
+apps/mobile/android/app/release/
+apps/mobile/android/.cxx/
+
+# iOS signing (managed outside the repository)
+apps/mobile/ios/Runner/GoogleService-Info.plist
+apps/mobile/ios/Runner/*.mobileprovision
+apps/mobile/ios/Runner/*.p12
+
+# ---------------------------------------------------------------------------
+# Node / React / mini-program (future apps)
+# ---------------------------------------------------------------------------
+node_modules/
+.pnpm-store/
+dist/
+coverage/
+.next/
+.turbo/
+.vite/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+
+# ---------------------------------------------------------------------------
+# Go / server (future service)
+# ---------------------------------------------------------------------------
+server/bin/
+server/tmp/
+*.exe
+*.exe~
+*.test
+*.out
+vendor/
+
+# Local runtime data. Production data never belongs in Git.
+data/*.json
+data/media/
+data/backups/
+!data/README.md
+!data/.gitkeep
+
+# ---------------------------------------------------------------------------
+# Tooling and temporary files
+# ---------------------------------------------------------------------------
+.gradle-home/
+.tool-versions
+*.log
+*.apk
+*.aab
+*.ipa
+*.zip
+*.tmp
+*.bak
+scratch/
+tmp/
+
+# The app icon sources stay in assets; generated density variants are tracked.
