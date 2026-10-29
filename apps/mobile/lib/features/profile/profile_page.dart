@@ -10,6 +10,7 @@ import '../../data/demo_data.dart';
 import '../../models/family_member.dart';
 import '../person/person_detail_page.dart';
 import '../requests/requests_page.dart';
+import 'family_profile_sheet.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -52,6 +53,15 @@ class ProfilePage extends StatelessWidget {
                     ),
                     child: Column(
                       children: [
+                        _MenuRow(
+                          icon: Icons.diversity_3_rounded,
+                          color: AppColors.jade,
+                          background: AppColors.jadeSoft,
+                          label: '家庭资料',
+                          trailing: DemoData.family.name,
+                          onTap: () => showFamilyProfileSheet(context),
+                        ),
+                        const Divider(height: 1, indent: 47),
                         _MenuRow(
                           icon: Icons.person_outline_rounded,
                           color: AppColors.primary,
@@ -131,7 +141,7 @@ class ProfilePage extends StatelessWidget {
                           color: AppColors.inkMuted,
                           background: AppColors.slateSoft,
                           label: '关于家族族谱',
-                          trailing: 'v0.2.0',
+                          trailing: 'v0.3.0',
                           onTap: () => _showAbout(context),
                         ),
                       ],
@@ -237,7 +247,7 @@ class ProfilePage extends StatelessWidget {
             ),
             const SizedBox(height: 5),
             const Text(
-              '家族族谱 · Flutter 原型 v0.2.0',
+              '家族族谱 · Flutter 原型 v0.3.0',
               style: TextStyle(fontSize: 10.5, color: AppColors.inkMuted),
             ),
             const SizedBox(height: 16),

@@ -224,6 +224,15 @@ class _TreePageState extends State<TreePage>
     (10, 903),
   ];
 
+  /// Horizontal and vertical centers used when a generation is focused.
+  static const Map<int, Offset> _generationFocusPoints = {
+    6: Offset(280, 81),
+    7: Offset(360, 286),
+    8: Offset(440, 506),
+    9: Offset(440, 698),
+    10: Offset(488, 903),
+  };
+
   final TransformationController _transformation = TransformationController();
   late final AnimationController _zoomController;
   Animation<Matrix4>? _zoomAnimation;
@@ -283,8 +292,7 @@ class _TreePageState extends State<TreePage>
                 ),
                 _GenerationFilters(
                   selected: _focusGeneration,
-                  onChanged: (value) =>
-                      setState(() => _focusGeneration = value),
+                  onChanged: _handleFilterChanged,
                   onMore: () => _showDirectory(context),
                 ),
               ],
@@ -382,11 +390,42 @@ class _TreePageState extends State<TreePage>
                   left: 18,
                   right: 18,
                   bottom: 10,
-                  child: _PersonSummaryCard(
-                    person: _selected,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => PersonDetailPage(person: _selected),
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 220),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    layoutBuilder: (currentChild, previousChildren) {
+                      return Stack(
+                        alignment: Alignment.bottomCenter,
+                        children: [
+                          ...previousChildren,
+                          if (currentChild != null) currentChild,
+                        ],
+                      );
+                    },
+                    transitionBuilder: (child, animation) {
+                      final offset =
+                          Tween<Offset>(
+                            begin: const Offset(0, 0.045),
+                            end: Offset.zero,
+                          ).animate(
+                            CurvedAnimation(
+                              parent: animation,
+                              curve: Curves.easeOutCubic,
+                            ),
+                          );
+                      return FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(position: offset, child: child),
+                      );
+                    },
+                    child: _PersonSummaryCard(
+                      key: ValueKey(_selected.id),
+                      person: _selected,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => PersonDetailPage(person: _selected),
+                        ),
                       ),
                     ),
                   ),
@@ -456,6 +495,31 @@ class _TreePageState extends State<TreePage>
     } else {
       _transformation.value = target;
     }
+  }
+
+  void _handleFilterChanged(int? generation) {
+    setState(() => _focusGeneration = generation);
+
+    if (generation == null) {
+      _applyFit(animate: true);
+      return;
+    }
+
+    final focus = _generationFocusPoints[generation];
+    if (focus == null || _viewportSize.isEmpty) return;
+
+    const scale = 0.74;
+    final targetY = _viewportSize.height * 0.32;
+    final targetX = _viewportSize.width / 2;
+    final matrix = Matrix4.identity()
+      ..translateByDouble(
+        targetX - focus.dx * scale,
+        targetY - focus.dy * scale,
+        0,
+        1,
+      )
+      ..scaleByDouble(scale, scale, scale, 1);
+    _animateTo(matrix);
   }
 
   void _resetView() {
@@ -545,19 +609,18 @@ class _TreePageState extends State<TreePage>
                     .toList(),
                 selected: _focusGeneration == generation,
                 onTap: () {
-                  setState(() {
-                    _focusGeneration = _focusGeneration == generation
-                        ? null
-                        : generation;
-                  });
+                  final next = _focusGeneration == generation
+                      ? null
+                      : generation;
                   Navigator.pop(context);
+                  _handleFilterChanged(next);
                 },
               ),
             const SizedBox(height: 8),
             OutlinedButton(
               onPressed: () {
-                setState(() => _focusGeneration = null);
                 Navigator.pop(context);
+                _handleFilterChanged(null);
               },
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.ink,
@@ -1234,7 +1297,11 @@ class _ZoomButton extends StatelessWidget {
 }
 
 class _PersonSummaryCard extends StatelessWidget {
-  const _PersonSummaryCard({required this.person, required this.onTap});
+  const _PersonSummaryCard({
+    super.key,
+    required this.person,
+    required this.onTap,
+  });
 
   final FamilyMember person;
   final VoidCallback onTap;

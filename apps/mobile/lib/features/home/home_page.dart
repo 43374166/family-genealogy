@@ -8,6 +8,7 @@ import '../../core/widgets/status_pill.dart';
 import '../../data/demo_data.dart';
 import '../../models/family_activity.dart';
 import '../gallery/gallery_page.dart';
+import '../profile/family_profile_sheet.dart';
 import '../requests/profile_edit_page.dart';
 import '../requests/requests_page.dart';
 import '../search/member_search_page.dart';
@@ -50,7 +51,9 @@ class HomePage extends StatelessWidget {
                       onOpenProfile: onOpenProfile,
                     ),
                     const SizedBox(height: 18),
-                    const _FamilyIdentity(),
+                    _FamilyIdentity(
+                      onTap: () => showFamilyProfileSheet(context),
+                    ),
                     const SizedBox(height: 22),
                     _SummaryCard(
                       onMembersTap: () =>
@@ -259,58 +262,72 @@ class _HomeTopBar extends StatelessWidget {
 }
 
 class _FamilyIdentity extends StatelessWidget {
-  const _FamilyIdentity();
+  const _FamilyIdentity({required this.onTap});
+
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 22),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Flexible(
-                child: Text(
-                  DemoData.family.name,
-                  style: AppTheme.serif(
-                    fontSize: 42,
-                    height: 1.08,
-                    letterSpacing: 2.2,
-                    fontWeight: FontWeight.w600,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Flexible(
+                  child: Text(
+                    DemoData.family.name,
+                    style: AppTheme.serif(
+                      fontSize: 42,
+                      height: 1.08,
+                      letterSpacing: 2.2,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              const Padding(
-                padding: EdgeInsets.only(top: 3),
-                child: _FamilySeal(),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Container(
-                width: 22,
-                height: 1,
-                color: AppColors.ink.withValues(alpha: 0.35),
-              ),
-              const SizedBox(width: 9),
-              Text(
-                DemoData.family.motto,
-                style: const TextStyle(
-                  fontSize: 14.5,
-                  height: 1.3,
-                  letterSpacing: 2.4,
-                  fontWeight: FontWeight.w400,
-                  color: AppColors.inkSoft,
+                const SizedBox(width: 10),
+                const Padding(
+                  padding: EdgeInsets.only(top: 3),
+                  child: _FamilySeal(),
                 ),
-              ),
-            ],
-          ),
-        ],
+                const Padding(
+                  padding: EdgeInsets.only(top: 15, left: 2),
+                  child: Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    size: 18,
+                    color: AppColors.inkMuted,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Container(
+                  width: 22,
+                  height: 1,
+                  color: AppColors.ink.withValues(alpha: 0.35),
+                ),
+                const SizedBox(width: 9),
+                Text(
+                  DemoData.family.motto,
+                  style: const TextStyle(
+                    fontSize: 14.5,
+                    height: 1.3,
+                    letterSpacing: 2.4,
+                    fontWeight: FontWeight.w400,
+                    color: AppColors.inkSoft,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1021,7 +1038,7 @@ class _SettingsSheet extends StatelessWidget {
           _SettingsRow(icon: Icons.info_outline_rounded, label: '关于家族族谱'),
           const SizedBox(height: 12),
           const Text(
-            'v0.2.0 · Flutter 原型',
+            'v0.3.0 · Flutter 原型',
             style: TextStyle(fontSize: 11, color: AppColors.inkMuted),
           ),
         ],
