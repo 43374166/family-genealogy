@@ -5,18 +5,71 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/ink_portrait.dart';
 import '../../core/widgets/soft_card.dart';
 import '../../core/widgets/status_pill.dart';
-import '../../data/demo_data.dart';
-import '../../models/family_activity.dart';
+import '../../models/family_member.dart';
+import '../../services/api_client.dart';
 import '../../services/api_models.dart';
 import '../../services/app_session.dart';
+import '../family/bind_person_page.dart';
 import '../gallery/gallery_page.dart';
+import '../person/api_person_detail_page.dart';
 import '../profile/family_profile_sheet.dart';
 import '../requests/edit_request_page.dart';
 import '../requests/requests_page.dart';
 import '../search/member_search_page.dart';
 import '../stories/stories_page.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
+  const HomePage({
+    super.key,
+    required this.onOpenTree,
+    required this.onOpenMessages,
+    required this.onOpenProfile,
+  });
+
+  final VoidCallback onOpenTree;
+  final VoidCallback onOpenMessages;
+  final VoidCallback onOpenProfile;
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  List<ApiActivity> _activities = const [];
+  bool _activityLoading = true;
+  String? _activityError;
+  String? _activityFamilyId;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final familyId = SessionScope.of(context).family?.id;
+    if (familyId == null || familyId == _activityFamilyId) return;
+    _activityFamilyId = familyId;
+    _loadActivity();
+  }
+
+  Future<void> _loadActivity() async {
+    setState(() {
+      _activityLoading = true;
+      _activityError = null;
+    });
+    try {
+      final items = await SessionScope.of(context).activity(limit: 20);
+      if (!mounted) return;
+      setState(() {
+        _activities = items;
+        _activityLoading = false;
+      });
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _activityError = error.message;
+        _activityLoading = false;
+      });
+    }
+  }
+
   Future<void> _startEditRequest(BuildContext context) async {
     final person = await Navigator.of(context).push<ApiPerson>(
       MaterialPageRoute<ApiPerson>(
@@ -36,17 +89,6 @@ class HomePage extends StatelessWidget {
       ).showSnackBar(const SnackBar(content: Text('资料申请已提交，等待审核')));
     }
   }
-
-  const HomePage({
-    super.key,
-    required this.onOpenTree,
-    required this.onOpenMessages,
-    required this.onOpenProfile,
-  });
-
-  final VoidCallback onOpenTree;
-  final VoidCallback onOpenMessages;
-  final VoidCallback onOpenProfile;
 
   @override
   Widget build(BuildContext context) {
@@ -69,8 +111,8 @@ class HomePage extends StatelessWidget {
                   children: [
                     SizedBox(height: topInset + 8),
                     _HomeTopBar(
-                      onOpenMessages: onOpenMessages,
-                      onOpenProfile: onOpenProfile,
+                      onOpenMessages: widget.onOpenMessages,
+                      onOpenProfile: widget.onOpenProfile,
                     ),
                     const SizedBox(height: 18),
                     _FamilyIdentity(
@@ -81,16 +123,23 @@ class HomePage extends StatelessWidget {
                       onMembersTap: () =>
                           _open(context, const MemberSearchPage()),
                       onBranchesTap: () => _showBranches(context),
-                      onProfileTap: () => _open(
-                        context,
-                        const RequestsPage(
-                          initialFilter: RequestStatus.pending,
-                        ),
-                      ),
+                      onProfileTap: () {
+                        final linkedId = SessionScope.of(
+                          context,
+                        ).membership?.personId;
+                        if (linkedId == null) {
+                          _open(context, const BindPersonPage());
+                        } else {
+                          _open(
+                            context,
+                            ApiPersonDetailPage(personId: linkedId),
+                          );
+                        }
+                      },
                     ),
                     const SizedBox(height: 14),
                     _QuickActions(
-                      onTree: onOpenTree,
+                      onTree: widget.onOpenTree,
                       onSearch: () => _open(context, const MemberSearchPage()),
                       onEditProfile: () => _startEditRequest(context),
                       onRequests: () => _open(context, const RequestsPage()),
@@ -99,8 +148,20 @@ class HomePage extends StatelessWidget {
                     ),
                     const SizedBox(height: 14),
                     _LatestActivity(
-                      onMore: () => _open(context, const _ActivityFeedPage()),
-                      onMessages: onOpenMessages,
+                      activities: _activities,
+                      loading: _activityLoading,
+                      error: _activityError,
+                      onRetry: _loadActivity,
+                      onMore: () => _open(
+                        context,
+                        _ActivityFeedPage(
+                          activities: _activities,
+                          loading: _activityLoading,
+                          error: _activityError,
+                          onRetry: _loadActivity,
+                        ),
+                      ),
+                      onMessages: widget.onOpenMessages,
                     ),
                     const SizedBox(height: 26),
                     const _HomeFooter(),
@@ -202,12 +263,18 @@ class _HomeTopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final session = SessionScope.of(context);
-    const fallback = DemoData.currentUser;
-    final member = session.memberById(session.membership?.personId) ?? fallback;
-    final displayName = session.user?.displayName ?? fallback.name;
-    final role =
-        session.roleLabel ??
-        (fallback.tags.isEmpty ? '普通成员' : fallback.tags.first);
+    final displayName = session.user?.displayName ?? '家族成员';
+    final member =
+        session.memberById(session.membership?.personId) ??
+        FamilyMember(
+          id: session.user?.id ?? 'account',
+          familyId: session.family?.id ?? '',
+          branchId: '',
+          name: displayName,
+          gender: Gender.male,
+          generation: 0,
+        );
+    final role = session.roleLabel ?? '普通成员';
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
@@ -264,7 +331,6 @@ class _HomeTopBar extends StatelessWidget {
           RoundIconButton(
             icon: Icons.notifications_none_rounded,
             onTap: onOpenMessages,
-            badge: true,
             tooltip: '消息通知',
             backgroundColor: Colors.white.withValues(alpha: 0.68),
           ),
@@ -296,8 +362,8 @@ class _FamilyIdentity extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final family = SessionScope.of(context).family;
-    final familyName = family?.name ?? DemoData.family.name;
-    final motto = family?.motto ?? DemoData.family.motto;
+    final familyName = family?.name ?? '当前家族';
+    final motto = (family?.motto ?? '').isEmpty ? '敦亲睦族 · 薪火相传' : family!.motto;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 22),
       child: GestureDetector(
@@ -427,7 +493,16 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final family = SessionScope.of(context).family;
+    final session = SessionScope.of(context);
+    final family = session.family;
+    final linkedId = session.membership?.personId;
+    final linkedPerson = linkedId == null
+        ? null
+        : session.tree?.persons
+              .where((person) => person.id == linkedId)
+              .firstOrNull;
+    final generationLabel =
+        linkedPerson?.generationLabel ?? (linkedId == null ? '未绑定' : '已绑定');
     return SoftCard(
       margin: const EdgeInsets.symmetric(horizontal: 18),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 17),
@@ -441,7 +516,8 @@ class _SummaryCard extends StatelessWidget {
                 color: AppColors.primary,
                 softColor: AppColors.primarySoft,
                 label: '家族成员',
-                value: '${family?.memberCount ?? DemoData.family.memberCount}',
+                value:
+                    '${SessionScope.of(context).tree?.persons.length ?? family?.memberCount ?? 0}',
                 onTap: onMembersTap,
               ),
             ),
@@ -452,18 +528,18 @@ class _SummaryCard extends StatelessWidget {
                 color: AppColors.jade,
                 softColor: AppColors.jadeSoft,
                 label: '家支',
-                value: '${family?.branchCount ?? DemoData.family.branchCount}',
+                value: '${family?.branchCount ?? 0}',
                 onTap: onBranchesTap,
               ),
             ),
             const _SummaryDivider(),
             Expanded(
               child: _SummaryItem(
-                icon: Icons.assignment_turned_in_outlined,
+                icon: Icons.person_pin_circle_outlined,
                 color: AppColors.gold,
                 softColor: AppColors.goldSoft,
-                label: '我的资料',
-                value: '待审核',
+                label: '我的世代',
+                value: generationLabel,
                 isStatus: true,
                 onTap: onProfileTap,
               ),
@@ -775,14 +851,25 @@ class _QuickActionCell extends StatelessWidget {
 }
 
 class _LatestActivity extends StatelessWidget {
-  const _LatestActivity({required this.onMore, required this.onMessages});
+  const _LatestActivity({
+    required this.activities,
+    required this.loading,
+    required this.error,
+    required this.onRetry,
+    required this.onMore,
+    required this.onMessages,
+  });
 
+  final List<ApiActivity> activities;
+  final bool loading;
+  final String? error;
+  final VoidCallback onRetry;
   final VoidCallback onMore;
   final VoidCallback onMessages;
 
   @override
   Widget build(BuildContext context) {
-    final items = DemoData.activities.take(3).toList();
+    final items = activities.take(3).toList();
     return SoftCard(
       margin: const EdgeInsets.symmetric(horizontal: 18),
       padding: const EdgeInsets.fromLTRB(18, 17, 18, 8),
@@ -791,13 +878,42 @@ class _LatestActivity extends StatelessWidget {
         children: [
           SectionTitle(title: '最新动态', actionLabel: '查看更多', onAction: onMore),
           const SizedBox(height: 9),
-          for (var i = 0; i < items.length; i++) ...[
-            _ActivityRow(
-              activity: items[i],
-              onTap: items[i].kind == ActivityKind.request ? onMessages : null,
-            ),
-            if (i != items.length - 1) const Divider(height: 1, indent: 46),
-          ],
+          if (loading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          else if (error != null)
+            InkWell(
+              onTap: onRetry,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: Text(
+                  '动态加载失败，点击重试',
+                  style: TextStyle(fontSize: 11, color: AppColors.inkMuted),
+                ),
+              ),
+            )
+          else if (items.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Text(
+                '家族还没有新动态',
+                style: TextStyle(fontSize: 11, color: AppColors.inkMuted),
+              ),
+            )
+          else
+            for (var i = 0; i < items.length; i++) ...[
+              _ActivityRow(
+                activity: items[i],
+                onTap: items[i].needsReview ? onMessages : null,
+              ),
+              if (i != items.length - 1) const Divider(height: 1, indent: 46),
+            ],
         ],
       ),
     );
@@ -807,7 +923,7 @@ class _LatestActivity extends StatelessWidget {
 class _ActivityRow extends StatelessWidget {
   const _ActivityRow({required this.activity, this.onTap});
 
-  final FamilyActivity activity;
+  final ApiActivity activity;
   final VoidCallback? onTap;
 
   @override
@@ -820,7 +936,7 @@ class _ActivityRow extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _ActivityLeading(activity: activity),
+            _ActivityLeading(kind: activity.kind),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
@@ -833,7 +949,7 @@ class _ActivityRow extends StatelessWidget {
                           TextSpan(
                             children: [
                               TextSpan(
-                                text: activity.actor,
+                                text: activity.actorName,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w600,
                                   color: AppColors.ink,
@@ -841,7 +957,7 @@ class _ActivityRow extends StatelessWidget {
                               ),
                               const TextSpan(text: '  '),
                               TextSpan(
-                                text: activity.action,
+                                text: activity.summary,
                                 style: const TextStyle(
                                   color: AppColors.inkSoft,
                                 ),
@@ -868,21 +984,24 @@ class _ActivityRow extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      Expanded(
-                        child: Text(
-                          activity.detail,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 10.5,
-                            height: 1.3,
-                            color: AppColors.inkMuted,
+                      if (activity.detail.isNotEmpty)
+                        Expanded(
+                          child: Text(
+                            activity.detail,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 10.5,
+                              height: 1.3,
+                              color: AppColors.inkMuted,
+                            ),
                           ),
-                        ),
-                      ),
+                        )
+                      else
+                        const Spacer(),
                       const SizedBox(width: 6),
                       Text(
-                        activity.time,
+                        _relativeActivityTime(activity.createdAt),
                         style: const TextStyle(
                           fontSize: 9.5,
                           height: 1.2,
@@ -903,46 +1022,68 @@ class _ActivityRow extends StatelessWidget {
 }
 
 class _ActivityLeading extends StatelessWidget {
-  const _ActivityLeading({required this.activity});
+  const _ActivityLeading({required this.kind});
 
-  final FamilyActivity activity;
+  final String kind;
 
   @override
   Widget build(BuildContext context) {
-    if (activity.kind == ActivityKind.backup) {
-      return Container(
-        width: 36,
-        height: 36,
-        decoration: const BoxDecoration(
-          color: AppColors.jadeSoft,
-          shape: BoxShape.circle,
-        ),
-        child: const Icon(
-          Icons.cloud_done_rounded,
-          size: 19,
-          color: AppColors.jade,
-        ),
-      );
-    }
-    if (activity.kind == ActivityKind.joined) {
-      return Container(
-        width: 36,
-        height: 36,
-        decoration: const BoxDecoration(
-          color: AppColors.roseSoft,
-          shape: BoxShape.circle,
-        ),
-        child: const Icon(
-          Icons.person_add_alt_1_rounded,
-          size: 19,
-          color: AppColors.rose,
-        ),
-      );
-    }
-    final person =
-        DemoData.memberById('person_zhang_san') ?? DemoData.currentUser;
-    return InkPortrait(person: person, width: 36, height: 36, circle: true);
+    final (icon, color, background) = switch (kind) {
+      'person' => (
+        Icons.person_outline_rounded,
+        AppColors.primary,
+        AppColors.primarySoft,
+      ),
+      'request' => (
+        Icons.assignment_turned_in_outlined,
+        AppColors.gold,
+        AppColors.goldSoft,
+      ),
+      'member' => (
+        Icons.person_add_alt_1_rounded,
+        AppColors.rose,
+        AppColors.roseSoft,
+      ),
+      'family' => (
+        Icons.account_tree_outlined,
+        AppColors.jade,
+        AppColors.jadeSoft,
+      ),
+      _ => (Icons.history_rounded, AppColors.inkMuted, AppColors.slateSoft),
+    };
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(color: background, shape: BoxShape.circle),
+      child: Icon(icon, size: 19, color: color),
+    );
   }
+}
+
+String _relativeActivityTime(DateTime? value) {
+  if (value == null) return '';
+  final now = DateTime.now();
+  var local = value.toLocal();
+  // Older rows were written by MySQL with the server's wall clock but are
+  // parsed by the API as UTC. Treat a far-future value as that wall clock so
+  // the home feed does not label old activity as "刚刚".
+  if (local.isAfter(now.add(const Duration(minutes: 10)))) {
+    local = DateTime(
+      value.year,
+      value.month,
+      value.day,
+      value.hour,
+      value.minute,
+    );
+  }
+  final diff = now.difference(local);
+  if (diff.inMinutes < 1) return '刚刚';
+  if (diff.inHours < 1) return '${diff.inMinutes} 分钟前';
+  if (diff.inDays < 1) return '${diff.inHours} 小时前';
+  if (diff.inDays < 7) return '${diff.inDays} 天前';
+  final month = local.month.toString().padLeft(2, '0');
+  final day = local.day.toString().padLeft(2, '0');
+  return '$month-$day';
 }
 
 class _HomeFooter extends StatelessWidget {
@@ -995,67 +1136,149 @@ class _HomeFooter extends StatelessWidget {
   }
 }
 
-class _BranchSheet extends StatelessWidget {
+class _BranchSheet extends StatefulWidget {
+  @override
+  State<_BranchSheet> createState() => _BranchSheetState();
+}
+
+class _BranchSheetState extends State<_BranchSheet> {
+  List<ApiBranch> _branches = const [];
+  bool _loading = true;
+  bool _started = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final branches = await SessionScope.of(context).branches();
+      if (!mounted) return;
+      setState(() {
+        _branches = branches;
+        _loading = false;
+      });
+    } on ApiException {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final family = SessionScope.of(context).family;
+    final session = SessionScope.of(context);
+    final persons = session.tree?.persons ?? const <ApiPerson>[];
+    final counts = <String, int>{};
+    var unassigned = 0;
+    for (final person in persons) {
+      final branchId = person.branchId;
+      if (branchId == null || branchId.isEmpty) {
+        unassigned++;
+      } else {
+        counts[branchId] = (counts[branchId] ?? 0) + 1;
+      }
+    }
     return _SheetFrame(
       title: '家支概览',
-      subtitle:
-          '全族共 ${family?.branchCount ?? DemoData.family.branchCount} 个家支 · '
-          '${family?.memberCount ?? DemoData.family.memberCount} 位成员',
-      child: Column(
-        children: [
-          for (var i = 0; i < DemoData.branches.length; i++) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: Row(
-                children: [
-                  Container(
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      color: i == 0 ? AppColors.jadeSoft : AppColors.slateSoft,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      Icons.account_tree_outlined,
-                      size: 18,
-                      color: i == 0 ? AppColors.jade : AppColors.slate,
+      subtitle: '全族共 ${_branches.length} 个家支 · ${persons.length} 位成员',
+      child: _loading
+          ? const Padding(
+              padding: EdgeInsets.symmetric(vertical: 28),
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            )
+          : Column(
+              children: [
+                for (var i = 0; i < _branches.length; i++) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            color: i == 0
+                                ? AppColors.jadeSoft
+                                : AppColors.slateSoft,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            Icons.account_tree_outlined,
+                            size: 18,
+                            color: i == 0 ? AppColors.jade : AppColors.slate,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _branches[i].name,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.ink,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          '${counts[_branches[i].id] ?? 0} 人',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.inkMuted,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      DemoData.branches[i].name,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.ink,
-                      ),
+                  if (i != _branches.length - 1)
+                    const Divider(height: 1, indent: 46),
+                ],
+                if (unassigned > 0) ...[
+                  const Divider(height: 1, indent: 46),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            color: AppColors.slateSoft,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.help_outline_rounded,
+                            size: 18,
+                            color: AppColors.slate,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            '未分家支',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.ink,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          '$unassigned 人',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.inkMuted,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  Text(
-                    '${DemoData.branches[i].count} 人',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.inkMuted,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  const Icon(
-                    Icons.chevron_right_rounded,
-                    size: 18,
-                    color: AppColors.inkMuted,
                   ),
                 ],
-              ),
+              ],
             ),
-            if (i != DemoData.branches.length - 1)
-              const Divider(height: 1, indent: 46),
-          ],
-        ],
-      ),
     );
   }
 }
@@ -1076,7 +1299,7 @@ class _SettingsSheet extends StatelessWidget {
           _SettingsRow(icon: Icons.info_outline_rounded, label: '关于家族族谱'),
           const SizedBox(height: 12),
           const Text(
-            'v0.24.0 · Flutter + MySQL',
+            'v0.25.0 · Flutter + MySQL',
             style: TextStyle(fontSize: 11, color: AppColors.inkMuted),
           ),
         ],
@@ -1178,7 +1401,17 @@ class _SettingsRow extends StatelessWidget {
 }
 
 class _ActivityFeedPage extends StatelessWidget {
-  const _ActivityFeedPage();
+  const _ActivityFeedPage({
+    required this.activities,
+    required this.loading,
+    required this.error,
+    required this.onRetry,
+  });
+
+  final List<ApiActivity> activities;
+  final bool loading;
+  final String? error;
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -1189,23 +1422,49 @@ class _ActivityFeedPage extends StatelessWidget {
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
         ),
       ),
-      body: ListView.separated(
-        padding: EdgeInsets.fromLTRB(
-          18,
-          8,
-          18,
-          MediaQuery.paddingOf(context).bottom + 22,
-        ),
-        itemCount: DemoData.activities.length,
-        separatorBuilder: (_, _) => const SizedBox(height: 10),
-        itemBuilder: (context, index) {
-          final activity = DemoData.activities[index];
-          return SoftCard(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-            child: _ActivityRow(activity: activity),
-          );
-        },
-      ),
+      body: loading
+          ? const Center(child: CircularProgressIndicator(strokeWidth: 2.5))
+          : error != null
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '动态加载失败',
+                    style: TextStyle(fontSize: 12, color: AppColors.inkSoft),
+                  ),
+                  const SizedBox(height: 10),
+                  OutlinedButton(onPressed: onRetry, child: const Text('重试')),
+                ],
+              ),
+            )
+          : activities.isEmpty
+          ? const Center(
+              child: Text(
+                '家族还没有新动态',
+                style: TextStyle(fontSize: 12, color: AppColors.inkMuted),
+              ),
+            )
+          : ListView.separated(
+              padding: EdgeInsets.fromLTRB(
+                18,
+                8,
+                18,
+                MediaQuery.paddingOf(context).bottom + 22,
+              ),
+              itemCount: activities.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                final activity = activities[index];
+                return SoftCard(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 13,
+                  ),
+                  child: _ActivityRow(activity: activity),
+                );
+              },
+            ),
     );
   }
 }

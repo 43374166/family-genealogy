@@ -122,6 +122,17 @@ type Photo struct {
 	CreatedAt        time.Time  `json:"createdAt"`
 }
 
+type Activity struct {
+	ID          int64     `json:"id"`
+	Action      string    `json:"action"`
+	ActorName   string    `json:"actorName"`
+	Summary     string    `json:"summary"`
+	Detail      string    `json:"detail"`
+	Kind        string    `json:"kind"`
+	NeedsReview bool      `json:"needsReview"`
+	CreatedAt   time.Time `json:"createdAt"`
+}
+
 type Tree struct {
 	FamilyID    string            `json:"familyId"`
 	Version     int               `json:"version"`

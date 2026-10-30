@@ -17,7 +17,7 @@ import '../person/api_person_detail_page.dart';
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
 
-  static const _version = '0.24.0';
+  static const _version = '0.25.0';
 
   Future<void> _pickTextSize(BuildContext context) async {
     final settings = SettingsScope.of(context);

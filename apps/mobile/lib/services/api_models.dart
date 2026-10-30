@@ -302,6 +302,48 @@ class ApiBranchAdminGrantPage {
   }
 }
 
+class ApiActivity {
+  const ApiActivity({
+    required this.id,
+    required this.actorName,
+    required this.summary,
+    required this.detail,
+    required this.kind,
+    required this.needsReview,
+    required this.createdAt,
+  });
+
+  final int id;
+  final String actorName;
+  final String summary;
+  final String detail;
+  final String kind;
+  final bool needsReview;
+  final DateTime? createdAt;
+
+  factory ApiActivity.fromJson(Map<String, dynamic> json) {
+    return ApiActivity(
+      id: _int(json['id']),
+      actorName: _string(json['actorName']),
+      summary: _string(json['summary']),
+      detail: _string(json['detail']),
+      kind: _string(json['kind']),
+      needsReview: json['needsReview'] == true,
+      createdAt: DateTime.tryParse(_string(json['createdAt'])),
+    );
+  }
+}
+
+class ApiActivityPage {
+  const ApiActivityPage({required this.items});
+
+  final List<ApiActivity> items;
+
+  factory ApiActivityPage.fromJson(Map<String, dynamic> json) {
+    return ApiActivityPage(items: _list(json['items'], ApiActivity.fromJson));
+  }
+}
+
 class ApiPhoto {
   const ApiPhoto({
     required this.id,

@@ -435,6 +435,14 @@ class AppSession extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<List<ApiActivity>> activity({int limit = 20}) async {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    final page = await _api.activity(limit: limit);
+    return page.items;
+  }
+
   Future<List<ApiPhoto>> photos({String? personId}) async {
     if (!isAuthenticated) {
       throw const ApiException('登录状态已失效，请重新登录');

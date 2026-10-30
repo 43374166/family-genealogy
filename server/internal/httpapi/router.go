@@ -79,6 +79,7 @@ func NewRouter(deps Dependencies) http.Handler {
 			r.Post("/import-packages", api.createImportPackage)
 			r.Post("/import-packages/preview", api.previewImportPackage)
 			r.Post("/import-packages/import", api.importPackage)
+			r.Get("/activity", api.listActivity)
 			r.Get("/photos", api.listPhotos)
 			r.Post("/photos", api.uploadPhoto)
 			r.Get("/photos/{photoID}/content", api.photoContent)

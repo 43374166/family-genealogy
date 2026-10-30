@@ -71,6 +71,11 @@ class ApiClient {
     return ApiMe.fromJson(body);
   }
 
+  Future<ApiActivityPage> activity({int limit = 20}) async {
+    final body = await _request('GET', '/api/v1/activity?limit=$limit');
+    return ApiActivityPage.fromJson(body);
+  }
+
   Future<ApiPhotoPage> photos({String? personId}) async {
     final params = <String, String>{
       if (personId != null && personId.isNotEmpty) 'personId': personId,
