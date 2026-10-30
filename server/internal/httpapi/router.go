@@ -3,8 +3,10 @@ package httpapi
 import (
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/43374166/family-genealogy/server/internal/buildinfo"
+	smssvc "github.com/43374166/family-genealogy/server/internal/sms"
 	"github.com/43374166/family-genealogy/server/internal/store"
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
@@ -14,6 +16,8 @@ type Dependencies struct {
 	DB     Pinger
 	Store  *store.Store
 	Logger *slog.Logger
+	SMS    smssvc.Sender
+	OTP    store.OTPPolicy
 }
 
 func NewRouter(deps Dependencies) http.Handler {
@@ -32,7 +36,22 @@ func NewRouter(deps Dependencies) http.Handler {
 	router.Get("/healthz", health.live)
 	router.Get("/readyz", health.ready)
 
-	api := &API{Store: deps.Store, Logger: logger}
+	smsSender := deps.SMS
+	if smsSender == nil {
+		smsSender = smssvc.Disabled{}
+	}
+	otpPolicy := deps.OTP
+	if otpPolicy.Pepper == "" {
+		otpPolicy = store.OTPPolicy{
+			Cooldown: 60 * time.Second, MaxPerHour: 5,
+			TTL: 5 * time.Minute, MaxAttempts: 5,
+			Pepper: "development-only-otp-pepper",
+		}
+	}
+	api := &API{
+		Store: deps.Store, Logger: logger,
+		SMS: smsSender, OTP: otpPolicy,
+	}
 	router.Route("/api/v1", func(r chi.Router) {
 		r.Get("/meta", func(w http.ResponseWriter, _ *http.Request) {
 			writeJSON(w, http.StatusOK, buildinfo.Current())
@@ -44,9 +63,13 @@ func NewRouter(deps Dependencies) http.Handler {
 
 		r.Post("/auth/login", api.login)
 		r.Post("/auth/register", api.register)
+		r.Post("/auth/sms/send", api.sendLoginCode)
+		r.Post("/auth/sms/login", api.loginWithPhone)
 		r.Group(func(r chi.Router) {
 			r.Use(api.authenticate)
 			r.Post("/auth/logout", api.logout)
+			r.Post("/auth/phone/send", api.sendBindCode)
+			r.Post("/auth/phone/bind", api.bindPhone)
 			r.Get("/invites", api.listInvites)
 			r.Post("/invites", api.createInvite)
 			r.Get("/accounts", api.listFamilyAccounts)

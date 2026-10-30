@@ -16,7 +16,9 @@
 已经实现的 API：
 
 - `POST /api/v1/auth/login`（Argon2id 密码校验，返回 30 天不透明会话令牌）
-- `POST /api/v1/auth/register`（邀请码注册，手机号字段可选预留）
+- `POST /api/v1/auth/register`（邀请码注册，手机号字段可选）
+- `POST /api/v1/auth/sms/send`、`POST /api/v1/auth/sms/login`（手机号验证码登录）
+- `POST /api/v1/auth/phone/send`、`POST /api/v1/auth/phone/bind`（登录后绑定手机号）
 - `POST /api/v1/auth/logout`
 - `GET /api/v1/invites`、`POST /api/v1/invites`（仅 owner；可邀请普通成员或指定家支的分支管理员）
 - `POST /api/v1/bind-requests`（成员申请绑定族谱人物）
@@ -46,8 +48,9 @@
 `/auth/register`，绑定人物走 `bind-requests`，通过后写入 `family_memberships.person_id`。
 分支管理员由 owner 通过邀请码指定家支，或在“分支管理员”页任命已有成员；默认含
 下级支。管理员只能审核本支范围内的写入/绑定申请和直接写入；撤销最后一个授权后自动
-降为普通成员。邀请码创建仍仅限 owner。照片上传、二维码邀请、刷新令牌和登录限流
-尚未实现。
+降为普通成员。邀请码创建仍仅限 owner。手机号验证码登录已接入华为云消息&短信
+（MSGSMS）SDK；需要配置应用 app_key/app_secret、通道号、签名和验证码模板，未配置时
+返回 `SMS_UNAVAILABLE`。照片上传、刷新令牌和登录限流尚未实现。
 契约见 [`packages/api-contracts/openapi.yaml`](../packages/api-contracts/openapi.yaml)，
 数据模型说明见 [`docs/backend/data-model.md`](../docs/backend/data-model.md)。
 

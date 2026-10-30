@@ -13,6 +13,7 @@ import (
 
 	"github.com/43374166/family-genealogy/server/internal/auth"
 	"github.com/43374166/family-genealogy/server/internal/model"
+	smssvc "github.com/43374166/family-genealogy/server/internal/sms"
 	"github.com/43374166/family-genealogy/server/internal/store"
 )
 
@@ -21,6 +22,8 @@ const sessionLifetime = 30 * 24 * time.Hour
 type API struct {
 	Store  *store.Store
 	Logger *slog.Logger
+	SMS    smssvc.Sender
+	OTP    store.OTPPolicy
 }
 
 type principalKey struct{}

@@ -6,12 +6,14 @@ class ApiUser {
     required this.displayName,
     required this.loginName,
     required this.status,
+    this.phone = '',
   });
 
   final String id;
   final String displayName;
   final String loginName;
   final String status;
+  final String phone;
 
   factory ApiUser.fromJson(Map<String, dynamic> json) {
     return ApiUser(
@@ -19,6 +21,7 @@ class ApiUser {
       displayName: _string(json['displayName']),
       loginName: _string(json['loginName']),
       status: _string(json['status']),
+      phone: _string(json['phone']),
     );
   }
 }

@@ -16,6 +16,14 @@ type Config struct {
 	DBMaxConns      int32
 	ShutdownTimeout time.Duration
 	LogLevel        slog.Level
+	SMSProvider     string
+	SMSAppKey       string
+	SMSAppSecret    string
+	SMSFrom         string
+	SMSTemplateID   string
+	SMSSignature    string
+	SMSRegion       string
+	OTPPepper       string
 }
 
 func Load() (Config, error) {
@@ -26,6 +34,14 @@ func Load() (Config, error) {
 		DBMaxConns:      10,
 		ShutdownTimeout: 15 * time.Second,
 		LogLevel:        slog.LevelInfo,
+		SMSProvider:     envOrDefault("SMS_PROVIDER", "disabled"),
+		SMSAppKey:       strings.TrimSpace(os.Getenv("HUAWEI_SMS_APP_KEY")),
+		SMSAppSecret:    strings.TrimSpace(os.Getenv("HUAWEI_SMS_APP_SECRET")),
+		SMSFrom:         strings.TrimSpace(os.Getenv("HUAWEI_SMS_FROM")),
+		SMSTemplateID:   strings.TrimSpace(os.Getenv("HUAWEI_SMS_TEMPLATE_ID")),
+		SMSSignature:    strings.TrimSpace(os.Getenv("HUAWEI_SMS_SIGNATURE")),
+		SMSRegion:       envOrDefault("HUAWEI_SMS_REGION", "cn-north-4"),
+		OTPPepper:       strings.TrimSpace(os.Getenv("OTP_PEPPER")),
 	}
 
 	switch cfg.Environment {
@@ -52,6 +68,15 @@ func Load() (Config, error) {
 			return Config{}, fmt.Errorf("SHUTDOWN_TIMEOUT must be between 1s and 5m")
 		}
 		cfg.ShutdownTimeout = d
+	}
+
+	switch cfg.SMSProvider {
+	case "disabled", "mock", "huawei":
+	default:
+		return Config{}, fmt.Errorf("SMS_PROVIDER must be disabled, mock, or huawei")
+	}
+	if cfg.OTPPepper == "" {
+		cfg.OTPPepper = "development-only-otp-pepper"
 	}
 
 	if raw := strings.TrimSpace(os.Getenv("LOG_LEVEL")); raw != "" {

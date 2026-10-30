@@ -13,9 +13,15 @@ import '../family/bind_person_page.dart';
 import '../family/binding_requests_page.dart';
 import '../family/branch_admins_page.dart';
 import '../family/invite_page.dart';
+import '../family/phone_bind_page.dart';
 import '../person/api_person_detail_page.dart';
 import '../requests/requests_page.dart';
 import 'family_profile_sheet.dart';
+
+String _maskPhone(String phone) {
+  if (phone.length < 8) return phone;
+  return '${phone.substring(0, 3)}****${phone.substring(phone.length - 4)}';
+}
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -168,6 +174,21 @@ class ProfilePage extends StatelessWidget {
                               ),
                             );
                           },
+                        ),
+                        const Divider(height: 1, indent: 47),
+                        _MenuRow(
+                          icon: Icons.phone_iphone_rounded,
+                          color: AppColors.teal,
+                          background: AppColors.tealSoft,
+                          label: '手机号',
+                          trailing: (session.user?.phone ?? '').isEmpty
+                              ? '未绑定'
+                              : _maskPhone(session.user!.phone),
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const PhoneBindPage(),
+                            ),
+                          ),
                         ),
                         const Divider(height: 1, indent: 47),
                         _MenuRow(
@@ -342,7 +363,7 @@ class ProfilePage extends StatelessWidget {
             ),
             const SizedBox(height: 5),
             const Text(
-              '家族族谱 · Flutter + MySQL v0.12.0',
+              '家族族谱 · Flutter + MySQL v0.13.0',
               style: TextStyle(fontSize: 10.5, color: AppColors.inkMuted),
             ),
             const SizedBox(height: 16),

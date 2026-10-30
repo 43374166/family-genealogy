@@ -227,7 +227,7 @@ func (s *Store) RegisterWithInvite(
 
 	user := &model.User{
 		ID: userID, LoginName: input.LoginName,
-		DisplayName: input.DisplayName, Status: "active",
+		DisplayName: input.DisplayName, Phone: input.Phone, Status: "active",
 	}
 	family, err := s.GetFamily(ctx, familyID)
 	if err != nil {

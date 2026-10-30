@@ -4,6 +4,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/api_client.dart';
 import '../../services/app_session.dart';
+import 'phone_login_page.dart';
 import 'register_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -239,23 +240,48 @@ class _LoginPageState extends State<LoginPage> {
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(height: 5),
-                                  Center(
-                                    child: TextButton(
-                                      onPressed: () {
-                                        Navigator.of(context).push(
-                                          MaterialPageRoute<void>(
-                                            builder: (_) => RegisterPage(
-                                              serverUrl: _serverUrl.text.trim(),
+                                  const SizedBox(height: 3),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      TextButton(
+                                        onPressed: () {
+                                          Navigator.of(context).push(
+                                            MaterialPageRoute<void>(
+                                              builder: (_) => PhoneLoginPage(
+                                                serverUrl: _serverUrl.text
+                                                    .trim(),
+                                              ),
                                             ),
-                                          ),
-                                        );
-                                      },
-                                      child: const Text(
-                                        '有邀请码？注册加入家族',
-                                        style: TextStyle(fontSize: 11),
+                                          );
+                                        },
+                                        child: const Text(
+                                          '手机号验证码登录',
+                                          style: TextStyle(fontSize: 11),
+                                        ),
                                       ),
-                                    ),
+                                      Container(
+                                        width: 1,
+                                        height: 12,
+                                        color: AppColors.line,
+                                      ),
+                                      TextButton(
+                                        onPressed: () {
+                                          Navigator.of(context).push(
+                                            MaterialPageRoute<void>(
+                                              builder: (_) => RegisterPage(
+                                                serverUrl: _serverUrl.text
+                                                    .trim(),
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                        child: const Text(
+                                          '有邀请码？注册',
+                                          style: TextStyle(fontSize: 11),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),

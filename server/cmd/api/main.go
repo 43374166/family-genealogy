@@ -16,6 +16,7 @@ import (
 	"github.com/43374166/family-genealogy/server/internal/config"
 	"github.com/43374166/family-genealogy/server/internal/database"
 	"github.com/43374166/family-genealogy/server/internal/httpapi"
+	"github.com/43374166/family-genealogy/server/internal/sms"
 	"github.com/43374166/family-genealogy/server/internal/store"
 )
 
@@ -51,10 +52,31 @@ func run() error {
 	}
 	defer db.Close()
 
+	var smsSender sms.Sender = sms.Disabled{}
+	switch cfg.SMSProvider {
+	case "mock":
+		smsSender = sms.Mock{Logger: logger}
+	case "huawei":
+		huawei, err := sms.NewHuawei(
+			cfg.SMSAppKey, cfg.SMSAppSecret, cfg.SMSFrom,
+			cfg.SMSTemplateID, cfg.SMSSignature, cfg.SMSRegion,
+		)
+		if err != nil {
+			return fmt.Errorf("configure Huawei SMS: %w", err)
+		}
+		smsSender = huawei
+	}
+
 	router := httpapi.NewRouter(httpapi.Dependencies{
 		DB:     db,
 		Store:  store.New(db.DB),
 		Logger: logger,
+		SMS:    smsSender,
+		OTP: store.OTPPolicy{
+			Cooldown: 60 * time.Second, MaxPerHour: 5,
+			TTL: 5 * time.Minute, MaxAttempts: 5,
+			Pepper: cfg.OTPPepper,
+		},
 	})
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,

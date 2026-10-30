@@ -169,6 +169,55 @@ class AppSession extends ChangeNotifier {
     }
   }
 
+  Future<void> sendLoginCode(String phone) {
+    return _api.sendLoginCode(phone);
+  }
+
+  Future<bool> loginWithPhone({
+    required String serverUrl,
+    required String phone,
+    required String code,
+  }) async {
+    _loading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final session = await _api.loginWithPhone(
+        serverUrl: serverUrl,
+        phone: phone,
+        code: code,
+      );
+      _session = session;
+      _family = session.family;
+      final me = await _api.me();
+      _membership = me.membership;
+      _family = me.family;
+      await refreshTree();
+      return true;
+    } on ApiException catch (error) {
+      _error = error.message;
+      return false;
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> sendBindCode(String phone) {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    return _api.sendBindCode(phone);
+  }
+
+  Future<void> bindPhone({required String phone, required String code}) async {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    await _api.bindPhone(phone: phone, code: code);
+    await refreshMe();
+  }
+
   Future<void> refreshMe() async {
     if (!isAuthenticated) return;
     try {

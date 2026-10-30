@@ -57,6 +57,42 @@ class ApiClient {
     return session;
   }
 
+  Future<void> sendLoginCode(String phone) async {
+    await _request(
+      'POST',
+      '/api/v1/auth/sms/send',
+      authenticated: false,
+      body: {'phone': phone},
+    );
+  }
+
+  Future<ApiSession> loginWithPhone({
+    required String serverUrl,
+    required String phone,
+    required String code,
+  }) async {
+    _baseUrl = normalizeBaseUrl(serverUrl);
+    final body = await _request(
+      'POST',
+      '/api/v1/auth/sms/login',
+      authenticated: false,
+      body: {'phone': phone, 'code': code},
+    );
+    return ApiSession.fromJson(body);
+  }
+
+  Future<void> sendBindCode(String phone) async {
+    await _request('POST', '/api/v1/auth/phone/send', body: {'phone': phone});
+  }
+
+  Future<void> bindPhone({required String phone, required String code}) async {
+    await _request(
+      'POST',
+      '/api/v1/auth/phone/bind',
+      body: {'phone': phone, 'code': code},
+    );
+  }
+
   Future<ApiRegistration> register({
     required String serverUrl,
     required String loginName,

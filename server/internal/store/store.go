@@ -37,11 +37,11 @@ func (s *Store) GetLoginUser(ctx context.Context, loginName string) (*model.User
 	var user model.User
 	var hash string
 	err := s.db.QueryRowContext(ctx, `
-		SELECT id, login_name, display_name, status, password_hash
+		SELECT id, login_name, display_name, COALESCE(phone, ''), status, password_hash
 		FROM users
 		WHERE login_name = ?
 		LIMIT 1`, loginName,
-	).Scan(&user.ID, &user.LoginName, &user.DisplayName, &user.Status, &hash)
+	).Scan(&user.ID, &user.LoginName, &user.DisplayName, &user.Phone, &user.Status, &hash)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, "", ErrNotFound
 	}
@@ -49,6 +49,23 @@ func (s *Store) GetLoginUser(ctx context.Context, loginName string) (*model.User
 		return nil, "", fmt.Errorf("lookup login user: %w", err)
 	}
 	return &user, hash, nil
+}
+
+func (s *Store) GetActiveUser(ctx context.Context, userID string) (*model.User, error) {
+	var user model.User
+	err := s.db.QueryRowContext(ctx, `
+		SELECT id, login_name, display_name, COALESCE(phone, ''), status
+		FROM users
+		WHERE id = ? AND status = 'active'
+		LIMIT 1`, userID,
+	).Scan(&user.ID, &user.LoginName, &user.DisplayName, &user.Phone, &user.Status)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("lookup active user: %w", err)
+	}
+	return &user, nil
 }
 
 func (s *Store) GetPrimaryMembership(ctx context.Context, userID string) (*model.Membership, *model.Family, error) {
@@ -125,7 +142,7 @@ func (s *Store) GetPrincipal(ctx context.Context, tokenHash []byte) (*Principal,
 	var principal Principal
 	err := s.db.QueryRowContext(ctx, `
 		SELECT s.id, s.expires_at,
-		       u.id, u.login_name, u.display_name, u.status
+		       u.id, u.login_name, u.display_name, COALESCE(u.phone, ''), u.status
 		FROM user_sessions s
 		JOIN users u ON u.id = s.user_id
 		WHERE s.token_hash = ?
@@ -135,7 +152,7 @@ func (s *Store) GetPrincipal(ctx context.Context, tokenHash []byte) (*Principal,
 	).Scan(
 		&principal.SessionID, &principal.ExpiresAt,
 		&principal.User.ID, &principal.User.LoginName,
-		&principal.User.DisplayName, &principal.User.Status,
+		&principal.User.DisplayName, &principal.User.Phone, &principal.User.Status,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrUnauthorized
