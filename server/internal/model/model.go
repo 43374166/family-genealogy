@@ -109,16 +109,17 @@ type SpouseEdge struct {
 }
 
 type Photo struct {
-	ID               string    `json:"id"`
-	FamilyID         string    `json:"familyId"`
-	PersonID         *string   `json:"personId,omitempty"`
-	PersonName       string    `json:"personName,omitempty"`
-	UploadedByUserID string    `json:"uploadedByUserId"`
-	UploadedByName   string    `json:"uploadedByName"`
-	ContentType      string    `json:"contentType"`
-	SizeBytes        int64     `json:"sizeBytes"`
-	Caption          string    `json:"caption"`
-	CreatedAt        time.Time `json:"createdAt"`
+	ID               string     `json:"id"`
+	FamilyID         string     `json:"familyId"`
+	PersonID         *string    `json:"personId,omitempty"`
+	PersonName       string     `json:"personName,omitempty"`
+	UploadedByUserID string     `json:"uploadedByUserId"`
+	UploadedByName   string     `json:"uploadedByName"`
+	ContentType      string     `json:"contentType"`
+	SizeBytes        int64      `json:"sizeBytes"`
+	Caption          string     `json:"caption"`
+	TakenAt          *time.Time `json:"takenAt,omitempty"`
+	CreatedAt        time.Time  `json:"createdAt"`
 }
 
 type Tree struct {

@@ -8,6 +8,7 @@ import '../../core/widgets/status_pill.dart';
 import '../../services/api_client.dart';
 import '../../services/api_models.dart';
 import '../../services/app_session.dart';
+import '../gallery/gallery_page.dart';
 import 'edit_person_page.dart';
 
 /// API-backed person profile. The summary received from a search result can be
@@ -189,6 +190,8 @@ class _ApiPersonDetailPageState extends State<ApiPersonDetailPage> {
                       children: [
                         _ProfileHero(person: person),
                         const SizedBox(height: 14),
+                        _PersonPhotos(person: person),
+                        const SizedBox(height: 14),
                         _Relationships(
                           person: person,
                           canWrite: session.canWrite,
@@ -256,6 +259,136 @@ class _ApiPersonDetailPageState extends State<ApiPersonDetailPage> {
             ),
         ],
       ),
+    );
+  }
+}
+
+class _PersonPhotos extends StatefulWidget {
+  const _PersonPhotos({required this.person});
+
+  final ApiPerson person;
+
+  @override
+  State<_PersonPhotos> createState() => _PersonPhotosState();
+}
+
+class _PersonPhotosState extends State<_PersonPhotos> {
+  List<ApiPhoto> _photos = const [];
+  bool _loading = true;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final photos = await SessionScope.of(
+        context,
+      ).photos(personId: widget.person.id);
+      if (!mounted) return;
+      setState(() {
+        _photos = photos;
+        _loading = false;
+      });
+    } on ApiException {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  void _openGallery() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => GalleryPage(
+          personId: widget.person.id,
+          personName: widget.person.fullName,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final session = SessionScope.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionTitle(
+          title: '照片',
+          actionLabel: _photos.isEmpty ? '添加' : '全部',
+          onAction: _openGallery,
+        ),
+        const SizedBox(height: 8),
+        if (_loading)
+          const SizedBox(
+            height: 72,
+            child: Center(
+              child: SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          )
+        else if (_photos.isEmpty)
+          InkWell(
+            onTap: _openGallery,
+            borderRadius: BorderRadius.circular(13),
+            child: Container(
+              height: 70,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.add_photo_alternate_outlined, size: 18),
+                  SizedBox(width: 7),
+                  Text(
+                    '还没有照片，添加一张',
+                    style: TextStyle(fontSize: 11, color: AppColors.inkMuted),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          SizedBox(
+            height: 88,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: _photos.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 7),
+              itemBuilder: (context, index) {
+                final photo = _photos[index];
+                return GestureDetector(
+                  onTap: _openGallery,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(11),
+                    child: Image.network(
+                      session.photoUrl(photo.contentPath),
+                      headers: session.photoHeaders,
+                      width: 112,
+                      height: 88,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => Container(
+                        width: 112,
+                        color: AppColors.slateSoft,
+                        child: const Icon(
+                          Icons.broken_image_outlined,
+                          color: AppColors.inkMuted,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+      ],
     );
   }
 }

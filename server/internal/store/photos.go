@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/43374166/family-genealogy/server/internal/model"
 	"github.com/google/uuid"
@@ -20,6 +21,7 @@ func (s *Store) CreatePhoto(
 	familyID, uploadedByUserID, personID, objectKey, contentType string,
 	size int64,
 	caption string,
+	takenAt *time.Time,
 ) (*model.Photo, error) {
 	if personID != "" {
 		var exists int
@@ -38,10 +40,10 @@ func (s *Store) CreatePhoto(
 	if _, err := s.db.ExecContext(ctx, `
 		INSERT INTO family_photos
 			(id, family_id, person_id, uploaded_by_user_id, object_key,
-			 content_type, size_bytes, caption)
-		VALUES (?, ?, NULLIF(?, ''), ?, ?, ?, ?, ?)`,
+			 content_type, size_bytes, caption, taken_at)
+		VALUES (?, ?, NULLIF(?, ''), ?, ?, ?, ?, ?, ?)`,
 		photoID, familyID, personID, uploadedByUserID, objectKey,
-		contentType, size, caption,
+		contentType, size, caption, takenAt,
 	); err != nil {
 		return nil, fmt.Errorf("insert photo: %w", err)
 	}
@@ -55,7 +57,7 @@ func (s *Store) ListPhotos(ctx context.Context, familyID string, filter PhotoFil
 	query := `
 		SELECT ph.id, ph.family_id, ph.person_id, COALESCE(p.full_name, ''),
 		       ph.uploaded_by_user_id, u.display_name, ph.content_type,
-		       ph.size_bytes, ph.caption, ph.created_at
+		       ph.size_bytes, ph.caption, ph.taken_at, ph.created_at
 		FROM family_photos ph
 		JOIN users u ON u.id = ph.uploaded_by_user_id
 		LEFT JOIN persons p ON p.id = ph.person_id AND p.family_id = ph.family_id
@@ -90,7 +92,7 @@ func (s *Store) GetPhoto(ctx context.Context, familyID, photoID string) (*model.
 	row := s.db.QueryRowContext(ctx, `
 		SELECT ph.id, ph.family_id, ph.person_id, COALESCE(p.full_name, ''),
 		       ph.uploaded_by_user_id, u.display_name, ph.content_type,
-		       ph.size_bytes, ph.caption, ph.created_at
+		       ph.size_bytes, ph.caption, ph.taken_at, ph.created_at
 		FROM family_photos ph
 		JOIN users u ON u.id = ph.uploaded_by_user_id
 		LEFT JOIN persons p ON p.id = ph.person_id AND p.family_id = ph.family_id
@@ -102,10 +104,11 @@ func (s *Store) GetPhoto(ctx context.Context, familyID, photoID string) (*model.
 func scanPhoto(scanner rowScanner) (*model.Photo, error) {
 	var item model.Photo
 	var personID sql.NullString
+	var takenAt sql.NullTime
 	if err := scanner.Scan(
 		&item.ID, &item.FamilyID, &personID, &item.PersonName,
 		&item.UploadedByUserID, &item.UploadedByName, &item.ContentType,
-		&item.SizeBytes, &item.Caption, &item.CreatedAt,
+		&item.SizeBytes, &item.Caption, &takenAt, &item.CreatedAt,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
@@ -116,7 +119,64 @@ func scanPhoto(scanner rowScanner) (*model.Photo, error) {
 		value := personID.String
 		item.PersonID = &value
 	}
+	if takenAt.Valid {
+		value := takenAt.Time
+		item.TakenAt = &value
+	}
 	return &item, nil
+}
+
+func (s *Store) UpdatePhotoMetadata(
+	ctx context.Context,
+	familyID, photoID, actorUserID, personID, caption string,
+	takenAt *time.Time,
+) (*model.Photo, error) {
+	var uploaderID string
+	if err := s.db.QueryRowContext(ctx, `
+		SELECT uploaded_by_user_id FROM family_photos
+		WHERE family_id = ? AND id = ? AND status = 'active'`,
+		familyID, photoID,
+	).Scan(&uploaderID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("lookup photo editor: %w", err)
+	}
+	if uploaderID != actorUserID {
+		var role string
+		if err := s.db.QueryRowContext(ctx, `
+			SELECT role FROM family_memberships
+			WHERE family_id = ? AND user_id = ? AND status = 'active'`,
+			familyID, actorUserID,
+		).Scan(&role); err != nil {
+			return nil, ErrForbidden
+		}
+		if role != "owner" && role != "admin" {
+			return nil, ErrForbidden
+		}
+	}
+	if personID != "" {
+		var exists int
+		if err := s.db.QueryRowContext(ctx, `
+			SELECT COUNT(*) FROM persons
+			WHERE family_id = ? AND id = ? AND status = 'active'`,
+			familyID, personID,
+		).Scan(&exists); err != nil {
+			return nil, fmt.Errorf("check photo metadata person: %w", err)
+		}
+		if exists == 0 {
+			return nil, ErrNotFound
+		}
+	}
+	if _, err := s.db.ExecContext(ctx, `
+		UPDATE family_photos
+		SET person_id = NULLIF(?, ''), caption = ?, taken_at = ?
+		WHERE family_id = ? AND id = ? AND status = 'active'`,
+		personID, caption, takenAt, familyID, photoID,
+	); err != nil {
+		return nil, fmt.Errorf("update photo metadata: %w", err)
+	}
+	return s.GetPhoto(ctx, familyID, photoID)
 }
 
 func (s *Store) PhotoObjectKey(ctx context.Context, familyID, photoID string) (string, error) {

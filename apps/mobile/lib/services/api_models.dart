@@ -312,6 +312,7 @@ class ApiPhoto {
     required this.caption,
     required this.contentPath,
     required this.createdAt,
+    required this.takenAt,
   });
 
   final String id;
@@ -322,6 +323,7 @@ class ApiPhoto {
   final String caption;
   final String contentPath;
   final DateTime? createdAt;
+  final DateTime? takenAt;
 
   factory ApiPhoto.fromJson(Map<String, dynamic> json) {
     return ApiPhoto(
@@ -333,6 +335,7 @@ class ApiPhoto {
       caption: _string(json['caption']),
       contentPath: _string(json['contentPath']),
       createdAt: DateTime.tryParse(_string(json['createdAt'])),
+      takenAt: DateTime.tryParse(_string(json['takenAt'])),
     );
   }
 }

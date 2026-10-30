@@ -1,9 +1,11 @@
 package httpapi
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/43374166/family-genealogy/server/internal/model"
 	"github.com/43374166/family-genealogy/server/internal/store"
@@ -41,7 +43,8 @@ func photoResponse(item model.Photo) map[string]any {
 		"uploadedByUserId": item.UploadedByUserID,
 		"uploadedByName":   item.UploadedByName,
 		"contentType":      item.ContentType, "sizeBytes": item.SizeBytes,
-		"caption": item.Caption, "createdAt": item.CreatedAt,
+		"caption": item.Caption, "takenAt": item.TakenAt,
+		"createdAt":   item.CreatedAt,
 		"contentPath": "/api/v1/photos/" + item.ID + "/content",
 	}
 }
@@ -95,6 +98,11 @@ func (a *API) uploadPhoto(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, r, http.StatusUnprocessableEntity, "CAPTION_TOO_LONG", "caption is too long")
 		return
 	}
+	takenAt, err := parsePhotoDate(r.FormValue("takenAt"))
+	if err != nil {
+		writeProblem(w, r, http.StatusUnprocessableEntity, "INVALID_TAKEN_AT", "takenAt must be YYYY-MM-DD")
+		return
+	}
 	objectKey := a.Photos.ObjectKey(
 		principal.Family.ID, uuid.NewString()+extension,
 	)
@@ -105,7 +113,7 @@ func (a *API) uploadPhoto(w http.ResponseWriter, r *http.Request) {
 	}
 	photo, err := a.Store.CreatePhoto(
 		r.Context(), principal.Family.ID, principal.User.ID, personID,
-		objectKey, contentType, int64(len(data)), caption,
+		objectKey, contentType, int64(len(data)), caption, takenAt,
 	)
 	if err != nil {
 		_ = a.Photos.Delete(r.Context(), objectKey)
@@ -150,6 +158,60 @@ func (a *API) photoContent(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "private, max-age=3600")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	_, _ = io.Copy(w, body)
+}
+
+type updatePhotoPayload struct {
+	PersonID string `json:"personId"`
+	Caption  string `json:"caption"`
+	TakenAt  string `json:"takenAt"`
+}
+
+func (a *API) updatePhoto(w http.ResponseWriter, r *http.Request) {
+	principal, ok := principalFrom(r.Context())
+	if !ok {
+		writeProblem(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "not authenticated")
+		return
+	}
+	var payload updatePhotoPayload
+	if err := decodeJSON(w, r, &payload); err != nil {
+		writeProblem(w, r, http.StatusBadRequest, "INVALID_JSON", err.Error())
+		return
+	}
+	payload.PersonID = strings.TrimSpace(payload.PersonID)
+	payload.Caption = strings.TrimSpace(payload.Caption)
+	if len([]rune(payload.Caption)) > 500 {
+		writeProblem(w, r, http.StatusUnprocessableEntity, "CAPTION_TOO_LONG", "caption is too long")
+		return
+	}
+	takenAt, err := parsePhotoDate(payload.TakenAt)
+	if err != nil {
+		writeProblem(w, r, http.StatusUnprocessableEntity, "INVALID_TAKEN_AT", "takenAt must be YYYY-MM-DD")
+		return
+	}
+	photo, err := a.Store.UpdatePhotoMetadata(
+		r.Context(), principal.Family.ID, chi.URLParam(r, "photoID"),
+		principal.User.ID, payload.PersonID, payload.Caption, takenAt,
+	)
+	if err != nil {
+		a.writeAccessError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, photoResponse(*photo))
+}
+
+func parsePhotoDate(value string) (*time.Time, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil, nil
+	}
+	for _, layout := range []string{"2006-01-02", time.RFC3339} {
+		parsed, err := time.Parse(layout, value)
+		if err == nil {
+			utc := parsed.UTC()
+			return &utc, nil
+		}
+	}
+	return nil, fmt.Errorf("invalid photo date %q", value)
 }
 
 func (a *API) deletePhoto(w http.ResponseWriter, r *http.Request) {

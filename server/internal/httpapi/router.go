@@ -82,6 +82,7 @@ func NewRouter(deps Dependencies) http.Handler {
 			r.Get("/photos", api.listPhotos)
 			r.Post("/photos", api.uploadPhoto)
 			r.Get("/photos/{photoID}/content", api.photoContent)
+			r.Patch("/photos/{photoID}", api.updatePhoto)
 			r.Delete("/photos/{photoID}", api.deletePhoto)
 			r.Get("/invites", api.listInvites)
 			r.Post("/invites", api.createInvite)

@@ -448,6 +448,7 @@ class AppSession extends ChangeNotifier {
     required String filename,
     String personId = '',
     String caption = '',
+    DateTime? takenAt,
   }) {
     if (!isAuthenticated) {
       throw const ApiException('登录状态已失效，请重新登录');
@@ -458,6 +459,24 @@ class AppSession extends ChangeNotifier {
       contentType: '',
       personId: personId,
       caption: caption,
+      takenAt: takenAt,
+    );
+  }
+
+  Future<ApiPhoto> updatePhoto({
+    required String photoId,
+    String personId = '',
+    String caption = '',
+    DateTime? takenAt,
+  }) {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    return _api.updatePhoto(
+      photoId: photoId,
+      personId: personId,
+      caption: caption,
+      takenAt: takenAt,
     );
   }
 

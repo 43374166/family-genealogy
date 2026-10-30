@@ -6,9 +6,13 @@ import '../../core/widgets/app_page_header.dart';
 import '../../services/api_client.dart';
 import '../../services/api_models.dart';
 import '../../services/app_session.dart';
+import '../search/member_search_page.dart';
 
 class GalleryPage extends StatefulWidget {
-  const GalleryPage({super.key});
+  const GalleryPage({super.key, this.personId, this.personName});
+
+  final String? personId;
+  final String? personName;
 
   @override
   State<GalleryPage> createState() => _GalleryPageState();
@@ -35,7 +39,9 @@ class _GalleryPageState extends State<GalleryPage> {
       _error = null;
     });
     try {
-      final photos = await SessionScope.of(context).photos();
+      final photos = await SessionScope.of(
+        context,
+      ).photos(personId: widget.personId);
       if (!mounted) return;
       setState(() {
         _photos = photos;
@@ -58,12 +64,20 @@ class _GalleryPageState extends State<GalleryPage> {
       imageQuality: 82,
     );
     if (picked == null || !mounted) return;
+    final meta = await _askMeta(
+      initialPersonId: widget.personId,
+      initialPersonName: widget.personName,
+    );
+    if (meta == null || !mounted) return;
     setState(() => _uploading = true);
     try {
       final bytes = await picked.readAsBytes();
       final photo = await session.uploadPhoto(
         bytes: bytes,
         filename: picked.name,
+        personId: meta.personId,
+        caption: meta.caption,
+        takenAt: meta.takenAt,
       );
       if (!mounted) return;
       setState(() {
@@ -88,11 +102,130 @@ class _GalleryPageState extends State<GalleryPage> {
     }
   }
 
+  Future<_PhotoMeta?> _askMeta({
+    String? initialPersonId,
+    String? initialPersonName,
+    ApiPhoto? photo,
+  }) async {
+    var personId = initialPersonId ?? photo?.personId ?? '';
+    var personName = initialPersonName ?? photo?.personName ?? '';
+    var takenAt = photo?.takenAt;
+    final caption = TextEditingController(text: photo?.caption ?? '');
+    final result = await showDialog<_PhotoMeta>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(photo == null ? '照片信息' : '编辑照片信息'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final person = await Navigator.of(context).push<ApiPerson>(
+                      MaterialPageRoute<ApiPerson>(
+                        builder: (_) =>
+                            const MemberSearchPage(selectMode: true),
+                      ),
+                    );
+                    if (person != null) {
+                      setDialogState(() {
+                        personId = person.id;
+                        personName = person.fullName;
+                      });
+                    }
+                  },
+                  icon: const Icon(Icons.person_pin_circle_outlined, size: 18),
+                  label: Text(
+                    personId.isEmpty ? '关联人物（可选）' : personName,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (personId.isNotEmpty)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () => setDialogState(() {
+                        personId = '';
+                        personName = '';
+                      }),
+                      child: const Text('清除人物'),
+                    ),
+                  ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: caption,
+                  maxLength: 500,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: '说明（可选）',
+                    hintText: '例如：1980 年春节全家福',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final now = DateTime.now();
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: takenAt ?? now,
+                      firstDate: DateTime(1800),
+                      lastDate: now,
+                      helpText: '选择拍摄时间',
+                    );
+                    if (picked != null) {
+                      setDialogState(() => takenAt = picked);
+                    }
+                  },
+                  icon: const Icon(Icons.calendar_month_outlined, size: 18),
+                  label: Text(
+                    takenAt == null ? '拍摄时间（可选）' : _dateLabel(takenAt!),
+                  ),
+                ),
+                if (takenAt != null)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () => setDialogState(() => takenAt = null),
+                      child: const Text('清除时间'),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(
+                _PhotoMeta(
+                  personId: personId,
+                  personName: personName,
+                  caption: caption.text.trim(),
+                  takenAt: takenAt,
+                ),
+              ),
+              child: Text(photo == null ? '上传' : '保存'),
+            ),
+          ],
+        ),
+      ),
+    );
+    caption.dispose();
+    return result;
+  }
+
   Future<void> _showPhoto(ApiPhoto photo) async {
     final session = SessionScope.of(context);
+    final canManage =
+        photo.uploadedByUserId == session.user?.id || session.canWrite;
     await showDialog<void>(
       context: context,
-      builder: (context) => Dialog(
+      builder: (dialogContext) => Dialog(
         backgroundColor: Colors.black,
         insetPadding: const EdgeInsets.all(8),
         child: Column(
@@ -114,23 +247,87 @@ class _GalleryPageState extends State<GalleryPage> {
                 ),
               ),
             ),
-            if (photo.caption.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: Text(
-                  photo.caption,
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
-                ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (photo.personName.isNotEmpty)
+                    Text(
+                      photo.personName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  if (photo.caption.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        photo.caption,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  if (photo.takenAt != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        '拍摄于 ${_dateLabel(photo.takenAt!)}',
+                        style: const TextStyle(
+                          color: Colors.white54,
+                          fontSize: 10.5,
+                        ),
+                      ),
+                    ),
+                  Text(
+                    '由 ${photo.uploadedByName} 上传',
+                    style: const TextStyle(color: Colors.white38, fontSize: 10),
+                  ),
+                ],
               ),
+            ),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: () => Navigator.of(dialogContext).pop(),
                   child: const Text('关闭'),
                 ),
-                if (photo.uploadedByUserId == session.user?.id ||
-                    session.canWrite)
+                if (canManage)
+                  TextButton(
+                    onPressed: () async {
+                      Navigator.of(dialogContext).pop();
+                      final meta = await _askMeta(photo: photo);
+                      if (meta == null || !mounted) return;
+                      try {
+                        final updated = await session.updatePhoto(
+                          photoId: photo.id,
+                          personId: meta.personId,
+                          caption: meta.caption,
+                          takenAt: meta.takenAt,
+                        );
+                        if (!mounted) return;
+                        setState(() {
+                          _photos = _photos
+                              .map(
+                                (item) => item.id == photo.id ? updated : item,
+                              )
+                              .toList(growable: false);
+                        });
+                      } on ApiException catch (error) {
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(
+                          context,
+                        ).showSnackBar(SnackBar(content: Text(error.message)));
+                      }
+                    },
+                    child: const Text('编辑'),
+                  ),
+                if (canManage)
                   TextButton(
                     onPressed: () async {
                       final confirmed = await showDialog<bool>(
@@ -159,9 +356,11 @@ class _GalleryPageState extends State<GalleryPage> {
                               .where((item) => item.id != photo.id)
                               .toList(growable: false);
                         });
-                        if (context.mounted) Navigator.of(context).pop();
+                        if (dialogContext.mounted) {
+                          Navigator.of(dialogContext).pop();
+                        }
                       } on ApiException catch (error) {
-                        if (!context.mounted) return;
+                        if (!mounted) return;
                         ScaffoldMessenger.of(
                           context,
                         ).showSnackBar(SnackBar(content: Text(error.message)));
@@ -183,6 +382,9 @@ class _GalleryPageState extends State<GalleryPage> {
   @override
   Widget build(BuildContext context) {
     final session = SessionScope.of(context);
+    final title = widget.personName == null
+        ? '家族相册'
+        : '${widget.personName}的照片';
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -190,7 +392,7 @@ class _GalleryPageState extends State<GalleryPage> {
         child: Column(
           children: [
             AppPageHeader(
-              title: '家族相册',
+              title: title,
               subtitle: _loading ? '正在加载照片' : '${_photos.length} 张照片',
               actions: [
                 HeaderIconButton(
@@ -277,17 +479,49 @@ class _GalleryPageState extends State<GalleryPage> {
                                   onTap: () => _showPhoto(photo),
                                   child: ClipRRect(
                                     borderRadius: BorderRadius.circular(9),
-                                    child: Image.network(
-                                      session.photoUrl(photo.contentPath),
-                                      headers: session.photoHeaders,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, _, _) => Container(
-                                        color: AppColors.slateSoft,
-                                        child: const Icon(
-                                          Icons.broken_image_outlined,
-                                          color: AppColors.inkMuted,
+                                    child: Stack(
+                                      fit: StackFit.expand,
+                                      children: [
+                                        Image.network(
+                                          session.photoUrl(photo.contentPath),
+                                          headers: session.photoHeaders,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, _, _) => Container(
+                                            color: AppColors.slateSoft,
+                                            child: const Icon(
+                                              Icons.broken_image_outlined,
+                                              color: AppColors.inkMuted,
+                                            ),
+                                          ),
                                         ),
-                                      ),
+                                        if (photo.personName.isNotEmpty)
+                                          Positioned(
+                                            left: 4,
+                                            right: 4,
+                                            bottom: 4,
+                                            child: Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 5,
+                                                    vertical: 2,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: Colors.black54,
+                                                borderRadius:
+                                                    BorderRadius.circular(4),
+                                              ),
+                                              child: Text(
+                                                photo.personName,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 8.5,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
                                     ),
                                   ),
                                 );
@@ -301,4 +535,24 @@ class _GalleryPageState extends State<GalleryPage> {
       ),
     );
   }
+}
+
+class _PhotoMeta {
+  const _PhotoMeta({
+    required this.personId,
+    required this.personName,
+    required this.caption,
+    required this.takenAt,
+  });
+
+  final String personId;
+  final String personName;
+  final String caption;
+  final DateTime? takenAt;
+}
+
+String _dateLabel(DateTime date) {
+  final month = date.month.toString().padLeft(2, '0');
+  final day = date.day.toString().padLeft(2, '0');
+  return '${date.year}-$month-$day';
 }

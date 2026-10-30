@@ -88,6 +88,7 @@ class ApiClient {
     required String contentType,
     String personId = '',
     String caption = '',
+    DateTime? takenAt,
   }) async {
     final uri = Uri.parse('$_baseUrl/api/v1/photos');
     final request = http.MultipartRequest('POST', uri);
@@ -96,6 +97,9 @@ class ApiClient {
     }
     request.fields['personId'] = personId;
     request.fields['caption'] = caption;
+    if (takenAt != null) {
+      request.fields['takenAt'] = _dateOnly(takenAt);
+    }
     request.files.add(
       http.MultipartFile.fromBytes('file', bytes, filename: filename),
     );
@@ -123,6 +127,24 @@ class ApiClient {
     return ApiPhoto.fromJson(map);
   }
 
+  Future<ApiPhoto> updatePhoto({
+    required String photoId,
+    String personId = '',
+    String caption = '',
+    DateTime? takenAt,
+  }) async {
+    final body = await _request(
+      'PATCH',
+      '/api/v1/photos/${Uri.encodeComponent(photoId)}',
+      body: {
+        'personId': personId,
+        'caption': caption,
+        'takenAt': takenAt == null ? '' : _dateOnly(takenAt),
+      },
+    );
+    return ApiPhoto.fromJson(body);
+  }
+
   Future<void> deletePhoto(String photoId) async {
     await _request('DELETE', '/api/v1/photos/${Uri.encodeComponent(photoId)}');
   }
@@ -132,6 +154,12 @@ class ApiClient {
   Map<String, String> get authHeaders => {
     if (_token != null) 'Authorization': 'Bearer $_token',
   };
+
+  static String _dateOnly(DateTime value) {
+    final month = value.month.toString().padLeft(2, '0');
+    final day = value.day.toString().padLeft(2, '0');
+    return '${value.year}-$month-$day';
+  }
 
   Future<ApiImportPackage> createImportPackage(String rootPersonId) async {
     final body = await _request(
