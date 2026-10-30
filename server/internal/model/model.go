@@ -53,6 +53,7 @@ type PersonSummary struct {
 	Gender          string       `json:"gender"`
 	GenerationNo    int          `json:"generationNo"`
 	GenerationLabel string       `json:"generationLabel"`
+	BirthOrder      *int         `json:"birthOrder,omitempty"`
 	BranchID        *string      `json:"branchId,omitempty"`
 	Birth           *PartialDate `json:"birth,omitempty"`
 	Death           *PartialDate `json:"death,omitempty"`

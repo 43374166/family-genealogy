@@ -45,7 +45,7 @@ func TestLoginAndReadOnlyAPI(t *testing.T) {
 		} `json:"family"`
 	}
 	response := doJSON(t, http.DefaultClient, http.MethodPost, server.URL+"/api/v1/auth/login",
-		`{"loginName":"zhangsan","password":"Demo#2026"}`, "")
+		`{"loginName":"linglei","password":"Demo#2026"}`, "")
 	if response.StatusCode != http.StatusOK {
 		t.Fatalf("login status = %d, body = %s", response.StatusCode, readBody(t, response))
 	}
@@ -71,13 +71,13 @@ func TestLoginAndReadOnlyAPI(t *testing.T) {
 	if tree.FamilyID != login.Family.ID {
 		t.Fatalf("tree familyId = %q, want %q", tree.FamilyID, login.Family.ID)
 	}
-	if len(tree.Persons) != 15 || len(tree.ParentChild) != 18 || len(tree.Spouses) != 3 {
+	if len(tree.Persons) != 22 || len(tree.ParentChild) != 28 || len(tree.Spouses) != 5 {
 		t.Fatalf("unexpected tree shape: persons=%d parentChild=%d spouses=%d",
 			len(tree.Persons), len(tree.ParentChild), len(tree.Spouses))
 	}
 
 	response = doJSON(t, http.DefaultClient, http.MethodGet,
-		server.URL+"/api/v1/persons?q=%E5%BC%A0%E4%B8%80", "", login.Token)
+		server.URL+"/api/v1/persons?q=%E5%87%8C%E7%A3%8A", "", login.Token)
 	if response.StatusCode != http.StatusOK {
 		t.Fatalf("persons status = %d", response.StatusCode)
 	}
@@ -87,12 +87,12 @@ func TestLoginAndReadOnlyAPI(t *testing.T) {
 		} `json:"items"`
 	}
 	decodeBody(t, response, &page)
-	if len(page.Items) == 0 || page.Items[0].FullName != "张一" {
+	if len(page.Items) == 0 || page.Items[0].FullName != "凌磊" {
 		t.Fatalf("unexpected person search result: %+v", page.Items)
 	}
 
 	response = doJSON(t, http.DefaultClient, http.MethodGet,
-		server.URL+"/api/v1/persons/50000000-0000-4000-8000-000000000005", "", login.Token)
+		server.URL+"/api/v1/persons/50000000-0000-4000-8000-000000000106", "", login.Token)
 	if response.StatusCode != http.StatusOK {
 		t.Fatalf("person detail status = %d", response.StatusCode)
 	}
@@ -103,7 +103,7 @@ func TestLoginAndReadOnlyAPI(t *testing.T) {
 		Spouses  []any  `json:"spouses"`
 	}
 	decodeBody(t, response, &person)
-	if person.FullName != "张一" || len(person.Parents) != 2 || len(person.Children) != 5 || len(person.Spouses) != 1 {
+	if person.FullName != "凌成铭" || len(person.Parents) != 2 || len(person.Children) != 3 || len(person.Spouses) != 1 {
 		t.Fatalf("unexpected person detail: %+v", person)
 	}
 

@@ -203,6 +203,7 @@ class _HomeTopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final session = SessionScope.of(context);
     const fallback = DemoData.currentUser;
+    final member = session.memberById(session.membership?.personId) ?? fallback;
     final displayName = session.user?.displayName ?? fallback.name;
     final role =
         session.roleLabel ??
@@ -217,7 +218,7 @@ class _HomeTopBar extends StatelessWidget {
             child: Row(
               children: [
                 InkPortrait(
-                  person: fallback,
+                  person: member,
                   width: 44,
                   height: 44,
                   circle: true,
@@ -952,7 +953,7 @@ class _HomeFooter extends StatelessWidget {
     final family = SessionScope.of(context).family;
     final subtitle = family != null && family.region.isNotEmpty
         ? family.region
-        : DemoData.family.subtitle;
+        : '家族族谱 · 传承家风';
     return Column(
       children: [
         Row(
@@ -1075,7 +1076,7 @@ class _SettingsSheet extends StatelessWidget {
           _SettingsRow(icon: Icons.info_outline_rounded, label: '关于家族族谱'),
           const SizedBox(height: 12),
           const Text(
-            'v0.6.1 · Flutter + MySQL',
+            'v0.7.0 · Flutter + MySQL',
             style: TextStyle(fontSize: 11, color: AppColors.inkMuted),
           ),
         ],

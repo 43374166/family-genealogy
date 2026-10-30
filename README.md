@@ -12,7 +12,7 @@ MySQL schema、迁移、登录/会话、家庭/族谱树/人物只读 API；Flut
 > **产品不绑定任何姓氏。** APP 品牌名为「家族族谱」；首页的大标题、成员、家支和故事
 > 都属于当前登录账户所在的家庭空间。代码里的家庭资料统一来自
 > `FamilyProfile` / `DemoData.family`，接入登录后由账户所属家庭决定。
-> 当前演示账号碰巧属于「张氏家族」，仅作为一条示例数据。
+> 当前登录家庭为「凌氏家族」，产品品牌不绑定任何姓氏。
 
 **GitHub：** https://github.com/43374166/family-genealogy
 **Gitee：** https://gitee.com/fish-ling/family-genealogy

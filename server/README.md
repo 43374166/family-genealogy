@@ -43,7 +43,7 @@ $env:DATABASE_DSN = "familytree:change-me@tcp(127.0.0.1:3306)/familytree?parseTi
 go run ./cmd/seed
 ```
 
-演示账号：`zhangsan / Demo#2026`（仅本地演示，上线前必须移除或改密）。
+演示账号：`linglei / Demo#2026`（仅本地演示，上线前必须移除或改密）。
 种子会写入 1 个家族、5 个家支、15 个人物和对应关系；重复执行会检测并跳过。
 
 ## 本地运行（不用 Docker）

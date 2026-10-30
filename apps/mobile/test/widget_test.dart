@@ -19,7 +19,7 @@ void main() {
     expect(find.text('登录名'), findsOneWidget);
     expect(find.text('密码'), findsOneWidget);
     expect(find.text('服务器地址（本地开发）'), findsOneWidget);
-    expect(find.text('演示账号：zhangsan / Demo#2026'), findsOneWidget);
+    expect(find.text('演示账号：linglei / Demo#2026'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

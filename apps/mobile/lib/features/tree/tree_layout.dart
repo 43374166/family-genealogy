@@ -154,6 +154,8 @@ class _TreeLayoutBuilder {
   }
 
   int _comparePeople(ApiPerson a, ApiPerson b) {
+    final birthOrder = (a.birthOrder ?? 999).compareTo(b.birthOrder ?? 999);
+    if (birthOrder != 0) return birthOrder;
     final branch = (a.branchId ?? '').compareTo(b.branchId ?? '');
     if (branch != 0) return branch;
     final birth = (a.birth?.year ?? 9999).compareTo(b.birth?.year ?? 9999);

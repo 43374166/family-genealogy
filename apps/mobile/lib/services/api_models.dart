@@ -135,6 +135,7 @@ class ApiPerson {
     required this.gender,
     required this.generationNo,
     required this.generationLabel,
+    this.birthOrder,
     this.branchId,
     this.birth,
     this.death,
@@ -160,6 +161,7 @@ class ApiPerson {
   final String gender;
   final int generationNo;
   final String generationLabel;
+  final int? birthOrder;
   final String? branchId;
   final ApiPartialDate? birth;
   final ApiPartialDate? death;
@@ -189,6 +191,7 @@ class ApiPerson {
       gender: _string(json['gender'], fallback: 'unknown'),
       generationNo: _int(json['generationNo']),
       generationLabel: _string(json['generationLabel']),
+      birthOrder: _nullableInt(json['birthOrder']),
       branchId: _nullableString(json['branchId']),
       birth: _date(json['birth']),
       death: _date(json['death']),

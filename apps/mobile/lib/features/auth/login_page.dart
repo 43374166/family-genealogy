@@ -14,7 +14,7 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
-  final _loginName = TextEditingController(text: 'zhangsan');
+  final _loginName = TextEditingController(text: 'linglei');
   final _password = TextEditingController();
   final _serverUrl = TextEditingController(text: ApiConfig.defaultBaseUrl);
   bool _obscure = true;
@@ -231,7 +231,7 @@ class _LoginPageState extends State<LoginPage> {
                                   const SizedBox(height: 14),
                                   const Center(
                                     child: Text(
-                                      '演示账号：zhangsan / Demo#2026',
+                                      '演示账号：linglei / Demo#2026',
                                       style: TextStyle(
                                         fontSize: 10,
                                         color: AppColors.inkMuted,

@@ -163,6 +163,14 @@ class AppSession extends ChangeNotifier {
     return null;
   }
 
+  FamilyMember? memberById(String? personId) {
+    if (personId == null) return null;
+    for (final person in treeMembers) {
+      if (person.id == personId) return person;
+    }
+    return null;
+  }
+
   @override
   void dispose() {
     _api.close();

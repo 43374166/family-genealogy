@@ -40,7 +40,7 @@ flutter --no-version-check build apk --debug `
 iOS 真机必须与电脑在同一局域网，并允许“本地网络”权限。当前为开发阶段，iOS
 `Info.plist` 和 Android Manifest 都临时允许明文 HTTP；生产环境必须改 HTTPS 并移除。
 
-演示账号：`zhangsan / Demo#2026`。会话令牌只保存在内存中，杀掉 App 后需要重新登录。
+演示账号：`linglei / Demo#2026`。会话令牌只保存在内存中，杀掉 App 后需要重新登录。
 
 ## 数据与后端
 
@@ -76,7 +76,7 @@ python tool/generate_assets.py
 
 - Android 应用名：`家族族谱`
 - iOS 应用名：`FamilyTree`（Apple 签名对应用名有 ASCII 限制）
-- 家庭标题：来自登录账户的家庭资料，演示数据中为「张氏家族」，不代表产品品牌
+- 家庭标题：来自登录账户的家庭资料，当前为「凌氏家族」，产品品牌不绑定姓氏
 
 关系数据（配偶 / 父母 / 子女）已在 `DemoData` 中显式维护，不应从姓名推断。
 

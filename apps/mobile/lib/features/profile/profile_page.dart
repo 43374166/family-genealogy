@@ -9,6 +9,7 @@ import '../../core/widgets/status_pill.dart';
 import '../../data/demo_data.dart';
 import '../../models/family_member.dart';
 import '../../services/app_session.dart';
+import '../person/api_person_detail_page.dart';
 import '../person/person_detail_page.dart';
 import '../requests/requests_page.dart';
 import 'family_profile_sheet.dart';
@@ -18,8 +19,9 @@ class ProfilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const person = DemoData.currentUser;
     final session = SessionScope.of(context);
+    final linkedPersonId = session.membership?.personId;
+    final person = session.memberById(linkedPersonId) ?? DemoData.currentUser;
     final familyName = session.family?.name ?? DemoData.family.name;
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -73,8 +75,11 @@ class ProfilePage extends StatelessWidget {
                           trailing: person.generationLabel,
                           onTap: () => Navigator.of(context).push(
                             MaterialPageRoute<void>(
-                              builder: (_) =>
-                                  const PersonDetailPage(person: person),
+                              builder: (_) => linkedPersonId == null
+                                  ? PersonDetailPage(person: person)
+                                  : ApiPersonDetailPage(
+                                      personId: linkedPersonId,
+                                    ),
                             ),
                           ),
                         ),
@@ -251,7 +256,7 @@ class ProfilePage extends StatelessWidget {
             ),
             const SizedBox(height: 5),
             const Text(
-              '家族族谱 · Flutter + MySQL v0.6.1',
+              '家族族谱 · Flutter + MySQL v0.7.0',
               style: TextStyle(fontSize: 10.5, color: AppColors.inkMuted),
             ),
             const SizedBox(height: 16),

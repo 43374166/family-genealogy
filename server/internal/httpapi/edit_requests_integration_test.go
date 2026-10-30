@@ -41,13 +41,13 @@ func TestEditRequestWorkflow(t *testing.T) {
 		Token string `json:"token"`
 	}
 	response := doJSON(t, http.DefaultClient, http.MethodPost, server.URL+"/api/v1/auth/login",
-		`{"loginName":"zhangsan","password":"Demo#2026"}`, "")
+		`{"loginName":"linglei","password":"Demo#2026"}`, "")
 	if response.StatusCode != http.StatusOK {
 		t.Fatalf("login status = %d, body = %s", response.StatusCode, readBody(t, response))
 	}
 	decodeBody(t, response, &login)
 
-	const personID = "50000000-0000-4000-8000-000000000005"
+	const personID = "50000000-0000-4000-8000-000000000116"
 	readPerson := func() (version int, residence string) {
 		response := doJSON(t, http.DefaultClient, http.MethodGet,
 			server.URL+"/api/v1/persons/"+personID, "", login.Token)

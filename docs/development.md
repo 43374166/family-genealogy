@@ -53,7 +53,8 @@ apps/mobile/lib/
 约束：
 
 1. 页面不直接拼装 API 地址；未来统一使用 `ApiClient` + Repository。
-2. 用户与人物分离。演示中的「张三」对应 `person_zhang_san`，但还没有真实 User 记录。
+2. 用户与人物分离。当前 owner 账号 `linglei` 已绑定人物「凌磊」；后续成员通过
+   绑定申请建立 User 与 Person 的关联。
 3. 所有写操作在服务端重新做身份、家支范围和版本校验，客户端不做可信权限判断。
 4. 生成的背景与人物插画由 `apps/mobile/tool/generate_assets.py` 产生，无第三方图片版权风险。
 

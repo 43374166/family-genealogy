@@ -20,7 +20,7 @@ type PersonFilter struct {
 
 const personSummaryColumns = `
 	p.id, p.full_name, p.surname, p.given_name, p.courtesy_name, p.alias,
-	p.gender, p.generation_no, p.branch_id,
+	p.gender, p.generation_no, p.birth_order, p.branch_id,
 	p.birth_year, p.birth_month, p.birth_day, p.birth_calendar, p.birth_is_leap_month, p.birth_date_text,
 	p.death_year, p.death_month, p.death_day, p.death_calendar, p.death_is_leap_month, p.death_date_text,
 	p.life_status, p.status, p.version`
@@ -32,6 +32,7 @@ type rowScanner interface {
 func scanPersonSummary(scanner rowScanner) (*model.PersonSummary, error) {
 	var person model.PersonSummary
 	var branchID sql.NullString
+	var birthOrder sql.NullInt64
 	var birthYear, birthMonth, birthDay sql.NullInt64
 	var deathYear, deathMonth, deathDay sql.NullInt64
 	var birthCalendar, birthText, deathCalendar, deathText string
@@ -40,7 +41,7 @@ func scanPersonSummary(scanner rowScanner) (*model.PersonSummary, error) {
 	err := scanner.Scan(
 		&person.ID, &person.FullName, &person.Surname, &person.GivenName,
 		&person.CourtesyName, &person.Alias, &person.Gender,
-		&person.GenerationNo, &branchID,
+		&person.GenerationNo, &birthOrder, &branchID,
 		&birthYear, &birthMonth, &birthDay, &birthCalendar, &birthLeap, &birthText,
 		&deathYear, &deathMonth, &deathDay, &deathCalendar, &deathLeap, &deathText,
 		&person.LifeStatus, &person.Status, &person.Version,
@@ -51,6 +52,10 @@ func scanPersonSummary(scanner rowScanner) (*model.PersonSummary, error) {
 	if branchID.Valid {
 		v := branchID.String
 		person.BranchID = &v
+	}
+	if birthOrder.Valid {
+		v := int(birthOrder.Int64)
+		person.BirthOrder = &v
 	}
 	person.GenerationLabel = model.GenerationLabel(person.GenerationNo)
 	person.Birth = buildPartialDate(birthYear, birthMonth, birthDay, birthCalendar, birthLeap, birthText)
@@ -139,6 +144,7 @@ func (s *Store) GetPerson(ctx context.Context, familyID, personID string) (*mode
 
 	var person model.Person
 	var branchID sql.NullString
+	var birthOrder sql.NullInt64
 	var birthYear, birthMonth, birthDay sql.NullInt64
 	var deathYear, deathMonth, deathDay sql.NullInt64
 	var birthCalendar, birthText, deathCalendar, deathText string
@@ -146,7 +152,7 @@ func (s *Store) GetPerson(ctx context.Context, familyID, personID string) (*mode
 	err := row.Scan(
 		&person.ID, &person.FullName, &person.Surname, &person.GivenName,
 		&person.CourtesyName, &person.Alias, &person.Gender,
-		&person.GenerationNo, &branchID,
+		&person.GenerationNo, &birthOrder, &branchID,
 		&birthYear, &birthMonth, &birthDay, &birthCalendar, &birthLeap, &birthText,
 		&deathYear, &deathMonth, &deathDay, &deathCalendar, &deathLeap, &deathText,
 		&person.LifeStatus, &person.Status, &person.Version,
@@ -162,6 +168,10 @@ func (s *Store) GetPerson(ctx context.Context, familyID, personID string) (*mode
 	if branchID.Valid {
 		v := branchID.String
 		person.BranchID = &v
+	}
+	if birthOrder.Valid {
+		v := int(birthOrder.Int64)
+		person.BirthOrder = &v
 	}
 	person.GenerationLabel = model.GenerationLabel(person.GenerationNo)
 	person.Birth = buildPartialDate(birthYear, birthMonth, birthDay, birthCalendar, birthLeap, birthText)
