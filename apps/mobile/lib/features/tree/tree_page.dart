@@ -218,7 +218,7 @@ class _TreePageState extends State<TreePage>
                   ),
                   Positioned(
                     right: 12,
-                    top: 12,
+                    bottom: selected == null ? 16 : 170,
                     child: _ZoomControls(
                       onZoomIn: () => _zoomBy(1.22),
                       onZoomOut: () => _zoomBy(1 / 1.22),
@@ -723,15 +723,15 @@ class _TreeLinesPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final linePaint = Paint()
-      ..color = const Color(0xFF829BA1).withValues(alpha: 0.72)
+      ..color = const Color(0xFF6D888F).withValues(alpha: 0.86)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.3
+      ..strokeWidth = 1.5
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
     final bridgePaint = Paint()
-      ..color = const Color(0xFFAE9673).withValues(alpha: 0.92)
+      ..color = const Color(0xFF9A7E58).withValues(alpha: 0.98)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.7
+      ..strokeWidth = 2.1
       ..strokeCap = StrokeCap.round;
     final glowPaint = Paint()
       ..color = Colors.white.withValues(alpha: 0.52)

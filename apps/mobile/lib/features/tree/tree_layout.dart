@@ -98,6 +98,7 @@ class _TreeLayoutBuilder {
   static const double _bottom = 34;
   static const double _memberGap = 14;
   static const double _unitGap = 38;
+  static const double _familyGap = 92;
   static const double _generationGap = 78;
   static const double _wideWidth = 150;
   static const double _wideHeight = 82;
@@ -166,7 +167,9 @@ class _TreeLayoutBuilder {
   void _buildUnits() {
     final spouseOf = <String, String>{};
     for (final edge in tree.spouses) {
-      if (edge.status != 'active') continue;
+      // Spouse relationship status is married/widowed/divorced/unknown, not
+      // active. Only an explicitly divorced pair should be laid out apart.
+      if (edge.status == 'divorced') continue;
       final a = persons[edge.personAId];
       final b = persons[edge.personBId];
       if (a == null || b == null || a.generationNo != b.generationNo) {
@@ -286,16 +289,61 @@ class _TreeLayoutBuilder {
   }
 
   void _pack(List<_Unit> units, Map<_Unit, double> desired) {
-    units.sort((a, b) {
-      final result = desired[a]!.compareTo(desired[b]!);
-      if (result != 0) return result;
-      return _comparePeople(a.members.first, b.members.first);
-    });
-    var x = 0.0;
+    // Keep each root family together and leave a clear visual gap between the
+    // grandfather's branch, the second-grandfather's branch, etc. Sorting all
+    // units by their desired centre alone would interleave those families.
+    final groups = <String, List<_Unit>>{};
     for (final unit in units) {
-      unit.left = x;
-      x += unit.width + _unitGap;
+      groups.putIfAbsent(_unitRoot(unit), () => []).add(unit);
     }
+    final orderedRoots = groups.keys.toList()
+      ..sort((a, b) {
+        final personA = persons[a];
+        final personB = persons[b];
+        if (personA == null || personB == null) return a.compareTo(b);
+        return _comparePeople(personA, personB);
+      });
+
+    var x = 0.0;
+    var firstGroup = true;
+    for (final root in orderedRoots) {
+      final group = groups[root]!;
+      group.sort((a, b) {
+        final result = desired[a]!.compareTo(desired[b]!);
+        if (result != 0) return result;
+        return _comparePeople(a.members.first, b.members.first);
+      });
+      if (!firstGroup) x += _familyGap;
+      firstGroup = false;
+      for (final unit in group) {
+        unit.left = x;
+        x += unit.width + _unitGap;
+      }
+    }
+  }
+
+  final Map<String, String> _rootCache = {};
+
+  String _unitRoot(_Unit unit) {
+    for (final member in unit.members) {
+      if (_hasParent(member.id)) return _rootOf(member.id);
+    }
+    return _rootOf(unit.members.first.id);
+  }
+
+  String _rootOf(String personId) {
+    final cached = _rootCache[personId];
+    if (cached != null) return cached;
+    String? parent;
+    for (final edge in tree.parentChild) {
+      if (edge.childId == personId) {
+        parent = edge.parentId;
+        break;
+      }
+    }
+    final root = parent == null ? personId : _rootOf(parent);
+    _rootCache[personId] = root;
+    return root;
   }
 
   void _finalizeHorizontal() {
@@ -303,12 +351,12 @@ class _TreeLayoutBuilder {
     for (final generation in generations) {
       final row = unitsByGeneration[generation]!;
       if (row.isEmpty) continue;
-      maxWidth = math.max(maxWidth, row.last.left + row.last.width);
+      maxWidth = math.max(maxWidth, _rowRight(row));
     }
     var top = _top;
     for (final generation in generations) {
       final row = unitsByGeneration[generation]!;
-      final rowWidth = row.isEmpty ? 0.0 : row.last.left + row.last.width;
+      final rowWidth = row.isEmpty ? 0.0 : _rowRight(row);
       final offset = _contentLeft + (maxWidth - rowWidth) / 2;
       for (final unit in row) {
         unit.left += offset;
@@ -319,6 +367,10 @@ class _TreeLayoutBuilder {
     _canvasWidth = _contentLeft + maxWidth + _right;
     _canvasHeight = top - _generationGap + _bottom;
   }
+
+  double _rowRight(List<_Unit> row) => row
+      .map((unit) => unit.left + unit.width)
+      .reduce((a, b) => math.max(a, b));
 
   double _canvasWidth = 0;
   double _canvasHeight = 0;
@@ -430,10 +482,12 @@ class _TreeLayoutBuilder {
     for (final generation in generations) {
       final row = unitsByGeneration[generation]!;
       if (row.isEmpty) continue;
-      final first = row.first;
-      final last = row.last;
+      final minLeft = row
+          .map((unit) => unit.left)
+          .reduce((a, b) => math.min(a, b));
+      final maxRight = _rowRight(row);
       result[generation] = Offset(
-        (first.left + last.left + last.width) / 2,
+        (minLeft + maxRight) / 2,
         topByGeneration[generation]! + rowHeightByGeneration[generation]! / 2,
       );
     }

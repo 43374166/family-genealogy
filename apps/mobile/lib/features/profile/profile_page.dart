@@ -256,7 +256,7 @@ class ProfilePage extends StatelessWidget {
             ),
             const SizedBox(height: 5),
             const Text(
-              '家族族谱 · Flutter + MySQL v0.7.0',
+              '家族族谱 · Flutter + MySQL v0.7.1',
               style: TextStyle(fontSize: 10.5, color: AppColors.inkMuted),
             ),
             const SizedBox(height: 16),
@@ -384,7 +384,9 @@ class _ProfileCard extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
-                                  person.tags.first,
+                                  person.tags.isEmpty
+                                      ? '家族成员'
+                                      : person.tags.first,
                                   style: const TextStyle(
                                     fontSize: 9,
                                     color: AppColors.inkSoft,
@@ -396,7 +398,7 @@ class _ProfileCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 5),
                           Text(
-                            '${person.generationLabel} · ${person.branchId == 'branch_zhang' ? '长房' : '外支'}',
+                            '${person.generationLabel} · 族谱成员',
                             style: const TextStyle(
                               fontSize: 10.5,
                               color: AppColors.inkSoft,
