@@ -74,9 +74,12 @@ func (s *Store) RegisterOpen(
 
 	userID := uuid.NewString()
 	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO users (id, login_name, phone, password_hash, display_name, status)
-		VALUES (?, ?, NULLIF(?, ''), ?, ?, 'active')`,
+		INSERT INTO users
+			(id, login_name, phone, password_hash, display_name, status,
+			 terms_accepted_at, terms_version)
+		VALUES (?, ?, NULLIF(?, ''), ?, ?, 'active', UTC_TIMESTAMP(6), ?)`,
 		userID, input.LoginName, input.Phone, input.PasswordHash, input.DisplayName,
+		input.TermsVersion,
 	); err != nil {
 		if isDuplicateError(err) {
 			return nil, nil, ErrConflict

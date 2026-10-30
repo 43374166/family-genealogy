@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
@@ -91,6 +92,15 @@ func (a *API) login(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, r, http.StatusUnauthorized, "INVALID_CREDENTIALS", "invalid login name or password")
 		return
 	}
+	if lockedUntil, err := a.Store.LoginLockedUntil(r.Context(), request.LoginName); err == nil && !lockedUntil.IsZero() {
+		seconds := int(time.Until(lockedUntil).Seconds())
+		if seconds < 1 {
+			seconds = 60
+		}
+		w.Header().Set("Retry-After", fmt.Sprintf("%d", seconds))
+		writeProblem(w, r, http.StatusTooManyRequests, "LOGIN_LOCKED", "too many failed attempts; try again later")
+		return
+	}
 
 	ok, err := auth.VerifyPassword(passwordHash, request.Password)
 	if err != nil {
@@ -99,9 +109,11 @@ func (a *API) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !ok {
+		_ = a.Store.RecordFailedLogin(r.Context(), user.ID)
 		writeProblem(w, r, http.StatusUnauthorized, "INVALID_CREDENTIALS", "invalid login name or password")
 		return
 	}
+	_ = a.Store.ResetFailedLogin(r.Context(), user.ID)
 
 	_, family, err := a.Store.GetPreferredMembership(r.Context(), user.ID)
 	if err != nil {

@@ -1300,7 +1300,7 @@ class _SettingsSheet extends StatelessWidget {
           _SettingsRow(icon: Icons.info_outline_rounded, label: '关于家族族谱'),
           const SizedBox(height: 12),
           const Text(
-            'v0.29.0 · Flutter + MySQL',
+            'v0.30.0 · Flutter + MySQL',
             style: TextStyle(fontSize: 11, color: AppColors.inkMuted),
           ),
         ],

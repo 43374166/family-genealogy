@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/app_page_header.dart';
 import '../../core/widgets/soft_card.dart';
+import '../../services/api_client.dart';
 import '../../services/app_session.dart';
 import '../../services/app_settings.dart';
 import '../family/bind_person_page.dart';
@@ -13,12 +14,14 @@ import '../family/family_switch_page.dart';
 import '../family/import_family_page.dart';
 import '../family/invite_page.dart';
 import '../family/phone_bind_page.dart';
+import '../legal/account_deletion_page.dart';
+import '../legal/legal_page.dart';
 import '../person/api_person_detail_page.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
 
-  static const _version = '0.29.0';
+  static const _version = '0.30.0';
 
   Future<void> _pickTextSize(BuildContext context) async {
     final settings = SettingsScope.of(context);
@@ -77,6 +80,50 @@ class SettingsPage extends StatelessWidget {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('图片缓存已清理')));
+  }
+
+  Future<void> _createRecoveryCode(BuildContext context) async {
+    try {
+      final code = await SessionScope.of(context).createRecoveryCode();
+      if (!context.mounted) return;
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Text('找回密码码'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '请把下面的码抄下来，放在安全的地方。忘记密码时用它重置；生成新码后旧码立即失效。',
+                style: TextStyle(fontSize: 11.5, height: 1.65),
+              ),
+              const SizedBox(height: 14),
+              SelectableText(
+                code,
+                style: const TextStyle(
+                  fontSize: 22,
+                  letterSpacing: 2,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('我已保存'),
+            ),
+          ],
+        ),
+      );
+    } on ApiException catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    }
   }
 
   Future<void> _showPrivacy(BuildContext context) async {
@@ -229,6 +276,53 @@ class SettingsPage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 18),
+                  const SectionTitle(title: '法律与账号'),
+                  const SizedBox(height: 9),
+                  SoftCard(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 2,
+                    ),
+                    child: Column(
+                      children: [
+                        _SettingRow(
+                          icon: Icons.description_outlined,
+                          label: '用户协议',
+                          trailing: '查看',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) =>
+                                  const LegalPage(kind: LegalKind.terms),
+                            ),
+                          ),
+                        ),
+                        const Divider(height: 1, indent: 47),
+                        _SettingRow(
+                          icon: Icons.privacy_tip_outlined,
+                          label: '隐私政策',
+                          trailing: '查看',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) =>
+                                  const LegalPage(kind: LegalKind.privacy),
+                            ),
+                          ),
+                        ),
+                        const Divider(height: 1, indent: 47),
+                        _SettingRow(
+                          icon: Icons.person_off_outlined,
+                          label: '账号注销',
+                          trailing: '删除账号信息',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const AccountDeletionPage(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 18),
                   const SectionTitle(title: '通用'),
                   const SizedBox(height: 9),
                   SoftCard(
@@ -243,6 +337,13 @@ class SettingsPage extends StatelessWidget {
                           label: '字体大小',
                           trailing: _textScaleLabel(settings.textScale),
                           onTap: () => _pickTextSize(context),
+                        ),
+                        const Divider(height: 1, indent: 47),
+                        _SettingRow(
+                          icon: Icons.key_rounded,
+                          label: '找回密码码',
+                          trailing: '生成/重置',
+                          onTap: () => _createRecoveryCode(context),
                         ),
                         const Divider(height: 1, indent: 47),
                         _SettingRow(

@@ -29,6 +29,8 @@
 - `POST /api/v1/import-packages/import`（选择分支/世代/挂靠父辈，事务导入）
 - `GET/POST /api/v1/photos`、`GET /api/v1/photos/{id}/content`、`PATCH/DELETE /api/v1/photos/{id}`（私有 OBS 家族相册，支持人物/说明/拍摄时间）
 - `POST /api/v1/auth/sms/send`、`POST /api/v1/auth/sms/login`（手机号验证码登录）
+- `POST /api/v1/auth/recovery-code`、`POST /api/v1/auth/reset-password`（找回码重置密码）
+- `POST /api/v1/auth/accept-terms`、`DELETE /api/v1/me`（同意协议/注销账号）
 - `POST /api/v1/auth/phone/send`、`POST /api/v1/auth/phone/bind`（登录后绑定手机号）
 - `POST /api/v1/auth/logout`
 - `GET /api/v1/invites`、`POST /api/v1/invites`（仅 owner；可邀请普通成员或指定家支的分支管理员）

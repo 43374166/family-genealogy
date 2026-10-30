@@ -106,6 +106,42 @@ class ApiClient {
     }
   }
 
+  Future<String> createRecoveryCode() async {
+    final body = await _request('POST', '/api/v1/auth/recovery-code');
+    return body['code'] as String? ?? '';
+  }
+
+  Future<void> resetPassword({
+    required String serverUrl,
+    required String loginName,
+    required String recoveryCode,
+    required String newPassword,
+  }) async {
+    _baseUrl = normalizeBaseUrl(serverUrl);
+    await _request(
+      'POST',
+      '/api/v1/auth/reset-password',
+      authenticated: false,
+      body: {
+        'loginName': loginName,
+        'recoveryCode': recoveryCode,
+        'newPassword': newPassword,
+      },
+    );
+  }
+
+  Future<void> acceptTerms(String version) async {
+    await _request(
+      'POST',
+      '/api/v1/auth/accept-terms',
+      body: {'version': version},
+    );
+  }
+
+  Future<void> deleteAccount(String password) async {
+    await _request('DELETE', '/api/v1/me', body: {'password': password});
+  }
+
   Future<ApiNotificationPage> notifications({int limit = 50}) async {
     final body = await _request('GET', '/api/v1/notifications?limit=$limit');
     return ApiNotificationPage.fromJson(body);
@@ -394,6 +430,7 @@ class ApiClient {
     String phone = '',
     String familyName = '',
     String surname = '',
+    bool acceptTerms = false,
   }) async {
     _baseUrl = normalizeBaseUrl(serverUrl);
     final body = await _request(
@@ -408,6 +445,7 @@ class ApiClient {
         'phone': phone,
         'familyName': familyName,
         'surname': surname,
+        'acceptTerms': acceptTerms,
       },
     );
     return ApiRegistration.fromJson(body);

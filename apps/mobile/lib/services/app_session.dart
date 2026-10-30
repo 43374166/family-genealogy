@@ -36,7 +36,71 @@ class AppSession extends ChangeNotifier {
   bool get loading => _loading;
   bool get restoring => _restoring;
   String? get error => _error;
+  bool get termsAccepted => user?.termsAccepted ?? false;
   int get unreadNotifications => _unreadNotifications;
+
+  Future<String> createRecoveryCode() async {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    return _api.createRecoveryCode();
+  }
+
+  Future<String?> resetPassword({
+    required String serverUrl,
+    required String loginName,
+    required String recoveryCode,
+    required String newPassword,
+  }) async {
+    try {
+      await _api.resetPassword(
+        serverUrl: serverUrl,
+        loginName: loginName,
+        recoveryCode: recoveryCode,
+        newPassword: newPassword,
+      );
+      return null;
+    } on ApiException catch (error) {
+      return error.message;
+    }
+  }
+
+  Future<void> acceptTerms(String version) async {
+    await _api.acceptTerms(version);
+    final current = _session;
+    if (current != null) {
+      _session = ApiSession(
+        token: current.token,
+        expiresAt: current.expiresAt,
+        user: ApiUser(
+          id: current.user.id,
+          displayName: current.user.displayName,
+          loginName: current.user.loginName,
+          status: current.user.status,
+          phone: current.user.phone,
+          termsAccepted: true,
+        ),
+        family: current.family,
+      );
+      notifyListeners();
+    }
+  }
+
+  Future<void> deleteAccount(String password) async {
+    await _api.deleteAccount(password);
+    await _stopAccount();
+  }
+
+  Future<void> _stopAccount() async {
+    _stopNotificationPolling();
+    await _store.clear();
+    _session = null;
+    _membership = null;
+    _tree = null;
+    _family = null;
+    notifyListeners();
+  }
+
   String get serverUrl => _api.baseUrl;
 
   String? get roleLabel =>
@@ -286,6 +350,7 @@ class AppSession extends ChangeNotifier {
     String phone = '',
     String familyName = '',
     String surname = '',
+    bool acceptTerms = false,
   }) async {
     try {
       await _api.register(
@@ -297,6 +362,7 @@ class AppSession extends ChangeNotifier {
         phone: phone,
         familyName: familyName,
         surname: surname,
+        acceptTerms: acceptTerms,
       );
       final ok = await login(
         serverUrl: serverUrl,

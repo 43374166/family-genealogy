@@ -6,6 +6,7 @@ import '../../services/api_client.dart';
 import '../../services/app_session.dart';
 import 'phone_login_page.dart';
 import 'register_page.dart';
+import 'reset_password_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -282,6 +283,21 @@ class _LoginPageState extends State<LoginPage> {
                                         ),
                                       ),
                                     ],
+                                  ),
+                                  TextButton(
+                                    onPressed: () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute<void>(
+                                          builder: (_) => ResetPasswordPage(
+                                            serverUrl: _serverUrl.text.trim(),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    child: const Text(
+                                      '忘记密码？用找回码重置',
+                                      style: TextStyle(fontSize: 11),
+                                    ),
                                   ),
                                 ],
                               ),

@@ -7,6 +7,7 @@ class ApiUser {
     required this.loginName,
     required this.status,
     this.phone = '',
+    this.termsAccepted = false,
   });
 
   final String id;
@@ -14,6 +15,7 @@ class ApiUser {
   final String loginName;
   final String status;
   final String phone;
+  final bool termsAccepted;
 
   factory ApiUser.fromJson(Map<String, dynamic> json) {
     return ApiUser(
@@ -22,6 +24,7 @@ class ApiUser {
       loginName: _string(json['loginName']),
       status: _string(json['status']),
       phone: _string(json['phone']),
+      termsAccepted: json['termsAccepted'] == true,
     );
   }
 }

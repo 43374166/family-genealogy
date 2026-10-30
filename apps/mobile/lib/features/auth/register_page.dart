@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_page_header.dart';
+import '../../features/legal/legal_page.dart';
 import '../../services/app_session.dart';
 
 class RegisterPage extends StatefulWidget {
@@ -27,6 +28,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
   bool _obscure = true;
   bool _submitting = false;
+  bool _acceptTerms = false;
   String? _error;
 
   @override
@@ -44,6 +46,10 @@ class _RegisterPageState extends State<RegisterPage> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (!_acceptTerms) {
+      setState(() => _error = '请先阅读并同意用户协议和隐私政策');
+      return;
+    }
     setState(() {
       _submitting = true;
       _error = null;
@@ -57,6 +63,7 @@ class _RegisterPageState extends State<RegisterPage> {
       phone: _phone.text.trim(),
       familyName: _familyName.text.trim(),
       surname: _surname.text.trim(),
+      acceptTerms: _acceptTerms,
     );
     if (!mounted) return;
     if (error == null) {
@@ -194,6 +201,59 @@ class _RegisterPageState extends State<RegisterPage> {
                       obscureText: _obscure,
                       validator: (value) =>
                           value != _password.text ? '两次密码不一致' : null,
+                    ),
+                    CheckboxListTile(
+                      value: _acceptTerms,
+                      onChanged: (value) =>
+                          setState(() => _acceptTerms = value ?? false),
+                      contentPadding: EdgeInsets.zero,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      dense: true,
+                      title: Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          const Text('我已阅读并同意', style: TextStyle(fontSize: 11)),
+                          TextButton(
+                            onPressed: () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) =>
+                                    const LegalPage(kind: LegalKind.terms),
+                              ),
+                            ),
+                            style: TextButton.styleFrom(
+                              minimumSize: Size.zero,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 2,
+                              ),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            child: const Text(
+                              '《用户协议》',
+                              style: TextStyle(fontSize: 11),
+                            ),
+                          ),
+                          const Text('和', style: TextStyle(fontSize: 11)),
+                          TextButton(
+                            onPressed: () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) =>
+                                    const LegalPage(kind: LegalKind.privacy),
+                              ),
+                            ),
+                            style: TextButton.styleFrom(
+                              minimumSize: Size.zero,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 2,
+                              ),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            child: const Text(
+                              '《隐私政策》',
+                              style: TextStyle(fontSize: 11),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     if (_error != null) ...[
                       const SizedBox(height: 12),

@@ -67,6 +67,7 @@ func NewRouter(deps Dependencies) http.Handler {
 		r.Post("/auth/register", api.register)
 		r.Post("/auth/sms/send", api.sendLoginCode)
 		r.Post("/auth/sms/login", api.loginWithPhone)
+		r.Post("/auth/reset-password", api.resetPassword)
 		r.Group(func(r chi.Router) {
 			r.Use(api.authenticate)
 			r.Post("/auth/logout", api.logout)
@@ -107,6 +108,9 @@ func NewRouter(deps Dependencies) http.Handler {
 			r.Post("/bind-requests/{requestID}/approve", api.approveBindingRequest)
 			r.Post("/bind-requests/{requestID}/reject", api.rejectBindingRequest)
 			r.Get("/me", api.me)
+			r.Delete("/me", api.deleteAccount)
+			r.Post("/auth/accept-terms", api.acceptTerms)
+			r.Post("/auth/recovery-code", api.createRecoveryCode)
 			r.Get("/family", api.getFamily)
 			r.Get("/tree", api.getTree)
 			r.Get("/branches", api.listBranches)

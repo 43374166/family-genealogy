@@ -9,6 +9,18 @@ import (
 
 const sessionTokenBytes = 32
 
+func NewRecoveryCode() (string, error) {
+	const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+	raw := make([]byte, 12)
+	if _, err := rand.Read(raw); err != nil {
+		return "", fmt.Errorf("generate recovery code: %w", err)
+	}
+	for i := range raw {
+		raw[i] = alphabet[int(raw[i])%len(alphabet)]
+	}
+	return string(raw), nil
+}
+
 // NewSessionToken returns a URL-safe opaque token and its SHA-256 digest.
 // Only the digest is persisted.
 func NewSessionToken() (string, []byte, error) {

@@ -37,11 +37,13 @@ func (s *Store) GetLoginUser(ctx context.Context, loginName string) (*model.User
 	var user model.User
 	var hash string
 	err := s.db.QueryRowContext(ctx, `
-		SELECT id, login_name, display_name, COALESCE(phone, ''), status, password_hash
+		SELECT id, login_name, display_name, COALESCE(phone, ''), status,
+		       terms_accepted_at IS NOT NULL, password_hash
 		FROM users
 		WHERE login_name = ?
 		LIMIT 1`, loginName,
-	).Scan(&user.ID, &user.LoginName, &user.DisplayName, &user.Phone, &user.Status, &hash)
+	).Scan(&user.ID, &user.LoginName, &user.DisplayName, &user.Phone, &user.Status,
+		&user.TermsAccepted, &hash)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, "", ErrNotFound
 	}
@@ -54,11 +56,13 @@ func (s *Store) GetLoginUser(ctx context.Context, loginName string) (*model.User
 func (s *Store) GetActiveUser(ctx context.Context, userID string) (*model.User, error) {
 	var user model.User
 	err := s.db.QueryRowContext(ctx, `
-		SELECT id, login_name, display_name, COALESCE(phone, ''), status
+		SELECT id, login_name, display_name, COALESCE(phone, ''), status,
+		       terms_accepted_at IS NOT NULL
 		FROM users
 		WHERE id = ? AND status = 'active'
 		LIMIT 1`, userID,
-	).Scan(&user.ID, &user.LoginName, &user.DisplayName, &user.Phone, &user.Status)
+	).Scan(&user.ID, &user.LoginName, &user.DisplayName, &user.Phone, &user.Status,
+		&user.TermsAccepted)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -275,7 +279,8 @@ func (s *Store) GetPrincipal(ctx context.Context, tokenHash []byte) (*Principal,
 	var activeFamilyID sql.NullString
 	err := s.db.QueryRowContext(ctx, `
 		SELECT s.id, s.expires_at, s.active_family_id,
-		       u.id, u.login_name, u.display_name, COALESCE(u.phone, ''), u.status
+		       u.id, u.login_name, u.display_name, COALESCE(u.phone, ''), u.status,
+		       u.terms_accepted_at IS NOT NULL
 		FROM user_sessions s
 		JOIN users u ON u.id = s.user_id
 		WHERE s.token_hash = ?
@@ -286,6 +291,7 @@ func (s *Store) GetPrincipal(ctx context.Context, tokenHash []byte) (*Principal,
 		&principal.SessionID, &principal.ExpiresAt, &activeFamilyID,
 		&principal.User.ID, &principal.User.LoginName,
 		&principal.User.DisplayName, &principal.User.Phone, &principal.User.Status,
+		&principal.User.TermsAccepted,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrUnauthorized

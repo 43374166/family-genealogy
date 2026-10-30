@@ -13,6 +13,7 @@ import (
 	"github.com/43374166/family-genealogy/server/internal/model"
 	"github.com/43374166/family-genealogy/server/internal/store"
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 )
 
 type registerRequest struct {
@@ -23,7 +24,10 @@ type registerRequest struct {
 	InviteCode  string `json:"inviteCode"`
 	FamilyName  string `json:"familyName"`
 	Surname     string `json:"surname"`
+	AcceptTerms *bool  `json:"acceptTerms"`
 }
+
+const currentTermsVersion = "2026-10-31"
 
 type createInviteRequest struct {
 	Role          string `json:"role"`
@@ -60,6 +64,10 @@ func (a *API) register(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, r, http.StatusUnprocessableEntity, "INVALID_LOGIN_NAME", "loginName is required")
 		return
 	}
+	if payload.AcceptTerms != nil && !*payload.AcceptTerms {
+		writeProblem(w, r, http.StatusUnprocessableEntity, "TERMS_REQUIRED", "please accept the user agreement and privacy policy")
+		return
+	}
 	if len(payload.Password) < 8 || len(payload.Password) > 256 {
 		writeProblem(w, r, http.StatusUnprocessableEntity, "INVALID_PASSWORD", "password must be between 8 and 256 characters")
 		return
@@ -85,7 +93,7 @@ func (a *API) register(w http.ResponseWriter, r *http.Request) {
 	registerInput := store.RegisterInput{
 		LoginName: payload.LoginName, DisplayName: payload.DisplayName,
 		Phone: payload.Phone, PasswordHash: passwordHash,
-		InviteCode: payload.InviteCode,
+		InviteCode: payload.InviteCode, TermsVersion: currentTermsVersion,
 	}
 	var (
 		user   *model.User
@@ -133,6 +141,137 @@ func (a *API) register(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, map[string]any{
 		"user": user, "family": family,
 	})
+}
+
+type acceptTermsRequest struct {
+	Version string `json:"version"`
+}
+
+func (a *API) acceptTerms(w http.ResponseWriter, r *http.Request) {
+	principal, ok := principalFrom(r.Context())
+	if !ok {
+		writeProblem(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "not authenticated")
+		return
+	}
+	var payload acceptTermsRequest
+	if err := decodeJSON(w, r, &payload); err != nil {
+		writeProblem(w, r, http.StatusBadRequest, "INVALID_JSON", err.Error())
+		return
+	}
+	if payload.Version != currentTermsVersion {
+		writeProblem(w, r, http.StatusUnprocessableEntity, "TERMS_VERSION", "please reload and accept the current terms")
+		return
+	}
+	if err := a.Store.AcceptTerms(r.Context(), principal.User.ID, currentTermsVersion); err != nil {
+		a.writeAccessError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (a *API) createRecoveryCode(w http.ResponseWriter, r *http.Request) {
+	principal, ok := principalFrom(r.Context())
+	if !ok {
+		writeProblem(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "not authenticated")
+		return
+	}
+	code, err := auth.NewRecoveryCode()
+	if err != nil {
+		writeProblem(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		return
+	}
+	hash, err := auth.HashPassword(code)
+	if err != nil {
+		writeProblem(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		return
+	}
+	if err := a.Store.SetRecoveryCodeHash(r.Context(), principal.User.ID, hash); err != nil {
+		a.writeAccessError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"code": code})
+}
+
+type resetPasswordRequest struct {
+	LoginName    string `json:"loginName"`
+	RecoveryCode string `json:"recoveryCode"`
+	NewPassword  string `json:"newPassword"`
+}
+
+func (a *API) resetPassword(w http.ResponseWriter, r *http.Request) {
+	var payload resetPasswordRequest
+	if err := decodeJSON(w, r, &payload); err != nil {
+		writeProblem(w, r, http.StatusBadRequest, "INVALID_JSON", err.Error())
+		return
+	}
+	payload.LoginName = strings.TrimSpace(payload.LoginName)
+	payload.RecoveryCode = strings.TrimSpace(payload.RecoveryCode)
+	if payload.LoginName == "" || len(payload.NewPassword) < 8 || len(payload.NewPassword) > 256 {
+		writeProblem(w, r, http.StatusUnprocessableEntity, "INVALID_RESET", "valid login name and an 8+ character password are required")
+		return
+	}
+	userID, hash, err := a.Store.RecoveryCodeHash(r.Context(), payload.LoginName)
+	if err != nil {
+		writeProblem(w, r, http.StatusUnauthorized, "INVALID_RECOVERY", "invalid login name or recovery code")
+		return
+	}
+	ok, err := auth.VerifyPassword(hash, payload.RecoveryCode)
+	if err != nil || !ok {
+		writeProblem(w, r, http.StatusUnauthorized, "INVALID_RECOVERY", "invalid login name or recovery code")
+		return
+	}
+	newHash, err := auth.HashPassword(payload.NewPassword)
+	if err != nil {
+		writeProblem(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		return
+	}
+	if err := a.Store.ResetPasswordWithRecovery(r.Context(), userID, newHash); err != nil {
+		a.writeAccessError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+type deleteAccountRequest struct {
+	Password string `json:"password"`
+}
+
+func (a *API) deleteAccount(w http.ResponseWriter, r *http.Request) {
+	principal, ok := principalFrom(r.Context())
+	if !ok {
+		writeProblem(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "not authenticated")
+		return
+	}
+	var payload deleteAccountRequest
+	if err := decodeJSON(w, r, &payload); err != nil {
+		writeProblem(w, r, http.StatusBadRequest, "INVALID_JSON", err.Error())
+		return
+	}
+	user, hash, err := a.Store.GetLoginUser(r.Context(), principal.User.LoginName)
+	if err != nil || user.ID != principal.User.ID {
+		writeProblem(w, r, http.StatusUnauthorized, "INVALID_CREDENTIALS", "password is incorrect")
+		return
+	}
+	okPassword, err := auth.VerifyPassword(hash, payload.Password)
+	if err != nil || !okPassword {
+		writeProblem(w, r, http.StatusUnauthorized, "INVALID_CREDENTIALS", "password is incorrect")
+		return
+	}
+	newHash, err := auth.HashPassword(uuid.NewString() + uuid.NewString())
+	if err != nil {
+		writeProblem(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		return
+	}
+	if err := a.Store.AnonymizeAccount(r.Context(), principal.User.ID, newHash); err != nil {
+		if errors.Is(err, store.ErrConflict) {
+			writeProblem(w, r, http.StatusConflict, "OWNER_CANNOT_DELETE",
+				"please transfer family ownership before deleting this account")
+			return
+		}
+		a.writeAccessError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (a *API) createInvite(w http.ResponseWriter, r *http.Request) {

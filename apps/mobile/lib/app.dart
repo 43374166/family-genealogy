@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'core/theme/app_theme.dart';
 import 'features/auth/login_page.dart';
+import 'features/legal/terms_acceptance_page.dart';
 import 'features/shell/app_shell.dart';
 import 'services/app_session.dart';
 import 'services/app_settings.dart';
@@ -87,7 +88,9 @@ class _RootGate extends StatelessWidget {
       child: session.restoring
           ? const _BootSplash(key: ValueKey('boot'))
           : session.isAuthenticated
-          ? const AppShell(key: ValueKey('app'))
+          ? (session.termsAccepted
+                ? const AppShell(key: ValueKey('app'))
+                : const TermsAcceptancePage(key: ValueKey('terms')))
           : const LoginPage(key: ValueKey('login')),
     );
   }
