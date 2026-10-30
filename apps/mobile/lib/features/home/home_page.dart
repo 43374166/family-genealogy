@@ -7,15 +7,36 @@ import '../../core/widgets/soft_card.dart';
 import '../../core/widgets/status_pill.dart';
 import '../../data/demo_data.dart';
 import '../../models/family_activity.dart';
+import '../../services/api_models.dart';
 import '../../services/app_session.dart';
 import '../gallery/gallery_page.dart';
 import '../profile/family_profile_sheet.dart';
-import '../requests/profile_edit_page.dart';
+import '../requests/edit_request_page.dart';
 import '../requests/requests_page.dart';
 import '../search/member_search_page.dart';
 import '../stories/stories_page.dart';
 
 class HomePage extends StatelessWidget {
+  Future<void> _startEditRequest(BuildContext context) async {
+    final person = await Navigator.of(context).push<ApiPerson>(
+      MaterialPageRoute<ApiPerson>(
+        builder: (_) => const MemberSearchPage(selectMode: true),
+      ),
+    );
+    if (person == null || !context.mounted) return;
+    final submitted = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) =>
+            EditRequestPage(personId: person.id, initialPerson: person),
+      ),
+    );
+    if (submitted == true && context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('资料申请已提交，等待审核')));
+    }
+  }
+
   const HomePage({
     super.key,
     required this.onOpenTree,
@@ -71,8 +92,7 @@ class HomePage extends StatelessWidget {
                     _QuickActions(
                       onTree: onOpenTree,
                       onSearch: () => _open(context, const MemberSearchPage()),
-                      onEditProfile: () =>
-                          _open(context, const ProfileEditPage()),
+                      onEditProfile: () => _startEditRequest(context),
                       onRequests: () => _open(context, const RequestsPage()),
                       onGallery: () => _open(context, const GalleryPage()),
                       onStories: () => _open(context, const StoriesPage()),
@@ -1055,7 +1075,7 @@ class _SettingsSheet extends StatelessWidget {
           _SettingsRow(icon: Icons.info_outline_rounded, label: '关于家族族谱'),
           const SizedBox(height: 12),
           const Text(
-            'v0.6.0 · Flutter + MySQL',
+            'v0.6.1 · Flutter + MySQL',
             style: TextStyle(fontSize: 11, color: AppColors.inkMuted),
           ),
         ],

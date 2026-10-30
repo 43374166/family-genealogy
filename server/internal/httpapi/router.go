@@ -51,6 +51,11 @@ func NewRouter(deps Dependencies) http.Handler {
 			r.Get("/tree", api.getTree)
 			r.Get("/persons", api.listPersons)
 			r.Get("/persons/{personID}", api.getPerson)
+			r.Post("/edit-requests", api.createEditRequest)
+			r.Get("/edit-requests", api.listEditRequests)
+			r.Get("/edit-requests/{requestID}", api.getEditRequest)
+			r.Post("/edit-requests/{requestID}/approve", api.approveEditRequest)
+			r.Post("/edit-requests/{requestID}/reject", api.rejectEditRequest)
 		})
 	})
 

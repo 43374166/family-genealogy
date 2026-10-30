@@ -50,6 +50,8 @@ class ApiMembership {
     'admin' => '管理员',
     _ => '普通成员',
   };
+
+  bool get canReview => role == 'owner' || role == 'admin';
 }
 
 class ApiFamily {
@@ -342,6 +344,138 @@ class ApiTree {
   }
 }
 
+class ApiEditChanges {
+  const ApiEditChanges({
+    this.birthPlace,
+    this.residence,
+    this.occupation,
+    this.education,
+    this.biography,
+  });
+
+  final String? birthPlace;
+  final String? residence;
+  final String? occupation;
+  final String? education;
+  final String? biography;
+
+  bool get isEmpty =>
+      birthPlace == null &&
+      residence == null &&
+      occupation == null &&
+      education == null &&
+      biography == null;
+
+  List<String> get fieldKeys => [
+    if (birthPlace != null) 'birthPlace',
+    if (residence != null) 'residence',
+    if (occupation != null) 'occupation',
+    if (education != null) 'education',
+    if (biography != null) 'biography',
+  ];
+
+  Map<String, dynamic> toJson() => {
+    if (birthPlace != null) 'birthPlace': birthPlace,
+    if (residence != null) 'residence': residence,
+    if (occupation != null) 'occupation': occupation,
+    if (education != null) 'education': education,
+    if (biography != null) 'biography': biography,
+  };
+
+  factory ApiEditChanges.fromJson(Map<String, dynamic> json) {
+    String? field(String key) {
+      final value = json[key];
+      if (value is! String) return null;
+      // Empty strings are meaningful here: they clear an existing field.
+      return value;
+    }
+
+    return ApiEditChanges(
+      birthPlace: field('birthPlace'),
+      residence: field('residence'),
+      occupation: field('occupation'),
+      education: field('education'),
+      biography: field('biography'),
+    );
+  }
+
+  static String labelFor(String key) => switch (key) {
+    'birthPlace' => '籍贯',
+    'residence' => '现居地',
+    'occupation' => '职业',
+    'education' => '教育',
+    'biography' => '生平简介',
+    _ => key,
+  };
+}
+
+class ApiEditRequest {
+  const ApiEditRequest({
+    required this.id,
+    required this.requesterName,
+    required this.targetPersonId,
+    required this.targetName,
+    required this.baseVersion,
+    required this.changes,
+    required this.changedFields,
+    required this.status,
+    required this.reviewNote,
+    required this.submittedAt,
+    this.reviewedAt,
+  });
+
+  final String id;
+  final String requesterName;
+  final String? targetPersonId;
+  final String targetName;
+  final int? baseVersion;
+  final ApiEditChanges changes;
+  final List<String> changedFields;
+  final String status;
+  final String reviewNote;
+  final DateTime? submittedAt;
+  final DateTime? reviewedAt;
+
+  bool get isPending => status == 'pending';
+  bool get isApproved => status == 'approved';
+  bool get isRejected => status == 'rejected';
+  String get statusLabel => switch (status) {
+    'pending' => '待审核',
+    'approved' => '已通过',
+    'rejected' => '已拒绝',
+    'cancelled' => '已取消',
+    _ => status,
+  };
+
+  factory ApiEditRequest.fromJson(Map<String, dynamic> json) {
+    return ApiEditRequest(
+      id: _string(json['id']),
+      requesterName: _string(json['requesterName']),
+      targetPersonId: _nullableString(json['targetPersonId']),
+      targetName: _string(json['targetName']),
+      baseVersion: _nullableInt(json['baseVersion']),
+      changes: ApiEditChanges.fromJson(_map(json['changes'])),
+      changedFields: _stringList(json['changedFields']),
+      status: _string(json['status'], fallback: 'pending'),
+      reviewNote: _string(json['reviewNote']),
+      submittedAt: DateTime.tryParse(_string(json['submittedAt'])),
+      reviewedAt: DateTime.tryParse(_string(json['reviewedAt'])),
+    );
+  }
+}
+
+class ApiEditRequestPage {
+  const ApiEditRequestPage({required this.items});
+
+  final List<ApiEditRequest> items;
+
+  factory ApiEditRequestPage.fromJson(Map<String, dynamic> json) {
+    return ApiEditRequestPage(
+      items: _list(json['items'], ApiEditRequest.fromJson),
+    );
+  }
+}
+
 class ApiPersonPage {
   const ApiPersonPage({required this.items, this.nextCursor});
 
@@ -402,6 +536,11 @@ ApiPartialDate? _date(dynamic value) {
 
 List<ApiRelative> _relatives(dynamic value) =>
     _list(value, ApiRelative.fromJson);
+
+List<String> _stringList(dynamic value) {
+  if (value is! List) return const [];
+  return value.whereType<String>().toList(growable: false);
+}
 
 List<T> _list<T>(dynamic value, T Function(Map<String, dynamic>) parse) {
   if (value is! List) return const [];

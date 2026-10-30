@@ -22,8 +22,15 @@
 - `GET /api/v1/tree?generation=&branchId=`
 - `GET /api/v1/persons?q=&generation=&branchId=&cursor=&limit=`
 - `GET /api/v1/persons/{personId}`
+- `POST /api/v1/edit-requests`（提交人物资料修改申请）
+- `GET /api/v1/edit-requests?status=&mine=&limit=`
+- `GET /api/v1/edit-requests/{requestId}`
+- `POST /api/v1/edit-requests/{requestId}/approve`
+- `POST /api/v1/edit-requests/{requestId}/reject`
 
-尚未实现：资料申请/审核、编辑关系、照片上传、家庭切换、刷新令牌和登录限流。
+资料申请只允许修改籍贯、现居地、职业、教育和生平；审核通过时在事务内更新
+`persons` 并追加 `audit_logs`。编辑关系、照片上传、家庭切换、刷新令牌和登录限流
+尚未实现。
 契约见 [`packages/api-contracts/openapi.yaml`](../packages/api-contracts/openapi.yaml)，
 数据模型说明见 [`docs/backend/data-model.md`](../docs/backend/data-model.md)。
 

@@ -8,7 +8,7 @@ import '../../core/widgets/status_pill.dart';
 import '../../services/api_client.dart';
 import '../../services/api_models.dart';
 import '../../services/app_session.dart';
-import '../requests/profile_edit_page.dart';
+import '../requests/edit_request_page.dart';
 
 /// API-backed person profile. The summary received from a search result can be
 /// passed as [initialPerson] so the page paints immediately; the full record is
@@ -129,7 +129,10 @@ class _ApiPersonDetailPageState extends State<ApiPersonDetailPage> {
                               child: OutlinedButton.icon(
                                 onPressed: () => Navigator.of(context).push(
                                   MaterialPageRoute<void>(
-                                    builder: (_) => const ProfileEditPage(),
+                                    builder: (_) => EditRequestPage(
+                                      personId: person.id,
+                                      initialPerson: person,
+                                    ),
                                   ),
                                 ),
                                 icon: const Icon(Icons.edit_outlined, size: 17),

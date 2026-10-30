@@ -97,6 +97,54 @@ class ApiClient {
     return ApiPersonPage.fromJson(body);
   }
 
+  Future<ApiEditRequest> createEditRequest({
+    required String targetPersonId,
+    required int baseVersion,
+    required ApiEditChanges changes,
+  }) async {
+    final body = await _request(
+      'POST',
+      '/api/v1/edit-requests',
+      body: {
+        'targetPersonId': targetPersonId,
+        'baseVersion': baseVersion,
+        'changes': changes.toJson(),
+      },
+    );
+    return ApiEditRequest.fromJson(body);
+  }
+
+  Future<ApiEditRequestPage> editRequests({
+    String? status,
+    bool mine = false,
+    int limit = 50,
+  }) async {
+    final params = <String, String>{
+      'limit': '$limit',
+      if (status != null && status.isNotEmpty) 'status': status,
+      if (mine) 'mine': 'true',
+    };
+    final body = await _request(
+      'GET',
+      '/api/v1/edit-requests?${Uri(queryParameters: params).query}',
+    );
+    return ApiEditRequestPage.fromJson(body);
+  }
+
+  Future<ApiEditRequest> reviewEditRequest(
+    String requestId, {
+    required bool approve,
+    String note = '',
+  }) async {
+    final body = await _request(
+      'POST',
+      '/api/v1/edit-requests/${Uri.encodeComponent(requestId)}/'
+          '${approve ? 'approve' : 'reject'}',
+      body: {'note': note},
+    );
+    return ApiEditRequest.fromJson(body);
+  }
+
   Future<void> logout() async {
     final token = _token;
     if (token == null) return;

@@ -15,7 +15,11 @@ import '../../services/app_session.dart';
 import '../person/api_person_detail_page.dart';
 
 class MemberSearchPage extends StatefulWidget {
-  const MemberSearchPage({super.key});
+  const MemberSearchPage({super.key, this.selectMode = false});
+
+  /// When true, tapping a member returns that person to the caller instead of
+  /// opening their profile. Used by the edit-request entry points.
+  final bool selectMode;
 
   @override
   State<MemberSearchPage> createState() => _MemberSearchPageState();
@@ -244,14 +248,20 @@ class _MemberSearchPageState extends State<MemberSearchPage> {
                         return _MemberRow(
                           person: person,
                           currentPersonId: session.membership?.personId,
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => ApiPersonDetailPage(
-                                personId: person.id,
-                                initialPerson: person,
+                          onTap: () {
+                            if (widget.selectMode) {
+                              Navigator.of(context).pop(person);
+                              return;
+                            }
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => ApiPersonDetailPage(
+                                  personId: person.id,
+                                  initialPerson: person,
+                                ),
                               ),
-                            ),
-                          ),
+                            );
+                          },
                         );
                       },
                     ),

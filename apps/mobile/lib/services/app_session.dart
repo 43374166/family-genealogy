@@ -88,6 +88,43 @@ class AppSession extends ChangeNotifier {
     return _api.persons(query: query, generation: generation, limit: limit);
   }
 
+  Future<ApiEditRequest> createEditRequest({
+    required String targetPersonId,
+    required int baseVersion,
+    required ApiEditChanges changes,
+  }) {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    return _api.createEditRequest(
+      targetPersonId: targetPersonId,
+      baseVersion: baseVersion,
+      changes: changes,
+    );
+  }
+
+  Future<ApiEditRequestPage> editRequests({
+    String? status,
+    bool mine = false,
+    int limit = 50,
+  }) {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    return _api.editRequests(status: status, mine: mine, limit: limit);
+  }
+
+  Future<ApiEditRequest> reviewEditRequest(
+    String requestId, {
+    required bool approve,
+    String note = '',
+  }) {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    return _api.reviewEditRequest(requestId, approve: approve, note: note);
+  }
+
   Future<void> refreshTree() async {
     if (!isAuthenticated) return;
     try {

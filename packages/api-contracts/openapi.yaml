@@ -5,8 +5,8 @@ info:
   description: |
     多家族族谱产品的 v1 契约。契约先行，服务端实现必须与此一致。
 
-    当前后端已实现登录、当前账户/家庭、族谱树、人物查询和人物详情；资料申请与审核
-    接口仍按本契约逐步实现。所有时间使用 RFC 3339 UTC；错误使用 RFC 9457
+    当前后端已实现登录、当前账户/家庭、族谱树、人物查询、人物详情以及人物资料申请/审核。
+    所有时间使用 RFC 3339 UTC；错误使用 RFC 9457
     `application/problem+json`；JSON 字段使用 camelCase。
   contact:
     name: Family Tree API
@@ -236,27 +236,29 @@ paths:
   /api/v1/edit-requests:
     get:
       tags: [review]
-      operationId: listMyEditRequests
-      summary: 我提交的资料申请
+      operationId: listEditRequests
+      summary: 资料申请列表
+      description: owner/admin 默认返回全家申请；普通成员只能看到自己的申请。
       parameters:
         - name: status
           in: query
           schema:
             $ref: "#/components/schemas/EditRequestStatus"
-        - name: cursor
+        - name: mine
           in: query
           schema:
-            type: string
+            type: boolean
+            default: false
         - name: limit
           in: query
           schema:
             type: integer
             minimum: 1
             maximum: 100
-            default: 20
+            default: 50
       responses:
         "200":
-          description: 申请分页
+          description: 申请列表
           content:
             application/json:
               schema:
@@ -266,15 +268,7 @@ paths:
     post:
       tags: [review]
       operationId: createEditRequest
-      summary: 提交资料申请
-      parameters:
-        - name: Idempotency-Key
-          in: header
-          required: true
-          schema:
-            type: string
-            minLength: 8
-            maxLength: 128
+      summary: 提交人物资料修改申请
       requestBody:
         required: true
         content:
@@ -294,27 +288,40 @@ paths:
           $ref: "#/components/responses/Conflict"
         "422":
           $ref: "#/components/responses/UnprocessableEntity"
-  /api/v1/edit-requests/{requestId}/review:
+  /api/v1/edit-requests/{requestId}:
+    get:
+      tags: [review]
+      operationId: getEditRequest
+      summary: 申请详情
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+      responses:
+        "200":
+          description: 申请详情
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EditRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/edit-requests/{requestId}/approve:
     post:
       tags: [review]
-      operationId: reviewEditRequest
-      summary: 审核申请（owner/admin）
+      operationId: approveEditRequest
+      summary: 通过申请（owner/admin）
       parameters:
-        - name: requestId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+        - $ref: "#/components/parameters/RequestId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ReviewRequest"
+              $ref: "#/components/schemas/ReviewNote"
       responses:
         "200":
-          description: 审核完成
+          description: 已通过并写入人物资料
           content:
             application/json:
               schema:
@@ -325,6 +332,34 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "409":
           $ref: "#/components/responses/Conflict"
+  /api/v1/edit-requests/{requestId}/reject:
+    post:
+      tags: [review]
+      operationId: rejectEditRequest
+      summary: 拒绝申请（owner/admin）
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewNote"
+      responses:
+        "200":
+          description: 已拒绝
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EditRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
 components:
   securitySchemes:
     bearerAuth:
@@ -335,6 +370,13 @@ components:
   parameters:
     PersonId:
       name: personId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    RequestId:
+      name: requestId
       in: path
       required: true
       schema:
@@ -743,70 +785,83 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/SpouseEdge"
-    EditRequestType:
-      type: string
-      enum:
-        - create_person
-        - update_person
-        - archive_person
-        - add_parent_child
-        - end_parent_child
-        - add_spouse
-        - end_spouse
+    PersonEditChanges:
+      type: object
+      additionalProperties: false
+      properties:
+        birthPlace:
+          type: string
+          maxLength: 160
+        residence:
+          type: string
+          maxLength: 160
+        occupation:
+          type: string
+          maxLength: 160
+        education:
+          type: string
+          maxLength: 160
+        biography:
+          type: string
+          maxLength: 2000
+      minProperties: 1
     EditRequestStatus:
       type: string
       enum: [pending, approved, rejected, cancelled]
     CreateEditRequest:
       type: object
       additionalProperties: false
-      required: [type, payload]
+      required: [targetPersonId, baseVersion, changes]
       properties:
-        type:
-          $ref: "#/components/schemas/EditRequestType"
         targetPersonId:
           type: string
           format: uuid
         baseVersion:
           type: integer
           minimum: 1
-        payload:
-          type: object
-          description: 按 type 使用对应字段；服务端做 JSON Schema/业务校验
-          additionalProperties: true
-    ReviewRequest:
+        changes:
+          $ref: "#/components/schemas/PersonEditChanges"
+    ReviewNote:
       type: object
       additionalProperties: false
-      required: [decision]
       properties:
-        decision:
-          type: string
-          enum: [approve, reject]
         note:
           type: string
           maxLength: 2000
+          description: 拒绝时必填
     EditRequest:
       type: object
-      required: [id, type, status, payload, submittedAt]
+      required:
+        - id
+        - requesterName
+        - targetName
+        - changes
+        - changedFields
+        - status
+        - submittedAt
       properties:
         id:
           type: string
           format: uuid
-        type:
-          $ref: "#/components/schemas/EditRequestType"
-        status:
-          $ref: "#/components/schemas/EditRequestStatus"
+        requesterName:
+          type: string
         targetPersonId:
           type: string
           format: uuid
+        targetName:
+          type: string
         baseVersion:
           type: integer
-        payload:
-          type: object
-          additionalProperties: true
-        requester:
-          $ref: "#/components/schemas/User"
-        reviewer:
-          $ref: "#/components/schemas/User"
+        changes:
+          $ref: "#/components/schemas/PersonEditChanges"
+        changedFields:
+          type: array
+          items:
+            type: string
+        status:
+          $ref: "#/components/schemas/EditRequestStatus"
+        reviewerName:
+          type: string
         reviewNote:
           type: string
         submittedAt:
@@ -817,11 +872,9 @@ components:
           format: date-time
     EditRequestPage:
       type: object
-      required: [items, nextCursor]
+      required: [items]
       properties:
         items:
           type: array
           items:
             $ref: "#/components/schemas/EditRequest"
-        nextCursor:
-          type: [string, "null"]
