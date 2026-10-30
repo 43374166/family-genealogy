@@ -446,6 +446,23 @@ class AppSession extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> uploadAvatar({
+    required String personId,
+    required List<int> bytes,
+    required String filename,
+  }) async {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    await _api.uploadAvatar(
+      personId: personId,
+      bytes: bytes,
+      filename: filename,
+    );
+    await refreshTree();
+    notifyListeners();
+  }
+
   Future<ApiNotificationPage> notifications() async {
     if (!isAuthenticated) {
       throw const ApiException('登录状态已失效，请重新登录');
@@ -881,5 +898,9 @@ class SessionScope extends InheritedNotifier<AppSession> {
     final scope = context.dependOnInheritedWidgetOfExactType<SessionScope>();
     assert(scope != null, 'SessionScope is missing above this context');
     return scope!.notifier!;
+  }
+
+  static AppSession? maybeOf(BuildContext context) {
+    return context.dependOnInheritedWidgetOfExactType<SessionScope>()?.notifier;
   }
 }

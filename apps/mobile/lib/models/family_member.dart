@@ -26,6 +26,8 @@ class FamilyMember {
     this.relation,
     this.tags = const [],
     this.isCurrentUser = false,
+    this.hasAvatar = false,
+    this.version = 0,
   });
 
   final String id;
@@ -41,6 +43,8 @@ class FamilyMember {
   final String? residence;
   final String? occupation;
   final String? biography;
+  final bool hasAvatar;
+  final int version;
 
   /// Describes how the person is attached to the focused branch in the demo,
   /// e.g. 配偶 / 长子 / 女儿. Empty for the branch owner.

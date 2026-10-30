@@ -71,6 +71,41 @@ class ApiClient {
     return ApiMe.fromJson(body);
   }
 
+  Future<void> uploadAvatar({
+    required String personId,
+    required List<int> bytes,
+    required String filename,
+  }) async {
+    final uri = Uri.parse(
+      '$_baseUrl/api/v1/persons/${Uri.encodeComponent(personId)}/avatar',
+    );
+    final request = http.MultipartRequest('POST', uri);
+    if (_token != null) {
+      request.headers['Authorization'] = 'Bearer $_token';
+    }
+    request.files.add(
+      http.MultipartFile.fromBytes('file', bytes, filename: filename),
+    );
+    final streamed = await _client
+        .send(request)
+        .timeout(const Duration(seconds: 45));
+    final response = await http.Response.fromStream(streamed);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      Map<String, dynamic> map = const {};
+      try {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic>) map = decoded;
+      } on FormatException {
+        // Fall through to the generic status message.
+      }
+      throw ApiException(
+        _errorMessage(map, response.statusCode),
+        statusCode: response.statusCode,
+        code: map['code'] as String?,
+      );
+    }
+  }
+
   Future<ApiNotificationPage> notifications({int limit = 50}) async {
     final body = await _request('GET', '/api/v1/notifications?limit=$limit');
     return ApiNotificationPage.fromJson(body);

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../models/family_member.dart';
+import '../../services/app_session.dart';
 
 /// A small, self-contained illustrated portrait.
 ///
@@ -20,6 +21,7 @@ class InkPortrait extends StatelessWidget {
     this.circle = false,
     this.showBorder = false,
     this.borderColor = Colors.white,
+    this.image,
   });
 
   final FamilyMember person;
@@ -29,15 +31,37 @@ class InkPortrait extends StatelessWidget {
   final bool circle;
   final bool showBorder;
   final Color borderColor;
+  final ImageProvider? image;
 
   @override
   Widget build(BuildContext context) {
-    final portrait = CustomPaint(
+    final painted = CustomPaint(
       size: Size(width, height),
       painter: _PortraitPainter(profile: _PortraitProfile.fromPerson(person)),
       isComplex: true,
       willChange: false,
     );
+    var provider = image;
+    if (provider == null && person.hasAvatar) {
+      final session = SessionScope.maybeOf(context);
+      if (session != null) {
+        provider = NetworkImage(
+          session.photoUrl(
+            '/api/v1/persons/${person.id}/avatar?v=${person.version}',
+          ),
+          headers: session.photoHeaders,
+        );
+      }
+    }
+    final portrait = provider == null
+        ? painted
+        : Image(
+            image: provider,
+            width: width,
+            height: height,
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => painted,
+          );
 
     final clipped = circle
         ? ClipOval(

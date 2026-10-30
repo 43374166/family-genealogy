@@ -664,6 +664,7 @@ class ApiPerson {
     required this.lifeStatus,
     required this.status,
     required this.version,
+    this.hasAvatar = false,
     this.birthPlace = '',
     this.residence = '',
     this.occupation = '',
@@ -690,6 +691,7 @@ class ApiPerson {
   final String lifeStatus;
   final String status;
   final int version;
+  final bool hasAvatar;
   final String birthPlace;
   final String residence;
   final String occupation;
@@ -720,6 +722,7 @@ class ApiPerson {
       lifeStatus: _string(json['lifeStatus'], fallback: 'unknown'),
       status: _string(json['status'], fallback: 'active'),
       version: _int(json['version'], fallback: 1),
+      hasAvatar: json['hasAvatar'] == true,
       birthPlace: _string(json['birthPlace']),
       residence: _string(json['residence']),
       occupation: _string(json['occupation']),
@@ -750,6 +753,8 @@ class ApiPerson {
       residence: residence.isEmpty ? null : residence,
       occupation: occupation.isEmpty ? null : occupation,
       biography: biography.isEmpty ? null : biography,
+      hasAvatar: hasAvatar,
+      version: version,
     );
   }
 }

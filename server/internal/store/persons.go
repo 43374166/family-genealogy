@@ -23,7 +23,7 @@ const personSummaryColumns = `
 	p.gender, p.generation_no, p.birth_order, p.branch_id,
 	p.birth_year, p.birth_month, p.birth_day, p.birth_calendar, p.birth_is_leap_month, p.birth_date_text,
 	p.death_year, p.death_month, p.death_day, p.death_calendar, p.death_is_leap_month, p.death_date_text,
-	p.life_status, p.status, p.version`
+	p.life_status, p.status, p.version, (p.avatar_object_key IS NOT NULL)`
 
 type rowScanner interface {
 	Scan(dest ...any) error
@@ -44,7 +44,7 @@ func scanPersonSummary(scanner rowScanner) (*model.PersonSummary, error) {
 		&person.GenerationNo, &birthOrder, &branchID,
 		&birthYear, &birthMonth, &birthDay, &birthCalendar, &birthLeap, &birthText,
 		&deathYear, &deathMonth, &deathDay, &deathCalendar, &deathLeap, &deathText,
-		&person.LifeStatus, &person.Status, &person.Version,
+		&person.LifeStatus, &person.Status, &person.Version, &person.HasAvatar,
 	)
 	if err != nil {
 		return nil, err
@@ -155,7 +155,7 @@ func (s *Store) GetPerson(ctx context.Context, familyID, personID string) (*mode
 		&person.GenerationNo, &birthOrder, &branchID,
 		&birthYear, &birthMonth, &birthDay, &birthCalendar, &birthLeap, &birthText,
 		&deathYear, &deathMonth, &deathDay, &deathCalendar, &deathLeap, &deathText,
-		&person.LifeStatus, &person.Status, &person.Version,
+		&person.LifeStatus, &person.Status, &person.Version, &person.HasAvatar,
 		&person.BirthPlace, &person.Residence, &person.Occupation, &person.Education,
 		&person.Biography, &person.CreatedAt, &person.UpdatedAt,
 	)

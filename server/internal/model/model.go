@@ -68,6 +68,7 @@ type PersonSummary struct {
 	LifeStatus      string       `json:"lifeStatus"`
 	Status          string       `json:"status"`
 	Version         int          `json:"version"`
+	HasAvatar       bool         `json:"hasAvatar"`
 }
 
 type Person struct {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
@@ -8,6 +9,7 @@ import '../../core/widgets/soft_card.dart';
 import '../../core/widgets/status_pill.dart';
 import '../../data/demo_data.dart';
 import '../../models/family_member.dart';
+import '../../services/api_client.dart';
 import '../../services/app_session.dart';
 import '../family/bind_person_page.dart';
 import '../family/binding_requests_page.dart';
@@ -16,6 +18,7 @@ import '../family/export_family_page.dart';
 import '../family/family_switch_page.dart';
 import '../family/import_family_page.dart';
 import '../family/invite_page.dart';
+import '../family/my_qr_page.dart';
 import '../family/phone_bind_page.dart';
 import '../person/api_person_detail_page.dart';
 import '../requests/requests_page.dart';
@@ -29,6 +32,47 @@ String _maskPhone(String phone) {
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
+
+  Future<void> _changeAvatar(BuildContext context, String? personId) async {
+    if (personId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('请先绑定族谱人物，再修改头像'),
+          action: SnackBarAction(
+            label: '去绑定',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const BindPersonPage()),
+            ),
+          ),
+        ),
+      );
+      return;
+    }
+    final session = SessionScope.of(context);
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1200,
+      imageQuality: 85,
+    );
+    if (picked == null || !context.mounted) return;
+    try {
+      final bytes = await picked.readAsBytes();
+      await session.uploadAvatar(
+        personId: personId,
+        bytes: bytes,
+        filename: picked.name,
+      );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('头像已更新，族谱树同步生效')));
+    } on ApiException catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,6 +102,12 @@ class ProfilePage extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(22, 8, 16, 8),
               actions: [
                 HeaderIconButton(
+                  icon: Icons.qr_code_2_rounded,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(builder: (_) => const MyQrPage()),
+                  ),
+                ),
+                HeaderIconButton(
                   icon: Icons.settings_outlined,
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
@@ -73,6 +123,7 @@ class ProfilePage extends StatelessWidget {
                 children: [
                   _ProfileCard(
                     person: person,
+                    onAvatarTap: () => _changeAvatar(context, linkedPersonId),
                     roleLabel: session.membership?.role == 'owner'
                         ? '族长'
                         : session.membership?.role == 'admin'
@@ -282,6 +333,19 @@ class ProfilePage extends StatelessWidget {
                     child: Column(
                       children: [
                         _MenuRow(
+                          icon: Icons.qr_code_2_rounded,
+                          color: AppColors.jade,
+                          background: AppColors.jadeSoft,
+                          label: '我的二维码',
+                          trailing: '邀请加入家族',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const MyQrPage(),
+                            ),
+                          ),
+                        ),
+                        const Divider(height: 1, indent: 47),
+                        _MenuRow(
                           icon: Icons.settings_outlined,
                           color: AppColors.inkSoft,
                           background: AppColors.slateSoft,
@@ -320,7 +384,7 @@ class ProfilePage extends StatelessWidget {
                           color: AppColors.inkMuted,
                           background: AppColors.slateSoft,
                           label: '关于家族族谱',
-                          trailing: 'v0.27.0',
+                          trailing: 'v0.28.0',
                           onTap: () => _showAbout(context),
                         ),
                       ],
@@ -427,7 +491,7 @@ class ProfilePage extends StatelessWidget {
             ),
             const SizedBox(height: 5),
             const Text(
-              '家族族谱 · Flutter + MySQL v0.27.0',
+              '家族族谱 · Flutter + MySQL v0.28.0',
               style: TextStyle(fontSize: 10.5, color: AppColors.inkMuted),
             ),
             const SizedBox(height: 16),
@@ -486,10 +550,15 @@ class ProfilePage extends StatelessWidget {
 }
 
 class _ProfileCard extends StatelessWidget {
-  const _ProfileCard({required this.person, required this.roleLabel});
+  const _ProfileCard({
+    required this.person,
+    required this.roleLabel,
+    required this.onAvatarTap,
+  });
 
   final FamilyMember person;
   final String roleLabel;
+  final VoidCallback onAvatarTap;
 
   @override
   Widget build(BuildContext context) {
@@ -524,12 +593,41 @@ class _ProfileCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    InkPortrait(
-                      person: person,
-                      width: 70,
-                      height: 82,
-                      radius: 17,
-                      showBorder: true,
+                    GestureDetector(
+                      onTap: onAvatarTap,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          InkPortrait(
+                            person: person,
+                            width: 70,
+                            height: 82,
+                            radius: 17,
+                            showBorder: true,
+                          ),
+                          Positioned(
+                            right: -4,
+                            bottom: -4,
+                            child: Container(
+                              width: 24,
+                              height: 24,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: AppColors.line,
+                                  width: 0.8,
+                                ),
+                              ),
+                              child: const Icon(
+                                Icons.camera_alt_outlined,
+                                size: 13,
+                                color: AppColors.inkSoft,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
