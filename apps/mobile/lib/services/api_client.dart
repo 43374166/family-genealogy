@@ -72,6 +72,31 @@ class ApiClient {
     return ApiFamily.fromJson(body);
   }
 
+  Future<ApiPerson> person(String personId) async {
+    final body = await _request(
+      'GET',
+      '/api/v1/persons/${Uri.encodeComponent(personId)}',
+    );
+    return ApiPerson.fromJson(body);
+  }
+
+  Future<ApiPersonPage> persons({
+    String query = '',
+    int? generation,
+    int limit = 100,
+  }) async {
+    final params = <String, String>{
+      'limit': '$limit',
+      if (query.trim().isNotEmpty) 'q': query.trim(),
+      if (generation != null) 'generation': '$generation',
+    };
+    final body = await _request(
+      'GET',
+      '/api/v1/persons?${Uri(queryParameters: params).query}',
+    );
+    return ApiPersonPage.fromJson(body);
+  }
+
   Future<void> logout() async {
     final token = _token;
     if (token == null) return;

@@ -342,6 +342,20 @@ class ApiTree {
   }
 }
 
+class ApiPersonPage {
+  const ApiPersonPage({required this.items, this.nextCursor});
+
+  final List<ApiPerson> items;
+  final String? nextCursor;
+
+  factory ApiPersonPage.fromJson(Map<String, dynamic> json) {
+    return ApiPersonPage(
+      items: _list(json['items'], ApiPerson.fromJson),
+      nextCursor: _nullableString(json['nextCursor']),
+    );
+  }
+}
+
 class ApiSession {
   const ApiSession({
     required this.token,

@@ -1,7 +1,8 @@
 # apps/mobile · Flutter（iOS / Android）
 
-「家族族谱」多家族 Flutter 移动端。登录、首页和族谱树已经接 MySQL + Go 的真实 API；
-其他页面仍使用演示数据。APP 品牌不绑定任何姓氏，当前家庭由登录账户决定。
+「家族族谱」多家族 Flutter 移动端。登录、首页、动态族谱树、人物详情和成员搜索
+已经接 MySQL + Go 的真实 API；其他页面仍使用演示数据。APP 品牌不绑定任何姓氏，
+当前家庭由登录账户决定。
 
 ## 运行
 
@@ -43,11 +44,12 @@ iOS 真机必须与电脑在同一局域网，并允许“本地网络”权限�
 
 ## 数据与后端
 
-- `lib/services/api_client.dart`：登录与只读 API 客户端。
+- `lib/services/api_client.dart`：登录、族谱树、人物详情和成员搜索 API 客户端。
 - `lib/services/app_session.dart`：当前账户、家庭、族谱树和登录状态。
+- `lib/features/tree/tree_layout.dart`：按 API 关系和世代计算的动态族谱布局。
 - `lib/data/demo_data.dart`：尚未接 API 的页面仍从这里读取演示数据。
 
-资料申请、审核、写入和人物详情还没有接服务端；对应入口继续标注原型能力。
+资料申请、审核和写入还没有接服务端；对应入口继续标注原型能力。
 
 ## 设计资产
 

@@ -24,19 +24,22 @@ class _FamilyTreeAppState extends State<FamilyTreeApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: '家族族谱',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      scrollBehavior: const _AppScrollBehavior(),
-      locale: const Locale('zh', 'CN'),
-      supportedLocales: const [Locale('zh', 'CN'), Locale('en', 'US')],
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      home: SessionScope(session: _session, child: const _RootGate()),
+    return SessionScope(
+      session: _session,
+      child: MaterialApp(
+        title: '家族族谱',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.light,
+        scrollBehavior: const _AppScrollBehavior(),
+        locale: const Locale('zh', 'CN'),
+        supportedLocales: const [Locale('zh', 'CN'), Locale('en', 'US')],
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        home: const _RootGate(),
+      ),
     );
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -7,9 +8,11 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_page_header.dart';
 import '../../core/widgets/ink_portrait.dart';
 import '../../core/widgets/status_pill.dart';
-import '../../data/demo_data.dart';
 import '../../models/family_member.dart';
-import '../person/person_detail_page.dart';
+import '../../services/api_client.dart';
+import '../../services/api_models.dart';
+import '../../services/app_session.dart';
+import '../person/api_person_detail_page.dart';
 
 class MemberSearchPage extends StatefulWidget {
   const MemberSearchPage({super.key});
@@ -20,32 +23,79 @@ class MemberSearchPage extends StatefulWidget {
 
 class _MemberSearchPageState extends State<MemberSearchPage> {
   final _controller = TextEditingController();
+  Timer? _debounce;
+  List<ApiPerson> _results = const [];
   int? _generation;
   String _query = '';
+  String? _error;
+  bool _loading = true;
+  bool _started = false;
+  int _serial = 0;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+    _search();
+  }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _controller.dispose();
     super.dispose();
   }
 
-  List<FamilyMember> get _results {
-    final query = _query.trim().toLowerCase();
-    return DemoData.directory.where((member) {
-      final matchesGeneration =
-          _generation == null || member.generation == _generation;
-      if (!matchesGeneration) return false;
-      if (query.isEmpty) return true;
-      return member.name.toLowerCase().contains(query) ||
-          member.aliases.any((alias) => alias.toLowerCase().contains(query)) ||
-          (member.birthPlace?.toLowerCase().contains(query) ?? false) ||
-          (member.occupation?.toLowerCase().contains(query) ?? false);
-    }).toList()..sort((a, b) => a.generation.compareTo(b.generation));
+  void _onQueryChanged(String value) {
+    _query = value;
+    setState(() {});
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 320), _search);
+  }
+
+  Future<void> _search() async {
+    final serial = ++_serial;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final page = await SessionScope.of(
+        context,
+      ).searchPersons(query: _query, generation: _generation, limit: 100);
+      if (!mounted || serial != _serial) return;
+      final sorted = [...page.items]
+        ..sort((a, b) {
+          final generation = a.generationNo.compareTo(b.generationNo);
+          if (generation != 0) return generation;
+          return a.fullName.compareTo(b.fullName);
+        });
+      setState(() {
+        _results = sorted;
+        _loading = false;
+      });
+    } on ApiException catch (error) {
+      if (!mounted || serial != _serial) return;
+      setState(() {
+        _error = error.message;
+        _loading = false;
+      });
+    }
+  }
+
+  void _selectGeneration(int? generation) {
+    setState(() => _generation = generation);
+    _debounce?.cancel();
+    _search();
   }
 
   @override
   Widget build(BuildContext context) {
-    final results = _results;
+    final session = SessionScope.of(context);
+    final generations = _generationsOf(session);
+    final familyName = session.family?.name ?? '当前家庭';
+    final memberCount = session.family?.memberCount ?? _results.length;
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -54,12 +104,11 @@ class _MemberSearchPageState extends State<MemberSearchPage> {
           children: [
             AppPageHeader(
               title: '成员查询',
-              subtitle:
-                  '${DemoData.family.name} · 共 ${DemoData.family.memberCount} 人',
+              subtitle: '$familyName · 共 $memberCount 人',
               actions: [
                 HeaderIconButton(
                   icon: Icons.tune_rounded,
-                  onTap: () => _showFilterSheet(context),
+                  onTap: () => _showFilterSheet(context, generations),
                 ),
               ],
             ),
@@ -79,19 +128,30 @@ class _MemberSearchPageState extends State<MemberSearchPage> {
                 ),
                 child: TextField(
                   controller: _controller,
-                  onChanged: (value) => setState(() => _query = value),
+                  onChanged: _onQueryChanged,
                   textInputAction: TextInputAction.search,
                   style: const TextStyle(fontSize: 14),
                   decoration: InputDecoration(
-                    hintText: '搜索姓名、籍贯或职业',
+                    hintText: '搜索姓名、字号',
                     filled: false,
                     prefixIcon: const Icon(Icons.search_rounded, size: 21),
                     suffixIcon: _query.isEmpty
-                        ? null
+                        ? (_loading
+                              ? const Padding(
+                                  padding: EdgeInsets.all(14),
+                                  child: SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                )
+                              : null)
                         : IconButton(
                             onPressed: () {
                               _controller.clear();
-                              setState(() => _query = '');
+                              _onQueryChanged('');
                             },
                             icon: const Icon(Icons.close_rounded, size: 18),
                           ),
@@ -108,13 +168,13 @@ class _MemberSearchPageState extends State<MemberSearchPage> {
                   _GenerationChip(
                     label: '全部',
                     selected: _generation == null,
-                    onTap: () => setState(() => _generation = null),
+                    onTap: () => _selectGeneration(null),
                   ),
-                  for (final generation in [6, 7, 8, 9, 10])
+                  for (final generation in generations)
                     _GenerationChip(
                       label: FamilyMember.generationLabelFor(generation),
                       selected: _generation == generation,
-                      onTap: () => setState(() => _generation = generation),
+                      onTap: () => _selectGeneration(generation),
                     ),
                 ],
               ),
@@ -133,28 +193,40 @@ class _MemberSearchPageState extends State<MemberSearchPage> {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    '${results.length} 位',
+                    '${_results.length} 位',
                     style: const TextStyle(
                       fontSize: 11,
                       color: AppColors.inkMuted,
                     ),
                   ),
                   const Spacer(),
-                  const Icon(
-                    Icons.sort_rounded,
-                    size: 16,
-                    color: AppColors.inkMuted,
-                  ),
+                  if (_loading)
+                    const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  else
+                    const Icon(
+                      Icons.sort_rounded,
+                      size: 16,
+                      color: AppColors.inkMuted,
+                    ),
                   const SizedBox(width: 3),
-                  const Text(
-                    '按世代',
-                    style: TextStyle(fontSize: 10.5, color: AppColors.inkMuted),
+                  Text(
+                    _loading ? '查询中' : '按世代',
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      color: AppColors.inkMuted,
+                    ),
                   ),
                 ],
               ),
             ),
             Expanded(
-              child: results.isEmpty
+              child: _error != null
+                  ? _SearchError(error: _error!, onRetry: _search)
+                  : _results.isEmpty && !_loading
                   ? const _EmptySearch()
                   : ListView.separated(
                       keyboardDismissBehavior:
@@ -165,15 +237,19 @@ class _MemberSearchPageState extends State<MemberSearchPage> {
                         18,
                         MediaQuery.paddingOf(context).bottom + 24,
                       ),
-                      itemCount: results.length,
+                      itemCount: _results.length,
                       separatorBuilder: (_, _) => const SizedBox(height: 9),
                       itemBuilder: (context, index) {
-                        final member = results[index];
+                        final person = _results[index];
                         return _MemberRow(
-                          member: member,
+                          person: person,
+                          currentPersonId: session.membership?.personId,
                           onTap: () => Navigator.of(context).push(
                             MaterialPageRoute<void>(
-                              builder: (_) => PersonDetailPage(person: member),
+                              builder: (_) => ApiPersonDetailPage(
+                                personId: person.id,
+                                initialPerson: person,
+                              ),
                             ),
                           ),
                         );
@@ -186,7 +262,16 @@ class _MemberSearchPageState extends State<MemberSearchPage> {
     );
   }
 
-  void _showFilterSheet(BuildContext context) {
+  List<int> _generationsOf(AppSession session) {
+    final tree = session.tree;
+    if (tree == null) return const [];
+    final values =
+        tree.persons.map((person) => person.generationNo).toSet().toList()
+          ..sort();
+    return values;
+  }
+
+  void _showFilterSheet(BuildContext context, List<int> generations) {
     showModalBottomSheet<void>(
       context: context,
       builder: (context) => Container(
@@ -218,7 +303,7 @@ class _MemberSearchPageState extends State<MemberSearchPage> {
             Text('筛选成员', style: AppTheme.serif(fontSize: 21)),
             const SizedBox(height: 4),
             const Text(
-              '当前原型支持按世代浏览，更多筛选将随数据能力一起接入。',
+              '按世代缩小范围，姓名搜索由服务端实时查询。',
               style: TextStyle(
                 fontSize: 11.5,
                 height: 1.5,
@@ -239,17 +324,17 @@ class _MemberSearchPageState extends State<MemberSearchPage> {
                   label: '全部',
                   selected: _generation == null,
                   onTap: () {
-                    setState(() => _generation = null);
                     Navigator.pop(context);
+                    _selectGeneration(null);
                   },
                 ),
-                for (final generation in [6, 7, 8, 9, 10])
+                for (final generation in generations)
                   _GenerationChip(
                     label: FamilyMember.generationLabelFor(generation),
                     selected: _generation == generation,
                     onTap: () {
-                      setState(() => _generation = generation);
                       Navigator.pop(context);
+                      _selectGeneration(generation);
                     },
                   ),
               ],
@@ -306,13 +391,20 @@ class _GenerationChip extends StatelessWidget {
 }
 
 class _MemberRow extends StatelessWidget {
-  const _MemberRow({required this.member, required this.onTap});
+  const _MemberRow({
+    required this.person,
+    required this.currentPersonId,
+    required this.onTap,
+  });
 
-  final FamilyMember member;
+  final ApiPerson person;
+  final String? currentPersonId;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final member = person.toFamilyMember('');
+    final isCurrent = currentPersonId == person.id;
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
@@ -331,12 +423,16 @@ class _MemberRow extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        Text(
-                          member.name,
-                          style: const TextStyle(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.ink,
+                        Flexible(
+                          child: Text(
+                            person.fullName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.ink,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 6),
@@ -346,7 +442,7 @@ class _MemberRow extends StatelessWidget {
                             color: AppColors.rose,
                             background: AppColors.roseSoft,
                           ),
-                        if (member.isCurrentUser)
+                        if (isCurrent)
                           const Padding(
                             padding: EdgeInsets.only(left: 5),
                             child: TagPill(
@@ -359,24 +455,24 @@ class _MemberRow extends StatelessWidget {
                     ),
                     const SizedBox(height: 5),
                     Text(
-                      [
-                        member.generationLabel,
-                        if (member.relation == '配偶') '配偶',
-                        member.lifespan,
-                      ].join(' · '),
+                      '${person.generationLabel} · ${member.lifespan}',
                       style: const TextStyle(
                         fontSize: 10.5,
                         color: AppColors.inkSoft,
                       ),
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      member.birthPlace ?? '籍贯未记录',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: AppColors.inkMuted,
+                    if (person.birthPlace.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        person.birthPlace,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: AppColors.inkMuted,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -402,6 +498,40 @@ class _MemberRow extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchError extends StatelessWidget {
+  const _SearchError({required this.error, required this.onRetry});
+
+  final String error;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.cloud_off_rounded,
+              size: 42,
+              color: AppColors.inkMuted,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              error,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 12.5, color: AppColors.inkSoft),
+            ),
+            const SizedBox(height: 14),
+            OutlinedButton(onPressed: onRetry, child: const Text('重试')),
+          ],
         ),
       ),
     );

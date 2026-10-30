@@ -6,8 +6,8 @@ Web、鸿蒙和小程序暂留扩展位置。
 
 后端数据契约见 [`packages/api-contracts/openapi.yaml`](packages/api-contracts/openapi.yaml)，
 数据模型见 [`docs/backend/data-model.md`](docs/backend/data-model.md)。当前后端已落地
-MySQL schema、迁移、登录/会话、家庭/族谱树/人物只读 API；Flutter 的登录、首页和
-族谱树已接真实 API。资料申请、审核、写入和人物详情接 API 还未完成。
+MySQL schema、迁移、登录/会话、家庭/族谱树/人物只读 API；Flutter 的登录、首页、
+动态族谱树、人物详情和成员搜索已接真实 API。资料申请、审核和写入还未完成。
 
 > **产品不绑定任何姓氏。** APP 品牌名为「家族族谱」；首页的大标题、成员、家支和故事
 > 都属于当前登录账户所在的家庭空间。代码里的家庭资料统一来自
@@ -42,7 +42,7 @@ MySQL schema、迁移、登录/会话、家庭/族谱树/人物只读 API；Flut
 | 鸿蒙端 | `apps/harmony` | 📁 占位，需单独验证 Flutter/ArkUI 路线 |
 | 微信小程序 | `apps/mini-program` | 📁 占位，后续独立实现并复用 API |
 | Go 服务端 | `server` | ✅ MySQL 8.4 + 登录/会话 + 家庭/族谱树/人物只读 API；PG 17 设计保留，写入与审核待做 |
-| Flutter 数据接入 | `apps/mobile` | ✅ 登录、首页、族谱树接真实 API；其余页面仍为演示数据 |
+| Flutter 数据接入 | `apps/mobile` | ✅ 登录、首页、动态族谱树、人物详情、成员搜索接真实 API；其余页面仍为演示数据 |
 | API 契约 | `packages/api-contracts` | ✅ OpenAPI 3.1 初版 |
 
 已实现的首期移动端页面：

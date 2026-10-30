@@ -70,6 +70,24 @@ class AppSession extends ChangeNotifier {
     }
   }
 
+  Future<ApiPerson> fetchPerson(String personId) {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    return _api.person(personId);
+  }
+
+  Future<ApiPersonPage> searchPersons({
+    String query = '',
+    int? generation,
+    int limit = 100,
+  }) {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    return _api.persons(query: query, generation: generation, limit: limit);
+  }
+
   Future<void> refreshTree() async {
     if (!isAuthenticated) return;
     try {

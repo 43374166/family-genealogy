@@ -7,11 +7,12 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/ink_portrait.dart';
 import '../../core/widgets/soft_card.dart';
-import '../../data/demo_data.dart';
 import '../../models/family_member.dart';
+import '../../services/api_models.dart';
 import '../../services/app_session.dart';
-import '../person/person_detail_page.dart';
+import '../person/api_person_detail_page.dart';
 import '../search/member_search_page.dart';
+import 'tree_layout.dart';
 
 class TreePage extends StatefulWidget {
   const TreePage({super.key, required this.onBack});
@@ -24,216 +25,7 @@ class TreePage extends StatefulWidget {
 
 class _TreePageState extends State<TreePage>
     with SingleTickerProviderStateMixin {
-  static const double _canvasWidth = 800;
-  static const double _canvasHeight = 1010;
   static const double _detailReserve = 154;
-
-  // A couple is laid out side by side. The child line starts from the centre
-  // of the small marriage bridge between the two cards and drops straight to
-  // the next generation. The direct bloodline therefore steps to the right by
-  // one spouse width per generation, which keeps the actual relationship
-  // unambiguous instead of drawing a line out of one person's card.
-  static const List<_TreePlacement> _placements = [
-    _TreePlacement(
-      id: 'person_zhang_tianming',
-      left: 130,
-      top: 40,
-      width: 140,
-      height: 82,
-      generation: 6,
-      compact: false,
-    ),
-    _TreePlacement(
-      id: 'person_lin_shi',
-      left: 290,
-      top: 40,
-      width: 140,
-      height: 82,
-      generation: 6,
-      compact: false,
-    ),
-    _TreePlacement(
-      id: 'person_zhang_hongyuan',
-      left: 210,
-      top: 245,
-      width: 140,
-      height: 82,
-      generation: 7,
-      compact: false,
-    ),
-    _TreePlacement(
-      id: 'person_su_shi',
-      left: 370,
-      top: 245,
-      width: 140,
-      height: 82,
-      generation: 7,
-      compact: false,
-    ),
-    _TreePlacement(
-      id: 'person_zhang_yi',
-      left: 290,
-      top: 465,
-      width: 140,
-      height: 82,
-      generation: 8,
-      compact: false,
-    ),
-    _TreePlacement(
-      id: 'person_yu_meng',
-      left: 450,
-      top: 465,
-      width: 140,
-      height: 82,
-      generation: 8,
-      compact: false,
-    ),
-    _TreePlacement(
-      id: 'person_zhang_xu',
-      left: 206,
-      top: 635,
-      width: 84,
-      height: 126,
-      generation: 9,
-      compact: true,
-    ),
-    _TreePlacement(
-      id: 'person_zhang_yao',
-      left: 302,
-      top: 635,
-      width: 84,
-      height: 126,
-      generation: 9,
-      compact: true,
-    ),
-    _TreePlacement(
-      id: 'person_zhang_lang',
-      left: 398,
-      top: 635,
-      width: 84,
-      height: 126,
-      generation: 9,
-      compact: true,
-    ),
-    _TreePlacement(
-      id: 'person_zhang_xue',
-      left: 494,
-      top: 635,
-      width: 84,
-      height: 126,
-      generation: 9,
-      compact: true,
-    ),
-    _TreePlacement(
-      id: 'person_zhang_xuan',
-      left: 590,
-      top: 635,
-      width: 84,
-      height: 126,
-      generation: 9,
-      compact: true,
-    ),
-    _TreePlacement(
-      id: 'person_zhang_xiaohu',
-      left: 254,
-      top: 840,
-      width: 84,
-      height: 126,
-      generation: 10,
-      compact: true,
-    ),
-    _TreePlacement(
-      id: 'person_zhang_xiaoyu',
-      left: 350,
-      top: 840,
-      width: 84,
-      height: 126,
-      generation: 10,
-      compact: true,
-    ),
-    _TreePlacement(
-      id: 'person_zhang_xiaoyue',
-      left: 542,
-      top: 840,
-      width: 84,
-      height: 126,
-      generation: 10,
-      compact: true,
-    ),
-    _TreePlacement(
-      id: 'person_zhang_xiaoyu_junior',
-      left: 638,
-      top: 840,
-      width: 84,
-      height: 126,
-      generation: 10,
-      compact: true,
-    ),
-  ];
-
-  static const List<List<Offset>> _edges = [
-    // 张天明 + 林氏 → 张宏远
-    [Offset(280, 81), Offset(280, 245)],
-    // 张宏远 + 苏氏 → 张一
-    [Offset(360, 286), Offset(360, 465)],
-    // 张一 + 余梦 → five children
-    [Offset(440, 506), Offset(440, 595)],
-    [Offset(248, 595), Offset(632, 595)],
-    [Offset(248, 595), Offset(248, 635)],
-    [Offset(344, 595), Offset(344, 635)],
-    [Offset(440, 595), Offset(440, 635)],
-    [Offset(536, 595), Offset(536, 635)],
-    [Offset(632, 595), Offset(632, 635)],
-    // Grandchildren under 张瑶
-    [Offset(344, 761), Offset(344, 800)],
-    [Offset(296, 800), Offset(392, 800)],
-    [Offset(296, 800), Offset(296, 840)],
-    [Offset(392, 800), Offset(392, 840)],
-    // Grandchildren under 张轩
-    [Offset(632, 761), Offset(632, 800)],
-    [Offset(584, 800), Offset(680, 800)],
-    [Offset(584, 800), Offset(584, 840)],
-    [Offset(680, 800), Offset(680, 840)],
-  ];
-
-  /// Short bridges inside the gap between each husband and wife.
-  static const List<(Offset, Offset)> _marriageBridges = [
-    (Offset(270, 81), Offset(290, 81)),
-    (Offset(350, 286), Offset(370, 286)),
-    (Offset(430, 506), Offset(450, 506)),
-  ];
-
-  /// A tiny junction where the marriage bridge meets the descent line.
-  static const List<Offset> _unionNodes = [
-    Offset(280, 81),
-    Offset(360, 286),
-    Offset(440, 506),
-  ];
-
-  /// Branch junctions on the sibling buses.
-  static const List<Offset> _branchNodes = [
-    Offset(440, 595),
-    Offset(344, 800),
-    Offset(632, 800),
-  ];
-
-  static const List<(int, double)> _generationLabels = [
-    (6, 81),
-    (7, 286),
-    (8, 506),
-    (9, 698),
-    (10, 903),
-  ];
-
-  /// Horizontal and vertical centers used when a generation is focused.
-  static const Map<int, Offset> _generationFocusPoints = {
-    6: Offset(280, 81),
-    7: Offset(360, 286),
-    8: Offset(440, 506),
-    9: Offset(440, 698),
-    10: Offset(488, 903),
-  };
-
   final TransformationController _transformation = TransformationController();
   late final AnimationController _zoomController;
   Animation<Matrix4>? _zoomAnimation;
@@ -242,25 +34,11 @@ class _TreePageState extends State<TreePage>
   int? _focusGeneration;
   Size _viewportSize = Size.zero;
   bool _fitScheduled = false;
-  Map<String, FamilyMember> _membersByPlacement = const {};
+  TreeLayout? _layout;
+  Map<String, FamilyMember> _membersById = const {};
 
   FamilyMember? get _selected =>
-      _selectedId == null ? null : _membersByPlacement[_selectedId];
-
-  /// The tree artwork still uses the prototype's fixed geometry. Resolve each
-  /// fixture placement against the live family data by display name until the
-  /// relationship layout engine replaces the static coordinates.
-  Map<String, FamilyMember> _membersFrom(List<FamilyMember> members) {
-    final byName = {for (final member in members) member.name: member};
-    final result = <String, FamilyMember>{};
-    for (final placement in _placements) {
-      final fixture = DemoData.memberById(placement.id);
-      if (fixture == null) continue;
-      final live = byName[fixture.name];
-      if (live != null) result[placement.id] = live;
-    }
-    return result;
-  }
+      _selectedId == null ? null : _membersById[_selectedId];
 
   void _clearSelection() {
     if (_selectedId == null) return;
@@ -293,13 +71,39 @@ class _TreePageState extends State<TreePage>
   Widget build(BuildContext context) {
     final topInset = MediaQuery.paddingOf(context).top;
     final session = SessionScope.of(context);
-    _membersByPlacement = _membersFrom(session.treeMembers);
+    final layout = TreeLayout.fromTree(session.tree);
+    _layout = layout;
+    _membersById = {
+      for (final member in session.treeMembers) member.id: member,
+    };
     final selected = _selected;
-    final activeGeneration =
-        selected?.generation ?? DemoData.currentUser.generation;
-    final familyName = session.family?.name ?? DemoData.family.name;
-    final memberCount =
-        session.family?.memberCount ?? DemoData.family.memberCount;
+    final familyName = session.family?.name ?? '当前家庭';
+    final memberCount = session.family?.memberCount ?? layout?.personCount ?? 0;
+
+    if (layout == null) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              _TreeHeader(
+                subtitle: session.error ?? '族谱数据尚未载入',
+                onBack: widget.onBack,
+                onSearch: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const MemberSearchPage(),
+                  ),
+                ),
+                onDirectory: () {},
+              ),
+              const Expanded(child: _TreeEmpty()),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: GestureDetector(
@@ -314,7 +118,7 @@ class _TreePageState extends State<TreePage>
                 children: [
                   _TreeHeader(
                     subtitle:
-                        '$familyName · ${FamilyMember.generationLabelFor(activeGeneration)} · 共 $memberCount 人',
+                        '$familyName · ${layout.generations.length} 代 · 共 $memberCount 人',
                     onBack: widget.onBack,
                     onSearch: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
@@ -324,6 +128,7 @@ class _TreePageState extends State<TreePage>
                     onDirectory: () => _showDirectory(context),
                   ),
                   _GenerationFilters(
+                    generations: layout.generations,
                     selected: _focusGeneration,
                     onChanged: _handleFilterChanged,
                     onMore: () => _showDirectory(context),
@@ -380,27 +185,28 @@ class _TreePageState extends State<TreePage>
                             alignment: Alignment.topLeft,
                             onInteractionStart: (_) => _zoomController.stop(),
                             child: SizedBox(
-                              width: _canvasWidth,
-                              height: _canvasHeight,
+                              width: layout.width,
+                              height: layout.height,
                               child: Stack(
                                 clipBehavior: Clip.none,
                                 children: [
                                   Positioned.fill(
                                     child: CustomPaint(
                                       painter: _TreeLinesPainter(
-                                        edges: _edges,
-                                        marriageBridges: _marriageBridges,
-                                        unionNodes: _unionNodes,
-                                        branchNodes: _branchNodes,
+                                        edges: layout.edges,
+                                        marriageBridges: layout.marriageBridges,
+                                        unionNodes: layout.unionNodes,
+                                        branchNodes: layout.branchNodes,
                                       ),
                                     ),
                                   ),
                                   _GenerationRail(
-                                    selectedGeneration: activeGeneration,
+                                    selectedGeneration:
+                                        selected?.generation ?? -1,
                                     focusGeneration: _focusGeneration,
-                                    labels: _generationLabels,
+                                    labels: layout.generationLabels,
                                   ),
-                                  for (final placement in _placements)
+                                  for (final placement in layout.placements)
                                     _buildNode(placement),
                                 ],
                               ),
@@ -464,8 +270,10 @@ class _TreePageState extends State<TreePage>
                               person: selected,
                               onTap: () => Navigator.of(context).push(
                                 MaterialPageRoute<void>(
-                                  builder: (_) =>
-                                      PersonDetailPage(person: selected),
+                                  builder: (_) => ApiPersonDetailPage(
+                                    personId: selected.id,
+                                    initialPerson: _apiPersonFor(selected.id),
+                                  ),
                                 ),
                               ),
                             ),
@@ -480,27 +288,33 @@ class _TreePageState extends State<TreePage>
     );
   }
 
-  Widget _buildNode(_TreePlacement placement) {
-    final member = _membersByPlacement[placement.id];
+  ApiPerson? _apiPersonFor(String personId) {
+    final tree = SessionScope.of(context).tree;
+    if (tree == null) return null;
+    for (final person in tree.persons) {
+      if (person.id == personId) return person;
+    }
+    return null;
+  }
+
+  Widget _buildNode(TreePersonPlacement placement) {
+    final member = _membersById[placement.person.id];
     if (member == null) return const SizedBox.shrink();
     final dimmed =
         _focusGeneration != null && member.generation != _focusGeneration;
-    return Positioned(
-      left: placement.left,
-      top: placement.top,
-      width: placement.width,
-      height: placement.height,
+    return Positioned.fromRect(
+      rect: placement.rect,
       child: AnimatedOpacity(
         duration: const Duration(milliseconds: 220),
         opacity: dimmed ? 0.28 : 1,
         child: _PersonNode(
           person: member,
-          selected: _selectedId == placement.id,
+          selected: _selectedId == placement.person.id,
           compact: placement.compact,
           generation: placement.generation,
           onTap: () {
             HapticFeedback.selectionClick();
-            setState(() => _selectedId = placement.id);
+            setState(() => _selectedId = placement.person.id);
           },
         ),
       ),
@@ -520,15 +334,17 @@ class _TreePageState extends State<TreePage>
   }
 
   void _applyFit({required bool animate}) {
+    final layout = _layout;
+    if (layout == null) return;
     final usableWidth = math.max(120.0, _viewportSize.width - 18);
     final usableHeight = math.max(
       180.0,
       _viewportSize.height - _detailReserve - 16,
     );
     final scale = math
-        .min(usableWidth / _canvasWidth, usableHeight / _canvasHeight)
+        .min(usableWidth / layout.width, usableHeight / layout.height)
         .clamp(0.30, 0.90);
-    final dx = (_viewportSize.width - _canvasWidth * scale) / 2;
+    final dx = (_viewportSize.width - layout.width * scale) / 2;
     final target = Matrix4.identity()
       ..translateByDouble(dx, 8.0, 0, 1)
       ..scaleByDouble(scale, scale, scale, 1);
@@ -550,7 +366,7 @@ class _TreePageState extends State<TreePage>
       return;
     }
 
-    final focus = _generationFocusPoints[generation];
+    final focus = _layout?.focusPoints[generation];
     if (focus == null || _viewportSize.isEmpty) return;
 
     const scale = 0.74;
@@ -597,7 +413,9 @@ class _TreePageState extends State<TreePage>
   }
 
   void _showDirectory(BuildContext context) {
-    final generations = [6, 7, 8, 9, 10];
+    final layout = _layout;
+    if (layout == null) return;
+    final generations = layout.generations;
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -632,7 +450,7 @@ class _TreePageState extends State<TreePage>
                 Text('世代目录', style: AppTheme.serif(fontSize: 21)),
                 const Spacer(),
                 Text(
-                  '共 ${_membersByPlacement.length} 位在世系节点',
+                  '共 ${_membersById.length} 位成员',
                   style: const TextStyle(
                     fontSize: 9.5,
                     color: AppColors.inkMuted,
@@ -649,7 +467,7 @@ class _TreePageState extends State<TreePage>
             for (final generation in generations)
               _DirectoryRow(
                 generation: generation,
-                members: _membersByPlacement.values
+                members: _membersById.values
                     .where((member) => member.generation == generation)
                     .toList(),
                 selected: _focusGeneration == generation,
@@ -682,26 +500,6 @@ class _TreePageState extends State<TreePage>
       ),
     );
   }
-}
-
-class _TreePlacement {
-  const _TreePlacement({
-    required this.id,
-    required this.left,
-    required this.top,
-    required this.width,
-    required this.height,
-    required this.generation,
-    required this.compact,
-  });
-
-  final String id;
-  final double left;
-  final double top;
-  final double width;
-  final double height;
-  final int generation;
-  final bool compact;
 }
 
 class _TreeHeader extends StatelessWidget {
@@ -767,26 +565,71 @@ class _TreeHeader extends StatelessWidget {
   }
 }
 
+class _TreeEmpty extends StatelessWidget {
+  const _TreeEmpty();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 74,
+              height: 74,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: AppColors.line),
+              ),
+              child: const Icon(
+                Icons.account_tree_outlined,
+                size: 34,
+                color: AppColors.inkMuted,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              '族谱暂时没有可展示的成员',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppColors.ink,
+              ),
+            ),
+            const SizedBox(height: 5),
+            const Text(
+              '请重新登录或从下拉刷新族谱数据',
+              style: TextStyle(fontSize: 11.5, color: AppColors.inkMuted),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _GenerationFilters extends StatelessWidget {
   const _GenerationFilters({
+    required this.generations,
     required this.selected,
     required this.onChanged,
     required this.onMore,
   });
 
+  final List<int> generations;
   final int? selected;
   final ValueChanged<int?> onChanged;
   final VoidCallback onMore;
 
   @override
   Widget build(BuildContext context) {
-    const filters = <(String, int?)>[
+    final filters = <(String, int?)>[
       ('全部', null),
-      ('第六世', 6),
-      ('第七世', 7),
-      ('第八世', 8),
-      ('第九世', 9),
-      ('第十世', 10),
+      for (final generation in generations)
+        (FamilyMember.generationLabelFor(generation), generation),
     ];
     return SizedBox(
       height: 50,
