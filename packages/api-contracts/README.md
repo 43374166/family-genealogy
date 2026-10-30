@@ -1,12 +1,12 @@
-# packages/api-contracts · API 契约（预留）
+# packages/api-contracts · API 契约
 
-后续在此维护：
+以 [OpenAPI 3.1](openapi.yaml) 作为唯一对外协议来源。
 
-- OpenAPI 3 文档
-- 统一错误码
-- 请求 / 响应示例
-- Person、Relationship、EditRequest 的字段字典和状态枚举
+- JSON 字段 camelCase，时间 RFC 3339 UTC，ID 使用 UUID。
+- 错误统一为 RFC 9457 `application/problem+json`，客户端依赖稳定的 `code`。
+- 人物日期使用 `PartialDate`，允许只到年、农历闰月和族谱原文，不伪造完整日期。
+- 分页使用 cursor，不使用会漂移的 offset。
+- 认证为不透明会话令牌（Bearer），服务端只存哈希。
 
-目标：React、Flutter、小程序使用同一协议；客户端不各自猜测关系方向或审核状态。
-
-当前服务端尚未开始，因此这里暂不生成不可信的“最终”契约。
+当前已落地的是健康检查、迁移和 Go 服务骨架；认证、家庭、人物、树、审核接口按契约逐步实现。
+Flutter / React / 小程序不得各自发明关系方向、状态枚举或错误结构。

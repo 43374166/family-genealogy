@@ -1,8 +1,11 @@
 # 家族族谱 · 多家族信息管理系统
 
-以族谱树为核心的多家族信息管理系统。当前仓库处于 **Flutter 移动端原型阶段**：
-Android 端已经可以运行，iOS 工程已生成；Web、鸿蒙、小程序与 Go 服务端先保留清晰的扩展位置，
-暂时不写后端。
+以族谱树为核心的多家族信息管理系统。Flutter 移动端原型已经可运行；Go + PostgreSQL
+后端已开始搭建可靠数据层，Web、鸿蒙和小程序暂留扩展位置。
+
+后端数据契约见 [`packages/api-contracts/openapi.yaml`](packages/api-contracts/openapi.yaml)，
+数据模型见 [`docs/backend/data-model.md`](docs/backend/data-model.md)。当前后端只落地了
+迁移、健康检查和配置骨架；登录、真实数据 API 与审核流程还未实现。
 
 > **产品不绑定任何姓氏。** APP 品牌名为「家族族谱」；首页的大标题、成员、家支和故事
 > 都属于当前登录账户所在的家庭空间。代码里的家庭资料统一来自
@@ -36,8 +39,8 @@ Android 端已经可以运行，iOS 工程已生成；Web、鸿蒙、小程序�
 | React Web | `apps/web` | 📁 占位，后续开发 |
 | 鸿蒙端 | `apps/harmony` | 📁 占位，需单独验证 Flutter/ArkUI 路线 |
 | 微信小程序 | `apps/mini-program` | 📁 占位，后续独立实现并复用 API |
-| Go 服务端 | `server` | 📁 占位，暂不开发 |
-| API 契约 | `packages/api-contracts` | 📁 占位 |
+| Go 服务端 | `server` | 🚧 PostgreSQL schema + 迁移 + Go 骨架 + CI，业务 API 待实现 |
+| API 契约 | `packages/api-contracts` | ✅ OpenAPI 3.1 初版 |
 
 已实现的首期移动端页面：
 
