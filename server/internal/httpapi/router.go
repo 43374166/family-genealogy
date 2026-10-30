@@ -94,6 +94,7 @@ func NewRouter(deps Dependencies) http.Handler {
 			r.Delete("/relationships/spouse/{edgeID}", api.deleteSpouse)
 			r.Post("/edit-requests", api.createEditRequest)
 			r.Post("/edit-requests/profile", api.createProfileRequest)
+			r.Post("/edit-requests/relationship-end", api.createRelationshipEndRequest)
 			r.Post("/edit-requests/write", api.createWriteRequest)
 			r.Get("/edit-requests", api.listEditRequests)
 			r.Get("/edit-requests/{requestID}", api.getEditRequest)

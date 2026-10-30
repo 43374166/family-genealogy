@@ -39,6 +39,7 @@
 - `DELETE /api/v1/relationships/spouse/{edgeId}`
 - `POST /api/v1/edit-requests`（提交人物资料修改申请，限籍贯/职业等字段）
 - `POST /api/v1/edit-requests/profile`（成员提交完整资料修改申请，审核时事务应用）
+- `POST /api/v1/edit-requests/relationship-end`（成员申请删除错误父母子女/配偶关系）
 - `POST /api/v1/edit-requests/write`（成员提交新增人物/父母子女/配偶申请）
 - `GET /api/v1/edit-requests?status=&mine=&limit=`
 - `GET /api/v1/edit-requests/{requestId}`

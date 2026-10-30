@@ -322,6 +322,16 @@ func requestSummary(requestType string, payload map[string]any, targetName strin
 			return targetName + " · 完整资料修改"
 		}
 		return "完整资料修改"
+	case "end_parent_child":
+		if targetName != "" {
+			return "删除与" + targetName + "相关的父母子女关系"
+		}
+		return "删除父母子女关系"
+	case "end_spouse":
+		if targetName != "" {
+			return "删除与" + targetName + "相关的配偶关系"
+		}
+		return "删除配偶关系"
 	default:
 		return requestType
 	}
@@ -429,6 +439,34 @@ func (s *Store) ReviewEditRequest(
 			entityID = targetID.String
 			beforeData = before
 			afterData = after
+
+		case "end_parent_child":
+			var input RelationshipEndInput
+			if err := json.Unmarshal(payload, &input); err != nil {
+				return nil, fmt.Errorf("decode parent-child end request: %w", err)
+			}
+			before, err := deleteParentChildTx(ctx, tx, familyID, input.EdgeID)
+			if err != nil {
+				return nil, err
+			}
+			action = "edit_request.approved"
+			entityType = "parent_child_relationship"
+			entityID = input.EdgeID
+			beforeData = before
+
+		case "end_spouse":
+			var input RelationshipEndInput
+			if err := json.Unmarshal(payload, &input); err != nil {
+				return nil, fmt.Errorf("decode spouse end request: %w", err)
+			}
+			before, err := deleteSpouseTx(ctx, tx, familyID, input.EdgeID)
+			if err != nil {
+				return nil, err
+			}
+			action = "edit_request.approved"
+			entityType = "spouse_relationship"
+			entityID = input.EdgeID
+			beforeData = before
 
 		case "create_person":
 			var input NewPerson

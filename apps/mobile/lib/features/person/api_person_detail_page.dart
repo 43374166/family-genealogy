@@ -74,12 +74,15 @@ class _ApiPersonDetailPageState extends State<ApiPersonDetailPage> {
   }
 
   Future<void> _deleteRelation(ApiRelative relative, String group) async {
+    final canWrite = SessionScope.of(context).canWrite;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('删除亲属关系'),
+        title: Text(canWrite ? '删除亲属关系' : '申请删除亲属关系'),
         content: Text(
-          '确定删除与 ${relative.fullName} 的${relative.relation}关系吗？只删除关系，不删除人物。',
+          canWrite
+              ? '确定删除与 ${relative.fullName} 的${relative.relation}关系吗？只删除关系，不删除人物。'
+              : '提交删除与 ${relative.fullName} 的${relative.relation}关系的申请，等待族长或管理员审核。',
         ),
         actions: [
           TextButton(
@@ -88,7 +91,7 @@ class _ApiPersonDetailPageState extends State<ApiPersonDetailPage> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('删除关系'),
+            child: Text(canWrite ? '删除关系' : '提交申请'),
           ),
         ],
       ),
@@ -102,16 +105,28 @@ class _ApiPersonDetailPageState extends State<ApiPersonDetailPage> {
     }
     try {
       final session = SessionScope.of(context);
-      if (group == '配偶') {
-        await session.deleteSpouse(relative.edgeId);
+      final edgeType = group == '配偶' ? 'spouse' : 'parent_child';
+      if (canWrite) {
+        if (edgeType == 'spouse') {
+          await session.deleteSpouse(relative.edgeId);
+        } else {
+          await session.deleteParentChild(relative.edgeId);
+        }
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('关系已删除')));
+        await _load();
       } else {
-        await session.deleteParentChild(relative.edgeId);
+        await session.createRelationshipEndRequest(
+          edgeType: edgeType,
+          edgeId: relative.edgeId,
+        );
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('关系纠错申请已提交')));
       }
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('关系已删除')));
-      await _load();
     } on ApiException catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -558,17 +573,18 @@ class _Relationships extends StatelessWidget {
                             color: AppColors.inkMuted,
                           ),
                         ),
-                        if (canWrite)
-                          IconButton(
-                            onPressed: () => onDelete(relative, group.$1),
-                            tooltip: '删除关系',
-                            visualDensity: VisualDensity.compact,
-                            icon: const Icon(
-                              Icons.delete_outline_rounded,
-                              size: 17,
-                              color: AppColors.cinnabar,
-                            ),
+                        IconButton(
+                          onPressed: () => onDelete(relative, group.$1),
+                          tooltip: canWrite ? '删除关系' : '申请删除关系',
+                          visualDensity: VisualDensity.compact,
+                          icon: Icon(
+                            canWrite
+                                ? Icons.delete_outline_rounded
+                                : Icons.outbox_outlined,
+                            size: 17,
+                            color: AppColors.cinnabar,
                           ),
+                        ),
                         const SizedBox(width: 3),
                         const Icon(
                           Icons.chevron_right_rounded,

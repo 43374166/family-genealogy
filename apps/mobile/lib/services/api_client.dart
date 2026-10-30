@@ -448,6 +448,18 @@ class ApiClient {
     return ApiEditRequest.fromJson(body);
   }
 
+  Future<ApiEditRequest> createRelationshipEndRequest({
+    required String edgeType,
+    required String edgeId,
+  }) async {
+    final body = await _request(
+      'POST',
+      '/api/v1/edit-requests/relationship-end',
+      body: {'edgeType': edgeType, 'edgeId': edgeId},
+    );
+    return ApiEditRequest.fromJson(body);
+  }
+
   Future<ApiEditRequest> createWriteRequest({
     required String requestType,
     required Map<String, dynamic> payload,

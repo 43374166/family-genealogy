@@ -107,6 +107,32 @@ func (s *Store) EditRequestBranches(
 			return nil, fmt.Errorf("decode create person branch: %w", err)
 		}
 		add(input.BranchID)
+	case "end_parent_child":
+		var input struct {
+			EdgeID string `json:"edgeId"`
+		}
+		if err := json.Unmarshal(payload, &input); err != nil {
+			return nil, fmt.Errorf("decode parent-child end branch: %w", err)
+		}
+		branchID, err := s.ParentChildEdgeBranch(ctx, familyID, input.EdgeID)
+		if err != nil {
+			return nil, err
+		}
+		add(branchID)
+	case "end_spouse":
+		var input struct {
+			EdgeID string `json:"edgeId"`
+		}
+		if err := json.Unmarshal(payload, &input); err != nil {
+			return nil, fmt.Errorf("decode spouse end branch: %w", err)
+		}
+		branches, err := s.SpouseEdgeBranches(ctx, familyID, input.EdgeID)
+		if err != nil {
+			return nil, err
+		}
+		for _, branchID := range branches {
+			add(branchID)
+		}
 	case "add_parent_child":
 		var input struct {
 			ChildID string `json:"childId"`

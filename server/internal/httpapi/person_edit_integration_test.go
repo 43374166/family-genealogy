@@ -192,4 +192,59 @@ func TestPersonEditAndRelationshipDelete(t *testing.T) {
 	if profileResult.GivenName != "审核后" {
 		t.Fatalf("profile request not applied: %q", profileResult.GivenName)
 	}
+
+	response = doJSON(t, http.DefaultClient, http.MethodPost,
+		server.URL+"/api/v1/relationships/parent-child",
+		fmt.Sprintf(`{"parentId":"50000000-0000-4000-8000-000000000101","childId":%q,"parentRole":"father"}`, created.ID),
+		owner.Token)
+	if response.StatusCode != http.StatusCreated {
+		t.Fatalf("add relationship for request status = %d", response.StatusCode)
+	}
+	response = doJSON(t, http.DefaultClient, http.MethodGet,
+		server.URL+"/api/v1/persons/"+created.ID, "", owner.Token)
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("get relationship request target status = %d", response.StatusCode)
+	}
+	var relationDetail struct {
+		Parents []struct {
+			EdgeID string `json:"edgeId"`
+		} `json:"parents"`
+	}
+	decodeBody(t, response, &relationDetail)
+	if len(relationDetail.Parents) != 1 {
+		t.Fatalf("relationship request target missing: %+v", relationDetail.Parents)
+	}
+	endBody, _ := json.Marshal(map[string]any{
+		"edgeType": "parent_child", "edgeId": relationDetail.Parents[0].EdgeID,
+	})
+	response = doJSON(t, http.DefaultClient, http.MethodPost,
+		server.URL+"/api/v1/edit-requests/relationship-end", string(endBody), owner.Token)
+	if response.StatusCode != http.StatusCreated {
+		t.Fatalf("create relationship end request status = %d, body = %s", response.StatusCode, readBody(t, response))
+	}
+	var endRequest struct {
+		ID     string `json:"id"`
+		Status string `json:"status"`
+	}
+	decodeBody(t, response, &endRequest)
+	response = doJSON(t, http.DefaultClient, http.MethodPost,
+		server.URL+"/api/v1/edit-requests/"+endRequest.ID+"/approve",
+		`{"note":"同意纠错"}`, owner.Token)
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("approve relationship end request status = %d, body = %s", response.StatusCode, readBody(t, response))
+	}
+	response = doJSON(t, http.DefaultClient, http.MethodGet,
+		server.URL+"/api/v1/persons/"+created.ID, "", owner.Token)
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("get relationship end result status = %d", response.StatusCode)
+	}
+	var afterRelation struct {
+		Parents []struct {
+			EdgeID string `json:"edgeId"`
+		} `json:"parents"`
+	}
+	decodeBody(t, response, &afterRelation)
+	if len(afterRelation.Parents) != 0 {
+		t.Fatalf("relationship end request not applied: %+v", afterRelation.Parents)
+	}
 }

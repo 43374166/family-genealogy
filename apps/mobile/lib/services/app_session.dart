@@ -224,6 +224,19 @@ class AppSession extends ChangeNotifier {
     );
   }
 
+  Future<ApiEditRequest> createRelationshipEndRequest({
+    required String edgeType,
+    required String edgeId,
+  }) {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    return _api.createRelationshipEndRequest(
+      edgeType: edgeType,
+      edgeId: edgeId,
+    );
+  }
+
   Future<ApiEditRequest> createWriteRequest({
     required String requestType,
     required Map<String, dynamic> payload,
