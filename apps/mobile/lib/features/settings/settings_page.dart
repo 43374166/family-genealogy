@@ -7,6 +7,7 @@ import '../../services/app_session.dart';
 import '../../services/app_settings.dart';
 import '../family/bind_person_page.dart';
 import '../family/binding_requests_page.dart';
+import '../family/branch_admins_page.dart';
 import '../family/export_family_page.dart';
 import '../family/family_switch_page.dart';
 import '../family/import_family_page.dart';
@@ -17,7 +18,7 @@ import '../person/api_person_detail_page.dart';
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
 
-  static const _version = '0.28.0';
+  static const _version = '0.29.0';
 
   Future<void> _pickTextSize(BuildContext context) async {
     final settings = SettingsScope.of(context);
@@ -286,6 +287,17 @@ class SettingsPage extends StatelessWidget {
                               onTap: () => Navigator.of(context).push(
                                 MaterialPageRoute<void>(
                                   builder: (_) => const InvitePage(),
+                                ),
+                              ),
+                            ),
+                            const Divider(height: 1, indent: 47),
+                            _SettingRow(
+                              icon: Icons.admin_panel_settings_outlined,
+                              label: '分支管理员',
+                              trailing: '任免',
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const BranchAdminsPage(),
                                 ),
                               ),
                             ),

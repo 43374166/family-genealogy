@@ -12,14 +12,10 @@ import '../../models/family_member.dart';
 import '../../services/api_client.dart';
 import '../../services/app_session.dart';
 import '../family/bind_person_page.dart';
-import '../family/binding_requests_page.dart';
-import '../family/branch_admins_page.dart';
-import '../family/export_family_page.dart';
 import '../family/family_switch_page.dart';
-import '../family/import_family_page.dart';
-import '../family/invite_page.dart';
 import '../family/my_qr_page.dart';
 import '../family/phone_bind_page.dart';
+import '../gallery/gallery_page.dart';
 import '../person/api_person_detail_page.dart';
 import '../requests/requests_page.dart';
 import '../settings/settings_page.dart';
@@ -133,7 +129,7 @@ class ProfilePage extends StatelessWidget {
                   const SizedBox(height: 14),
                   _StatsRow(),
                   const SizedBox(height: 18),
-                  const SectionTitle(title: '我的服务'),
+                  const SectionTitle(title: '家族与记录'),
                   const SizedBox(height: 10),
                   SoftCard(
                     padding: const EdgeInsets.symmetric(
@@ -164,75 +160,20 @@ class ProfilePage extends StatelessWidget {
                           ),
                         ),
                         const Divider(height: 1, indent: 47),
-                        if (session.isOwner) ...[
-                          _MenuRow(
-                            icon: Icons.link_rounded,
-                            color: AppColors.primary,
-                            background: AppColors.primarySoft,
-                            label: '邀请成员',
-                            trailing: '邀请码',
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => const InvitePage(),
-                              ),
+                        _MenuRow(
+                          icon: Icons.qr_code_2_rounded,
+                          color: AppColors.jade,
+                          background: AppColors.jadeSoft,
+                          label: '我的二维码',
+                          trailing: '邀请加入家族',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const MyQrPage(),
                             ),
                           ),
-                          const Divider(height: 1, indent: 47),
-                          _MenuRow(
-                            icon: Icons.admin_panel_settings_outlined,
-                            color: AppColors.gold,
-                            background: AppColors.goldSoft,
-                            label: '分支管理员',
-                            trailing: '任免',
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => const BranchAdminsPage(),
-                              ),
-                            ),
-                          ),
-                          const Divider(height: 1, indent: 47),
-                          _MenuRow(
-                            icon: Icons.ios_share_rounded,
-                            color: AppColors.teal,
-                            background: AppColors.tealSoft,
-                            label: '导出旁支数据',
-                            trailing: '生成导入码',
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => const ExportFamilyPage(),
-                              ),
-                            ),
-                          ),
-                          const Divider(height: 1, indent: 47),
-                          _MenuRow(
-                            icon: Icons.move_to_inbox_outlined,
-                            color: AppColors.primary,
-                            background: AppColors.primarySoft,
-                            label: '导入旁支数据',
-                            trailing: '选择分支/世代',
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => const ImportFamilyPage(),
-                              ),
-                            ),
-                          ),
-                          const Divider(height: 1, indent: 47),
-                        ],
-                        if (session.canWrite) ...[
-                          _MenuRow(
-                            icon: Icons.how_to_reg_outlined,
-                            color: AppColors.jade,
-                            background: AppColors.jadeSoft,
-                            label: '绑定审核',
-                            trailing: '成员绑定',
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => const BindingRequestsPage(),
-                              ),
-                            ),
-                          ),
-                          const Divider(height: 1, indent: 47),
-                        ] else if (linkedPersonId == null) ...[
+                        ),
+                        const Divider(height: 1, indent: 47),
+                        if (linkedPersonId == null) ...[
                           _MenuRow(
                             icon: Icons.person_pin_circle_outlined,
                             color: AppColors.gold,
@@ -275,26 +216,13 @@ class ProfilePage extends StatelessWidget {
                         ),
                         const Divider(height: 1, indent: 47),
                         _MenuRow(
-                          icon: Icons.phone_iphone_rounded,
-                          color: AppColors.teal,
-                          background: AppColors.tealSoft,
-                          label: '手机号',
-                          trailing: (session.user?.phone ?? '').isEmpty
-                              ? '未绑定'
-                              : _maskPhone(session.user!.phone),
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => const PhoneBindPage(),
-                            ),
-                          ),
-                        ),
-                        const Divider(height: 1, indent: 47),
-                        _MenuRow(
                           icon: Icons.assignment_outlined,
                           color: AppColors.gold,
                           background: AppColors.goldSoft,
                           label: '我的申请',
-                          trailing: '1 条待审核',
+                          trailing: session.unreadNotifications > 0
+                              ? '${session.unreadNotifications} 条待处理'
+                              : '查看',
                           onTap: () => Navigator.of(context).push(
                             MaterialPageRoute<void>(
                               builder: (_) => const RequestsPage(),
@@ -306,18 +234,13 @@ class ProfilePage extends StatelessWidget {
                           icon: Icons.photo_library_outlined,
                           color: AppColors.teal,
                           background: AppColors.tealSoft,
-                          label: '我上传的影像',
-                          trailing: '6 张',
-                          onTap: () => _notice(context),
-                        ),
-                        const Divider(height: 1, indent: 47),
-                        _MenuRow(
-                          icon: Icons.bookmark_border_rounded,
-                          color: AppColors.cinnabar,
-                          background: AppColors.cinnabarSoft,
-                          label: '收藏的家族故事',
-                          trailing: '3 篇',
-                          onTap: () => _notice(context),
+                          label: '家族相册',
+                          trailing: '查看照片',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const GalleryPage(),
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -333,14 +256,16 @@ class ProfilePage extends StatelessWidget {
                     child: Column(
                       children: [
                         _MenuRow(
-                          icon: Icons.qr_code_2_rounded,
-                          color: AppColors.jade,
-                          background: AppColors.jadeSoft,
-                          label: '我的二维码',
-                          trailing: '邀请加入家族',
+                          icon: Icons.phone_iphone_rounded,
+                          color: AppColors.teal,
+                          background: AppColors.tealSoft,
+                          label: '手机号',
+                          trailing: (session.user?.phone ?? '').isEmpty
+                              ? '未绑定'
+                              : _maskPhone(session.user!.phone),
                           onTap: () => Navigator.of(context).push(
                             MaterialPageRoute<void>(
-                              builder: (_) => const MyQrPage(),
+                              builder: (_) => const PhoneBindPage(),
                             ),
                           ),
                         ),
@@ -371,20 +296,11 @@ class ProfilePage extends StatelessWidget {
                         ),
                         const Divider(height: 1, indent: 47),
                         _MenuRow(
-                          icon: Icons.devices_rounded,
-                          color: AppColors.violet,
-                          background: AppColors.violetSoft,
-                          label: '登录设备',
-                          trailing: '1 台',
-                          onTap: () => _notice(context),
-                        ),
-                        const Divider(height: 1, indent: 47),
-                        _MenuRow(
                           icon: Icons.info_outline_rounded,
                           color: AppColors.inkMuted,
                           background: AppColors.slateSoft,
                           label: '关于家族族谱',
-                          trailing: 'v0.28.0',
+                          trailing: 'v0.29.0',
                           onTap: () => _showAbout(context),
                         ),
                       ],
@@ -409,7 +325,7 @@ class ProfilePage extends StatelessWidget {
                         const SizedBox(width: 9),
                         Expanded(
                           child: Text(
-                            '当前已连接家庭服务器。族谱维护、成员绑定、审核、数据导入和家族相册均已启用。',
+                            '族谱、成员、审核、家族相册和邀请二维码均已接入家庭服务器。',
                             style: TextStyle(
                               fontSize: 10,
                               height: 1.65,
@@ -440,12 +356,6 @@ class ProfilePage extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  void _notice(BuildContext context) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('该能力将在后续版本开放')));
   }
 
   void _showAbout(BuildContext context) {
@@ -491,7 +401,7 @@ class ProfilePage extends StatelessWidget {
             ),
             const SizedBox(height: 5),
             const Text(
-              '家族族谱 · Flutter + MySQL v0.28.0',
+              '家族族谱 · Flutter + MySQL v0.29.0',
               style: TextStyle(fontSize: 10.5, color: AppColors.inkMuted),
             ),
             const SizedBox(height: 16),
@@ -547,6 +457,12 @@ class ProfilePage extends StatelessWidget {
       await session.logout();
     }
   }
+}
+
+String _joinedLabel(DateTime? value) {
+  if (value == null) return '已加入家族';
+  final local = value.toLocal();
+  return '${local.year} 年 ${local.month} 月加入';
 }
 
 class _ProfileCard extends StatelessWidget {
@@ -722,9 +638,14 @@ class _ProfileCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const Text(
-                      '2024 年 4 月加入',
-                      style: TextStyle(fontSize: 9, color: AppColors.inkMuted),
+                    Text(
+                      _joinedLabel(
+                        SessionScope.of(context).membership?.joinedAt,
+                      ),
+                      style: const TextStyle(
+                        fontSize: 9,
+                        color: AppColors.inkMuted,
+                      ),
                     ),
                   ],
                 ),
@@ -740,16 +661,33 @@ class _ProfileCard extends StatelessWidget {
 class _StatsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final session = SessionScope.of(context);
+    final linked = session.memberById(session.membership?.personId);
     return SoftCard(
       padding: const EdgeInsets.symmetric(vertical: 14),
       child: IntrinsicHeight(
         child: Row(
-          children: const [
-            _StatItem(value: '3', label: '我的申请'),
-            VerticalDivider(width: 1, thickness: 1, color: AppColors.line),
-            _StatItem(value: '12', label: '家族贡献'),
-            VerticalDivider(width: 1, thickness: 1, color: AppColors.line),
-            _StatItem(value: '2', label: '加入年数'),
+          children: [
+            _StatItem(
+              value:
+                  '${session.tree?.persons.length ?? session.family?.memberCount ?? 0}',
+              label: '家族成员',
+            ),
+            const VerticalDivider(
+              width: 1,
+              thickness: 1,
+              color: AppColors.line,
+            ),
+            _StatItem(
+              value: '${session.family?.branchCount ?? 0}',
+              label: '家支',
+            ),
+            const VerticalDivider(
+              width: 1,
+              thickness: 1,
+              color: AppColors.line,
+            ),
+            _StatItem(value: linked?.generationLabel ?? '未绑定', label: '我的世代'),
           ],
         ),
       ),

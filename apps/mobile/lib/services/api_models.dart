@@ -32,12 +32,14 @@ class ApiMembership {
     required this.role,
     required this.status,
     this.personId,
+    this.joinedAt,
   });
 
   final String id;
   final String role;
   final String status;
   final String? personId;
+  final DateTime? joinedAt;
 
   factory ApiMembership.fromJson(Map<String, dynamic> json) {
     return ApiMembership(
@@ -45,6 +47,7 @@ class ApiMembership {
       role: _string(json['role']),
       status: _string(json['status']),
       personId: _nullableString(json['personId']),
+      joinedAt: DateTime.tryParse(_string(json['joinedAt'])),
     );
   }
 

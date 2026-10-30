@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../services/app_session.dart';
 import '../../features/home/home_page.dart';
 import '../../features/messages/messages_page.dart';
 import '../../features/person/add_person_page.dart';
@@ -19,15 +20,29 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   int _index = 0;
+  final GlobalKey<TreePageState> _treeKey = GlobalKey<TreePageState>();
+  bool _treeOpened = false;
+  String? _treeFamilyId;
 
   void _select(int index) {
     if (index == _index) return;
     HapticFeedback.selectionClick();
     setState(() => _index = index);
+    if (index == 1 && !_treeOpened) {
+      _treeOpened = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _treeKey.currentState?.focusSelfOnFirstEntry();
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final familyId = SessionScope.of(context).family?.id;
+    if (familyId != _treeFamilyId) {
+      _treeFamilyId = familyId;
+      _treeOpened = false;
+    }
     return PopScope(
       canPop: _index == 0,
       onPopInvokedWithResult: (didPop, _) {
@@ -46,7 +61,7 @@ class _AppShellState extends State<AppShell> {
               onOpenMessages: () => _select(2),
               onOpenProfile: () => _select(3),
             ),
-            TreePage(onBack: () => _select(0)),
+            TreePage(key: _treeKey, onBack: () => _select(0)),
             const MessagesPage(),
             const ProfilePage(),
           ],

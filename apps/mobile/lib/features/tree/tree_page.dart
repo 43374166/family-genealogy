@@ -21,10 +21,10 @@ class TreePage extends StatefulWidget {
   final VoidCallback onBack;
 
   @override
-  State<TreePage> createState() => _TreePageState();
+  State<TreePage> createState() => TreePageState();
 }
 
-class _TreePageState extends State<TreePage>
+class TreePageState extends State<TreePage>
     with SingleTickerProviderStateMixin {
   static const double _detailReserve = 154;
   final TransformationController _transformation = TransformationController();
@@ -37,13 +37,48 @@ class _TreePageState extends State<TreePage>
   bool _fitScheduled = false;
   TreeLayout? _layout;
   Map<String, FamilyMember> _membersById = const {};
+  String? _treeFamilyId;
+  bool _didInitialFocus = false;
+  bool _initialFocusScheduled = false;
 
   FamilyMember? get _selected =>
       _selectedId == null ? null : _membersById[_selectedId];
 
+  /// Called by the shell the first time the tree tab is opened. Re-running it
+  /// on every tab switch would fight the user's saved filter/selection.
+  void focusSelfOnFirstEntry() {
+    if (!mounted) return;
+    _didInitialFocus = true;
+    _focusSelf(silent: true, animate: false);
+  }
+
   void _clearSelection() {
     if (_selectedId == null) return;
     setState(() => _selectedId = null);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final familyId = SessionScope.of(context).tree?.familyId;
+    if (familyId == _treeFamilyId) return;
+    _treeFamilyId = familyId;
+    _didInitialFocus = false;
+    _selectedId = null;
+    _focusGeneration = null;
+    _scheduleInitialFocus();
+  }
+
+  void _scheduleInitialFocus() {
+    if (_initialFocusScheduled) return;
+    _initialFocusScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initialFocusScheduled = false;
+      if (!mounted || _layout == null || _viewportSize.isEmpty) return;
+      if (_didInitialFocus) return;
+      _didInitialFocus = true;
+      _focusSelf(silent: true, animate: false);
+    });
   }
 
   @override
@@ -362,21 +397,25 @@ class _TreePageState extends State<TreePage>
     );
   }
 
-  void _focusSelf() {
+  void _focusSelf({bool silent = false, bool animate = true}) {
     final session = SessionScope.of(context);
     final linkedId = session.membership?.personId;
     if (linkedId == null || linkedId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('还没有绑定“我自己”，先绑定族谱人物'),
-          action: SnackBarAction(
-            label: '去绑定',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const BindPersonPage()),
+      if (!silent) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('还没有绑定“我自己”，先绑定族谱人物'),
+            action: SnackBarAction(
+              label: '去绑定',
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const BindPersonPage()),
+              ),
             ),
           ),
-        ),
-      );
+        );
+      } else {
+        _applyFit(animate: animate);
+      }
       return;
     }
     final layout = _layout;
@@ -389,12 +428,16 @@ class _TreePageState extends State<TreePage>
       }
     }
     if (target == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('你的族谱档案不在当前视图中')));
+      if (silent) {
+        _applyFit(animate: animate);
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('你的族谱档案不在当前视图中')));
+      }
       return;
     }
-    HapticFeedback.selectionClick();
+    if (!silent) HapticFeedback.selectionClick();
     setState(() {
       _focusGeneration = null;
       _selectedId = linkedId;
@@ -411,7 +454,11 @@ class _TreePageState extends State<TreePage>
         1,
       )
       ..scaleByDouble(scale, scale, scale, 1);
-    _animateTo(matrix);
+    if (animate) {
+      _animateTo(matrix);
+    } else {
+      _transformation.value = matrix;
+    }
   }
 
   void _maybeScheduleFit(Size size) {
@@ -422,7 +469,11 @@ class _TreePageState extends State<TreePage>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fitScheduled = false;
       if (!mounted || _viewportSize.isEmpty) return;
-      _applyFit(animate: false);
+      if (!_didInitialFocus) {
+        _scheduleInitialFocus();
+      } else {
+        _applyFit(animate: false);
+      }
     });
   }
 
