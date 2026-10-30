@@ -34,6 +34,7 @@ jobs:
           MYSQL_USER: familytree
           MYSQL_PASSWORD: familytree
           MYSQL_ROOT_PASSWORD: root
+          MYSQL_ROOT_HOST: "%"
         ports:
           - 3306:3306
         options: >-
@@ -77,6 +78,11 @@ jobs:
         run: go build ./...
 
       - name: Apply MySQL migrations to clean database
+        env:
+          # Trigger creation needs SUPER while binary logging is enabled. Use
+          # the CI-only root account for this step; the API/tests use the
+          # least-privilege application account.
+          DATABASE_DSN: root:root@tcp(127.0.0.1:3306)/family_tree_test?parseTime=true&loc=UTC&charset=utf8mb4&collation=utf8mb4_0900_ai_ci
         run: |
           set +e
           go run ./cmd/migrate up > /tmp/mysql-migrate.log 2>&1
