@@ -12,7 +12,7 @@ import (
 type Config struct {
 	Environment     string
 	HTTPAddr        string
-	DatabaseURL     string
+	DatabaseDSN     string
 	DBMaxConns      int32
 	ShutdownTimeout time.Duration
 	LogLevel        slog.Level
@@ -22,7 +22,7 @@ func Load() (Config, error) {
 	cfg := Config{
 		Environment:     envOrDefault("APP_ENV", "development"),
 		HTTPAddr:        envOrDefault("HTTP_ADDR", ":8080"),
-		DatabaseURL:     strings.TrimSpace(os.Getenv("DATABASE_URL")),
+		DatabaseDSN:     strings.TrimSpace(os.Getenv("DATABASE_DSN")),
 		DBMaxConns:      10,
 		ShutdownTimeout: 15 * time.Second,
 		LogLevel:        slog.LevelInfo,
@@ -34,8 +34,8 @@ func Load() (Config, error) {
 		return Config{}, fmt.Errorf("APP_ENV must be one of development, test, staging, production")
 	}
 
-	if cfg.DatabaseURL == "" {
-		return Config{}, fmt.Errorf("DATABASE_URL is required")
+	if cfg.DatabaseDSN == "" {
+		return Config{}, fmt.Errorf("DATABASE_DSN is required")
 	}
 
 	if raw := strings.TrimSpace(os.Getenv("DB_MAX_CONNS")); raw != "" {

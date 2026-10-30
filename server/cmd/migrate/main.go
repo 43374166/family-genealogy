@@ -16,9 +16,9 @@ func main() {
 		command = strings.TrimSpace(os.Args[1])
 	}
 
-	dsn := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+	dsn := strings.TrimSpace(os.Getenv("DATABASE_DSN"))
 	if dsn == "" {
-		slog.Error("DATABASE_URL is required")
+		slog.Error("DATABASE_DSN is required")
 		os.Exit(1)
 	}
 

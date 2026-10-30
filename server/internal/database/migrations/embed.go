@@ -2,8 +2,8 @@ package migrations
 
 import "embed"
 
-// FS contains ordered SQL migrations. Goose reads this filesystem so a single
-// binary can migrate without relying on the caller's working directory.
+// FS embeds both the active MySQL migrations and the preserved PostgreSQL 17
+// design reference. Runtime migration selection is restricted to mysql/.
 //
-//go:embed *.sql
+//go:embed mysql/*.sql postgres/*.sql
 var FS embed.FS

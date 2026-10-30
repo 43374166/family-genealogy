@@ -1,11 +1,11 @@
 GO ?= go
 GOFLAGS ?= -buildvcs=false
-DATABASE_URL ?= postgres://familytree:change-me@localhost:5432/familytree?sslmode=disable
+DATABASE_DSN ?= familytree:change-me@tcp(127.0.0.1:3306)/familytree?parseTime=true&loc=UTC&charset=utf8mb4&collation=utf8mb4_0900_ai_ci
 
 .PHONY: run build fmt vet test migrate-up migrate-status migrate-down
 
 run:
-	GOFLAGS="$(GOFLAGS)" $(GO) run ./cmd/api
+	GOFLAGS="$(GOFLAGS)" DATABASE_DSN="$(DATABASE_DSN)" $(GO) run ./cmd/api
 
 build:
 	GOFLAGS="$(GOFLAGS)" $(GO) build -trimpath -o bin/api ./cmd/api
@@ -21,10 +21,10 @@ test:
 	GOFLAGS="$(GOFLAGS)" $(GO) test -race ./...
 
 migrate-up:
-	DATABASE_URL="$(DATABASE_URL)" $(GO) run ./cmd/migrate up
+	DATABASE_DSN="$(DATABASE_DSN)" $(GO) run ./cmd/migrate up
 
 migrate-status:
-	DATABASE_URL="$(DATABASE_URL)" $(GO) run ./cmd/migrate status
+	DATABASE_DSN="$(DATABASE_DSN)" $(GO) run ./cmd/migrate status
 
 migrate-down:
-	DATABASE_URL="$(DATABASE_URL)" $(GO) run ./cmd/migrate down
+	DATABASE_DSN="$(DATABASE_DSN)" $(GO) run ./cmd/migrate down

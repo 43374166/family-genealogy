@@ -7,14 +7,14 @@ import (
 	"strings"
 
 	"github.com/43374166/family-genealogy/server/internal/database/migrations"
-	_ "github.com/jackc/pgx/v5/stdlib"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/pressly/goose/v3"
 )
 
-// Migrate applies the embedded migrations through the pgx stdlib adapter.
-// Migrations run as a separate operational step; the API never auto-migrates.
+// Migrate applies the embedded MySQL migrations. PostgreSQL 17 DDL is kept in
+// migrations/postgres as the design reference and is not used at runtime.
 func Migrate(ctx context.Context, dsn, command string) error {
-	db, err := sql.Open("pgx", dsn)
+	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return fmt.Errorf("open migration connection: %w", err)
 	}
@@ -22,19 +22,19 @@ func Migrate(ctx context.Context, dsn, command string) error {
 	db.SetMaxOpenConns(1)
 
 	goose.SetBaseFS(migrations.FS)
-	if err := goose.SetDialect("postgres"); err != nil {
+	if err := goose.SetDialect("mysql"); err != nil {
 		return fmt.Errorf("set migration dialect: %w", err)
 	}
 
 	switch strings.ToLower(strings.TrimSpace(command)) {
 	case "up":
-		return goose.UpContext(ctx, db, ".")
+		return goose.UpContext(ctx, db, "mysql")
 	case "down":
-		return goose.DownContext(ctx, db, ".")
+		return goose.DownContext(ctx, db, "mysql")
 	case "status":
-		return goose.StatusContext(ctx, db, ".")
+		return goose.StatusContext(ctx, db, "mysql")
 	case "version":
-		return goose.VersionContext(ctx, db, ".")
+		return goose.VersionContext(ctx, db, "mysql")
 	default:
 		return fmt.Errorf("unsupported migration command %q; use up, down, status, or version", command)
 	}

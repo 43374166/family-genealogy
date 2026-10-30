@@ -5,16 +5,16 @@ import (
 )
 
 func TestLoadRequiresDatabaseURL(t *testing.T) {
-	t.Setenv("DATABASE_URL", "  ")
+	t.Setenv("DATABASE_DSN", "  ")
 	t.Setenv("APP_ENV", "test")
 
 	if _, err := Load(); err == nil {
-		t.Fatal("expected an error when DATABASE_URL is empty")
+		t.Fatal("expected an error when DATABASE_DSN is empty")
 	}
 }
 
 func TestLoadDefaults(t *testing.T) {
-	t.Setenv("DATABASE_URL", "postgres://example")
+	t.Setenv("DATABASE_DSN", "postgres://example")
 	t.Setenv("APP_ENV", "")
 	t.Setenv("HTTP_ADDR", "")
 	t.Setenv("DB_MAX_CONNS", "")
@@ -37,7 +37,7 @@ func TestLoadDefaults(t *testing.T) {
 }
 
 func TestLoadRejectsUsefulMisconfiguration(t *testing.T) {
-	t.Setenv("DATABASE_URL", "postgres://example")
+	t.Setenv("DATABASE_DSN", "postgres://example")
 	t.Setenv("APP_ENV", "development")
 	t.Setenv("DB_MAX_CONNS", "0")
 
@@ -47,7 +47,7 @@ func TestLoadRejectsUsefulMisconfiguration(t *testing.T) {
 }
 
 func TestLoadRejectsUnknownLogLevel(t *testing.T) {
-	t.Setenv("DATABASE_URL", "postgres://example")
+	t.Setenv("DATABASE_DSN", "postgres://example")
 	t.Setenv("APP_ENV", "development")
 	t.Setenv("LOG_LEVEL", "verbose")
 

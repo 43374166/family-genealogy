@@ -44,7 +44,7 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	db, err := database.Open(ctx, cfg.DatabaseURL, cfg.DBMaxConns)
+	db, err := database.Open(ctx, cfg.DatabaseDSN, cfg.DBMaxConns)
 	if err != nil {
 		return err
 	}
