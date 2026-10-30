@@ -143,7 +143,7 @@ class _BottomBar extends StatelessWidget {
               Positioned(
                 left: 0,
                 right: 0,
-                top: -21,
+                top: -7,
                 child: Center(child: _AddButton(onTap: onAdd)),
               ),
             ],
@@ -229,28 +229,32 @@ class _AddButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 54,
-      height: 54,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: AppColors.primary,
-        border: Border.all(color: const Color(0xFFF7FAFF), width: 4),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.30),
-            blurRadius: 16,
-            offset: const Offset(0, 7),
+    return Semantics(
+      button: true,
+      label: '添加家族内容',
+      child: Container(
+        width: 62,
+        height: 62,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: AppColors.primary,
+          border: Border.all(color: const Color(0xFFF7FAFF), width: 4),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.30),
+              blurRadius: 18,
+              offset: const Offset(0, 7),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          shape: const CircleBorder(),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: const Icon(Icons.add_rounded, color: Colors.white, size: 30),
           ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        shape: const CircleBorder(),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: const Icon(Icons.add_rounded, color: Colors.white, size: 27),
         ),
       ),
     );

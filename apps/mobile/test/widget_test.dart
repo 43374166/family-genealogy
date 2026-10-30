@@ -23,8 +23,20 @@ void main() {
     await tester.tap(find.byIcon(Icons.account_tree_outlined).last);
     await tester.pumpAndSettle();
 
-    expect(find.text('查看详情'), findsOneWidget);
     expect(find.text('张一'), findsWidgets);
+    expect(find.text('查看详情'), findsNothing);
+
+    await tester.tap(find.text('张一').first);
+    await tester.pumpAndSettle();
+    expect(find.text('查看详情'), findsOneWidget);
+
+    await tester.tap(find.text('张宏远').first);
+    await tester.pumpAndSettle();
+    expect(find.text('查看详情'), findsOneWidget);
+
+    await tester.tapAt(const Offset(20, 310));
+    await tester.pumpAndSettle();
+    expect(find.text('查看详情'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

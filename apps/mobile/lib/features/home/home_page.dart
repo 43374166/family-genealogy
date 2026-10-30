@@ -1038,7 +1038,7 @@ class _SettingsSheet extends StatelessWidget {
           _SettingsRow(icon: Icons.info_outline_rounded, label: '关于家族族谱'),
           const SizedBox(height: 12),
           const Text(
-            'v0.3.0 · Flutter 原型',
+            'v0.4.0 · Flutter 原型',
             style: TextStyle(fontSize: 11, color: AppColors.inkMuted),
           ),
         ],

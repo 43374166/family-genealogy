@@ -237,13 +237,18 @@ class _TreePageState extends State<TreePage>
   late final AnimationController _zoomController;
   Animation<Matrix4>? _zoomAnimation;
 
-  String _selectedId = 'person_zhang_yi';
+  String? _selectedId;
   int? _focusGeneration;
   Size _viewportSize = Size.zero;
   bool _fitScheduled = false;
 
-  FamilyMember get _selected =>
-      DemoData.memberById(_selectedId) ?? DemoData.zhangYi;
+  FamilyMember? get _selected =>
+      _selectedId == null ? null : DemoData.memberById(_selectedId!);
+
+  void _clearSelection() {
+    if (_selectedId == null) return;
+    setState(() => _selectedId = null);
+  }
 
   @override
   void initState() {
@@ -270,170 +275,185 @@ class _TreePageState extends State<TreePage>
   @override
   Widget build(BuildContext context) {
     final topInset = MediaQuery.paddingOf(context).top;
+    final selected = _selected;
+    final activeGeneration =
+        selected?.generation ?? DemoData.currentUser.generation;
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Column(
-        children: [
-          Container(
-            padding: EdgeInsets.only(top: topInset + 6),
-            color: const Color(0xFFF7F9F9),
-            child: Column(
-              children: [
-                _TreeHeader(
-                  subtitle:
-                      '${DemoData.family.name} · ${_selected.generationLabel} · 共 ${DemoData.family.memberCount} 人',
-                  onBack: widget.onBack,
-                  onSearch: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const MemberSearchPage(),
+      body: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: _clearSelection,
+        child: Column(
+          children: [
+            Container(
+              padding: EdgeInsets.only(top: topInset + 6),
+              color: const Color(0xFFF7F9F9),
+              child: Column(
+                children: [
+                  _TreeHeader(
+                    subtitle:
+                        '${DemoData.family.name} · ${FamilyMember.generationLabelFor(activeGeneration)} · 共 ${DemoData.family.memberCount} 人',
+                    onBack: widget.onBack,
+                    onSearch: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const MemberSearchPage(),
+                      ),
                     ),
+                    onDirectory: () => _showDirectory(context),
                   ),
-                  onDirectory: () => _showDirectory(context),
-                ),
-                _GenerationFilters(
-                  selected: _focusGeneration,
-                  onChanged: _handleFilterChanged,
-                  onMore: () => _showDirectory(context),
-                ),
-              ],
+                  _GenerationFilters(
+                    selected: _focusGeneration,
+                    onChanged: _handleFilterChanged,
+                    onMore: () => _showDirectory(context),
+                  ),
+                ],
+              ),
             ),
-          ),
-          Expanded(
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: const BoxDecoration(color: Color(0xFFF7F7F2)),
-                    child: Image.asset(
-                      'assets/images/tree_paper.jpg',
-                      fit: BoxFit.cover,
-                      alignment: Alignment.topCenter,
-                      filterQuality: FilterQuality.medium,
-                    ),
-                  ),
-                ),
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          const Color(0xFFFBFBF7).withValues(alpha: 0.22),
-                          Colors.transparent,
-                          AppColors.background.withValues(alpha: 0.60),
-                        ],
-                        stops: const [0, 0.78, 1],
+            Expanded(
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: const BoxDecoration(color: Color(0xFFF7F7F2)),
+                      child: Image.asset(
+                        'assets/images/tree_paper.jpg',
+                        fit: BoxFit.cover,
+                        alignment: Alignment.topCenter,
+                        filterQuality: FilterQuality.medium,
                       ),
                     ),
                   ),
-                ),
-                Positioned.fill(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final size = Size(
-                        constraints.maxWidth,
-                        constraints.maxHeight,
-                      );
-                      _maybeScheduleFit(size);
-                      return ClipRect(
-                        child: InteractiveViewer(
-                          transformationController: _transformation,
-                          constrained: false,
-                          boundaryMargin: const EdgeInsets.all(140),
-                          minScale: 0.30,
-                          maxScale: 2.0,
-                          clipBehavior: Clip.none,
-                          alignment: Alignment.topLeft,
-                          onInteractionStart: (_) => _zoomController.stop(),
-                          child: SizedBox(
-                            width: _canvasWidth,
-                            height: _canvasHeight,
-                            child: Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                Positioned.fill(
-                                  child: CustomPaint(
-                                    painter: _TreeLinesPainter(
-                                      edges: _edges,
-                                      marriageBridges: _marriageBridges,
-                                      unionNodes: _unionNodes,
-                                      branchNodes: _branchNodes,
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            const Color(0xFFFBFBF7).withValues(alpha: 0.22),
+                            Colors.transparent,
+                            AppColors.background.withValues(alpha: 0.60),
+                          ],
+                          stops: const [0, 0.78, 1],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final size = Size(
+                          constraints.maxWidth,
+                          constraints.maxHeight,
+                        );
+                        _maybeScheduleFit(size);
+                        return ClipRect(
+                          child: InteractiveViewer(
+                            transformationController: _transformation,
+                            constrained: false,
+                            boundaryMargin: const EdgeInsets.all(140),
+                            minScale: 0.30,
+                            maxScale: 2.0,
+                            clipBehavior: Clip.none,
+                            alignment: Alignment.topLeft,
+                            onInteractionStart: (_) => _zoomController.stop(),
+                            child: SizedBox(
+                              width: _canvasWidth,
+                              height: _canvasHeight,
+                              child: Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  Positioned.fill(
+                                    child: CustomPaint(
+                                      painter: _TreeLinesPainter(
+                                        edges: _edges,
+                                        marriageBridges: _marriageBridges,
+                                        unionNodes: _unionNodes,
+                                        branchNodes: _branchNodes,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                _GenerationRail(
-                                  selectedGeneration: _selected.generation,
-                                  focusGeneration: _focusGeneration,
-                                  labels: _generationLabels,
-                                ),
-                                for (final placement in _placements)
-                                  _buildNode(placement),
-                              ],
+                                  _GenerationRail(
+                                    selectedGeneration: activeGeneration,
+                                    focusGeneration: _focusGeneration,
+                                    labels: _generationLabels,
+                                  ),
+                                  for (final placement in _placements)
+                                    _buildNode(placement),
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                Positioned(
-                  right: 12,
-                  top: 12,
-                  child: _ZoomControls(
-                    onZoomIn: () => _zoomBy(1.22),
-                    onZoomOut: () => _zoomBy(1 / 1.22),
-                    onReset: _resetView,
-                  ),
-                ),
-                Positioned(
-                  left: 18,
-                  right: 18,
-                  bottom: 10,
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 220),
-                    switchInCurve: Curves.easeOutCubic,
-                    switchOutCurve: Curves.easeInCubic,
-                    layoutBuilder: (currentChild, previousChildren) {
-                      return Stack(
-                        alignment: Alignment.bottomCenter,
-                        children: [
-                          ...previousChildren,
-                          if (currentChild != null) currentChild,
-                        ],
-                      );
-                    },
-                    transitionBuilder: (child, animation) {
-                      final offset =
-                          Tween<Offset>(
-                            begin: const Offset(0, 0.045),
-                            end: Offset.zero,
-                          ).animate(
-                            CurvedAnimation(
-                              parent: animation,
-                              curve: Curves.easeOutCubic,
-                            ),
-                          );
-                      return FadeTransition(
-                        opacity: animation,
-                        child: SlideTransition(position: offset, child: child),
-                      );
-                    },
-                    child: _PersonSummaryCard(
-                      key: ValueKey(_selected.id),
-                      person: _selected,
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => PersonDetailPage(person: _selected),
-                        ),
-                      ),
+                        );
+                      },
                     ),
                   ),
-                ),
-              ],
+                  Positioned(
+                    right: 12,
+                    top: 12,
+                    child: _ZoomControls(
+                      onZoomIn: () => _zoomBy(1.22),
+                      onZoomOut: () => _zoomBy(1 / 1.22),
+                      onReset: _resetView,
+                    ),
+                  ),
+                  Positioned(
+                    left: 18,
+                    right: 18,
+                    bottom: 10,
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      switchInCurve: Curves.easeOutCubic,
+                      switchOutCurve: Curves.easeInCubic,
+                      layoutBuilder: (currentChild, previousChildren) {
+                        return Stack(
+                          alignment: Alignment.bottomCenter,
+                          children: [
+                            ...previousChildren,
+                            if (currentChild != null) currentChild,
+                          ],
+                        );
+                      },
+                      transitionBuilder: (child, animation) {
+                        final offset =
+                            Tween<Offset>(
+                              begin: const Offset(0, 0.045),
+                              end: Offset.zero,
+                            ).animate(
+                              CurvedAnimation(
+                                parent: animation,
+                                curve: Curves.easeOutCubic,
+                              ),
+                            );
+                        return FadeTransition(
+                          opacity: animation,
+                          child: SlideTransition(
+                            position: offset,
+                            child: child,
+                          ),
+                        );
+                      },
+                      child: selected == null
+                          ? const SizedBox.shrink(
+                              key: ValueKey('tree-summary-hidden'),
+                            )
+                          : _PersonSummaryCard(
+                              key: ValueKey(selected.id),
+                              person: selected,
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) =>
+                                      PersonDetailPage(person: selected),
+                                ),
+                              ),
+                            ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -498,7 +518,10 @@ class _TreePageState extends State<TreePage>
   }
 
   void _handleFilterChanged(int? generation) {
-    setState(() => _focusGeneration = generation);
+    setState(() {
+      _focusGeneration = generation;
+      _selectedId = null;
+    });
 
     if (generation == null) {
       _applyFit(animate: true);
