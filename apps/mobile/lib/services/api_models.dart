@@ -302,6 +302,54 @@ class ApiBranchAdminGrantPage {
   }
 }
 
+class ApiStory {
+  const ApiStory({
+    required this.id,
+    required this.authorUserId,
+    required this.authorName,
+    required this.personId,
+    required this.personName,
+    required this.title,
+    required this.body,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  final String id;
+  final String authorUserId;
+  final String authorName;
+  final String? personId;
+  final String personName;
+  final String title;
+  final String body;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
+  factory ApiStory.fromJson(Map<String, dynamic> json) {
+    return ApiStory(
+      id: _string(json['id']),
+      authorUserId: _string(json['authorUserId']),
+      authorName: _string(json['authorName']),
+      personId: _nullableString(json['personId']),
+      personName: _string(json['personName']),
+      title: _string(json['title']),
+      body: _string(json['body']),
+      createdAt: DateTime.tryParse(_string(json['createdAt'])),
+      updatedAt: DateTime.tryParse(_string(json['updatedAt'])),
+    );
+  }
+}
+
+class ApiStoryPage {
+  const ApiStoryPage({required this.items});
+
+  final List<ApiStory> items;
+
+  factory ApiStoryPage.fromJson(Map<String, dynamic> json) {
+    return ApiStoryPage(items: _list(json['items'], ApiStory.fromJson));
+  }
+}
+
 class ApiActivity {
   const ApiActivity({
     required this.id,

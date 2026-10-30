@@ -435,6 +435,51 @@ class AppSession extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<List<ApiStory>> stories() async {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    final page = await _api.stories();
+    return page.items;
+  }
+
+  Future<ApiStory> story(String storyId) => _api.story(storyId);
+
+  Future<ApiStory> createStory({
+    required String title,
+    required String body,
+    String personId = '',
+  }) {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    return _api.createStory(title: title, body: body, personId: personId);
+  }
+
+  Future<ApiStory> updateStory({
+    required String storyId,
+    required String title,
+    required String body,
+    String personId = '',
+  }) {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    return _api.updateStory(
+      storyId: storyId,
+      title: title,
+      body: body,
+      personId: personId,
+    );
+  }
+
+  Future<void> deleteStory(String storyId) {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    return _api.deleteStory(storyId);
+  }
+
   Future<List<ApiActivity>> activity({int limit = 20}) async {
     if (!isAuthenticated) {
       throw const ApiException('登录状态已失效，请重新登录');

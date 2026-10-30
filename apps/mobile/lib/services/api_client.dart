@@ -71,6 +71,50 @@ class ApiClient {
     return ApiMe.fromJson(body);
   }
 
+  Future<ApiStoryPage> stories() async {
+    final body = await _request('GET', '/api/v1/stories');
+    return ApiStoryPage.fromJson(body);
+  }
+
+  Future<ApiStory> story(String storyId) async {
+    final body = await _request(
+      'GET',
+      '/api/v1/stories/${Uri.encodeComponent(storyId)}',
+    );
+    return ApiStory.fromJson(body);
+  }
+
+  Future<ApiStory> createStory({
+    required String title,
+    required String body,
+    String personId = '',
+  }) async {
+    final response = await _request(
+      'POST',
+      '/api/v1/stories',
+      body: {'title': title, 'body': body, 'personId': personId},
+    );
+    return ApiStory.fromJson(response);
+  }
+
+  Future<ApiStory> updateStory({
+    required String storyId,
+    required String title,
+    required String body,
+    String personId = '',
+  }) async {
+    final response = await _request(
+      'PATCH',
+      '/api/v1/stories/${Uri.encodeComponent(storyId)}',
+      body: {'title': title, 'body': body, 'personId': personId},
+    );
+    return ApiStory.fromJson(response);
+  }
+
+  Future<void> deleteStory(String storyId) async {
+    await _request('DELETE', '/api/v1/stories/${Uri.encodeComponent(storyId)}');
+  }
+
   Future<ApiActivityPage> activity({int limit = 20}) async {
     final body = await _request('GET', '/api/v1/activity?limit=$limit');
     return ApiActivityPage.fromJson(body);

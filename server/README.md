@@ -21,6 +21,7 @@
 - `GET /api/v1/families`、`POST /api/v1/families`（列出/创建家族）
 - `POST /api/v1/families/join`（登录后用邀请码加入另一个家族）
 - `GET /api/v1/activity`（按审计记录生成的家族动态）
+- `GET/POST /api/v1/stories`、`GET/PATCH/DELETE /api/v1/stories/{id}`（家族故事）
 - `POST /api/v1/import-packages`（源家族族长生成旁支数据导入码）
 - `POST /api/v1/import-packages/preview`（目标家族族长预览）
 - `POST /api/v1/import-packages/import`（选择分支/世代/挂靠父辈，事务导入）

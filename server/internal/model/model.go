@@ -122,6 +122,19 @@ type Photo struct {
 	CreatedAt        time.Time  `json:"createdAt"`
 }
 
+type Story struct {
+	ID           string    `json:"id"`
+	FamilyID     string    `json:"familyId"`
+	AuthorUserID string    `json:"authorUserId"`
+	AuthorName   string    `json:"authorName"`
+	PersonID     *string   `json:"personId,omitempty"`
+	PersonName   string    `json:"personName,omitempty"`
+	Title        string    `json:"title"`
+	Body         string    `json:"body"`
+	CreatedAt    time.Time `json:"createdAt"`
+	UpdatedAt    time.Time `json:"updatedAt"`
+}
+
 type Activity struct {
 	ID          int64     `json:"id"`
 	Action      string    `json:"action"`
