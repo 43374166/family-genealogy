@@ -425,7 +425,46 @@ class _RequestsPageState extends State<RequestsPage> {
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
-              if (request.requestType != 'update_person') ...[
+              if (request.requestType == 'update_person_profile') ...[
+                _ChangeRow(
+                  label: '姓名',
+                  value:
+                      '${_payloadString(request, 'surname')}${_payloadString(request, 'givenName')}',
+                ),
+                _ChangeRow(
+                  label: '性别',
+                  value: _genderLabel(_payloadString(request, 'gender')),
+                ),
+                _ChangeRow(
+                  label: '世代',
+                  value: '第${request.payload['generationNo'] ?? '-'}世',
+                ),
+                if (request.payload['birthYear'] != null)
+                  _ChangeRow(
+                    label: '出生年',
+                    value: '${request.payload['birthYear']}',
+                  ),
+                if (request.payload['deathYear'] != null)
+                  _ChangeRow(
+                    label: '逝世年',
+                    value: '${request.payload['deathYear']}',
+                  ),
+                if (_payloadString(request, 'birthPlace').isNotEmpty)
+                  _ChangeRow(
+                    label: '籍贯',
+                    value: _payloadString(request, 'birthPlace'),
+                  ),
+                if (_payloadString(request, 'occupation').isNotEmpty)
+                  _ChangeRow(
+                    label: '职业',
+                    value: _payloadString(request, 'occupation'),
+                  ),
+                if (_payloadString(request, 'biography').isNotEmpty)
+                  _ChangeRow(
+                    label: '生平',
+                    value: _payloadString(request, 'biography'),
+                  ),
+              ] else if (request.requestType != 'update_person') ...[
                 Text(
                   request.summary.isEmpty ? '写入申请' : request.summary,
                   style: const TextStyle(
@@ -544,6 +583,24 @@ class _RequestsPageState extends State<RequestsPage> {
         ),
       ),
     );
+  }
+
+  String _payloadString(ApiEditRequest request, String key) {
+    final value = request.payload[key];
+    return value is String ? value : '';
+  }
+
+  String _genderLabel(String value) {
+    switch (value) {
+      case 'male':
+        return '男';
+      case 'female':
+        return '女';
+      case 'other':
+        return '其他';
+      default:
+        return '未详';
+    }
   }
 
   String _changeValue(ApiEditRequest request, String key) {

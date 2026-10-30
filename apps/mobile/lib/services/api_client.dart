@@ -401,6 +401,53 @@ class ApiClient {
     return ApiEditRequest.fromJson(body);
   }
 
+  Future<ApiEditRequest> createProfileRequest({
+    required String personId,
+    required String surname,
+    required String givenName,
+    required String courtesyName,
+    required String alias,
+    required String gender,
+    required int generationNo,
+    required String branchId,
+    int? birthOrder,
+    int? birthYear,
+    int? deathYear,
+    required String lifeStatus,
+    required String birthPlace,
+    required String residence,
+    required String occupation,
+    required String education,
+    required String biography,
+    required int version,
+  }) async {
+    final body = await _request(
+      'POST',
+      '/api/v1/edit-requests/profile',
+      body: {
+        'personId': personId,
+        'surname': surname,
+        'givenName': givenName,
+        'courtesyName': courtesyName,
+        'alias': alias,
+        'gender': gender,
+        'generationNo': generationNo,
+        'branchId': branchId,
+        'birthOrder': birthOrder,
+        'birthYear': birthYear,
+        'deathYear': deathYear,
+        'lifeStatus': lifeStatus,
+        'birthPlace': birthPlace,
+        'residence': residence,
+        'occupation': occupation,
+        'education': education,
+        'biography': biography,
+        'version': version,
+      },
+    );
+    return ApiEditRequest.fromJson(body);
+  }
+
   Future<ApiEditRequest> createWriteRequest({
     required String requestType,
     required Map<String, dynamic> payload,

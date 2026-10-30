@@ -8,7 +8,6 @@ import '../../core/widgets/status_pill.dart';
 import '../../services/api_client.dart';
 import '../../services/api_models.dart';
 import '../../services/app_session.dart';
-import '../requests/edit_request_page.dart';
 import 'edit_person_page.dart';
 
 /// API-backed person profile. The summary received from a search result can be
@@ -189,16 +188,7 @@ class _ApiPersonDetailPageState extends State<ApiPersonDetailPage> {
                           children: [
                             Expanded(
                               child: OutlinedButton.icon(
-                                onPressed: session.canWrite
-                                    ? () => _editPerson(person)
-                                    : () => Navigator.of(context).push(
-                                        MaterialPageRoute<void>(
-                                          builder: (_) => EditRequestPage(
-                                            personId: person.id,
-                                            initialPerson: person,
-                                          ),
-                                        ),
-                                      ),
+                                onPressed: () => _editPerson(person),
                                 icon: const Icon(Icons.edit_outlined, size: 17),
                                 label: Text(
                                   session.canWrite ? '编辑资料' : '申请修改资料',

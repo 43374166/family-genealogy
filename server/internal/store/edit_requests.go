@@ -105,6 +105,48 @@ func (s *Store) CreateEditRequest(
 	return s.GetEditRequest(ctx, familyID, requestID)
 }
 
+func (s *Store) CreateProfileRequest(
+	ctx context.Context,
+	familyID, requesterUserID, targetPersonID string,
+	input UpdatePersonInput,
+) (*model.EditRequest, error) {
+	var currentVersion int
+	var status string
+	err := s.db.QueryRowContext(ctx, `
+		SELECT version, status FROM persons
+		WHERE family_id = ? AND id = ?
+		LIMIT 1`, familyID, targetPersonID,
+	).Scan(&currentVersion, &status)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("lookup profile request target: %w", err)
+	}
+	if status != "active" {
+		return nil, ErrNotFound
+	}
+	if input.Version != currentVersion {
+		return nil, ErrVersionConflict
+	}
+	payload, err := json.Marshal(input)
+	if err != nil {
+		return nil, fmt.Errorf("encode profile request: %w", err)
+	}
+	requestID := uuid.NewString()
+	if _, err := s.db.ExecContext(ctx, `
+		INSERT INTO edit_requests
+			(id, family_id, requester_user_id, request_type, target_person_id,
+			 base_version, payload, status)
+		VALUES (?, ?, ?, 'update_person_profile', ?, ?, ?, 'pending')`,
+		requestID, familyID, requesterUserID, targetPersonID,
+		currentVersion, string(payload),
+	); err != nil {
+		return nil, fmt.Errorf("insert profile request: %w", err)
+	}
+	return s.GetEditRequest(ctx, familyID, requestID)
+}
+
 func normalizeChanges(changes model.PersonEditChanges, current editablePerson) model.PersonEditChanges {
 	if changes.BirthPlace != nil && *changes.BirthPlace == current.BirthPlace {
 		changes.BirthPlace = nil
@@ -275,6 +317,11 @@ func requestSummary(requestType string, payload map[string]any, targetName strin
 			return targetName + " · 资料修改"
 		}
 		return "资料修改"
+	case "update_person_profile":
+		if targetName != "" {
+			return targetName + " · 完整资料修改"
+		}
+		return "完整资料修改"
 	default:
 		return requestType
 	}
@@ -362,6 +409,26 @@ func (s *Store) ReviewEditRequest(
 			action = "edit_request.approved"
 			entityType = "person"
 			entityID = targetID.String
+
+		case "update_person_profile":
+			if !targetID.Valid {
+				return nil, ErrVersionConflict
+			}
+			var input UpdatePersonInput
+			if err := json.Unmarshal(payload, &input); err != nil {
+				return nil, fmt.Errorf("decode profile request: %w", err)
+			}
+			before, after, err := s.updatePersonTx(
+				ctx, tx, familyID, targetID.String, input,
+			)
+			if err != nil {
+				return nil, err
+			}
+			action = "edit_request.approved"
+			entityType = "person"
+			entityID = targetID.String
+			beforeData = before
+			afterData = after
 
 		case "create_person":
 			var input NewPerson

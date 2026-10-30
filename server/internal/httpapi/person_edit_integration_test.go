@@ -64,6 +64,7 @@ func TestPersonEditAndRelationshipDelete(t *testing.T) {
 	}
 	decodeBody(t, response, &created)
 	t.Cleanup(func() {
+		_, _ = db.DB.Exec(`DELETE FROM edit_requests WHERE target_person_id = ?`, created.ID)
 		_, _ = db.DB.Exec(`DELETE FROM parent_child_relationships WHERE parent_id = ? OR child_id = ?`, created.ID, created.ID)
 		_, _ = db.DB.Exec(`DELETE FROM spouse_relationships WHERE person_a_id = ? OR person_b_id = ?`, created.ID, created.ID)
 		_, _ = db.DB.Exec(`DELETE FROM persons WHERE id = ?`, created.ID)
@@ -143,5 +144,52 @@ func TestPersonEditAndRelationshipDelete(t *testing.T) {
 		server.URL+"/api/v1/relationships/spouse/"+spouseDetail.Spouses[0].EdgeID, "", owner.Token)
 	if response.StatusCode != http.StatusNoContent {
 		t.Fatalf("delete spouse status = %d, body = %s", response.StatusCode, readBody(t, response))
+	}
+
+	response = doJSON(t, http.DefaultClient, http.MethodGet,
+		server.URL+"/api/v1/persons/"+created.ID, "", owner.Token)
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("get current person status = %d", response.StatusCode)
+	}
+	var currentPerson struct {
+		Version int `json:"version"`
+	}
+	decodeBody(t, response, &currentPerson)
+	profileBody, _ := json.Marshal(map[string]any{
+		"personId": created.ID, "surname": "凌", "givenName": "审核后",
+		"gender": "male", "generationNo": 3,
+		"branchId":   "40000000-0000-4000-8000-000000000002",
+		"lifeStatus": "living", "version": currentPerson.Version,
+	})
+	response = doJSON(t, http.DefaultClient, http.MethodPost,
+		server.URL+"/api/v1/edit-requests/profile", string(profileBody), owner.Token)
+	if response.StatusCode != http.StatusCreated {
+		t.Fatalf("create profile request status = %d, body = %s", response.StatusCode, readBody(t, response))
+	}
+	var profileRequest struct {
+		ID     string `json:"id"`
+		Status string `json:"status"`
+	}
+	decodeBody(t, response, &profileRequest)
+	if profileRequest.Status != "pending" {
+		t.Fatalf("profile request status = %q", profileRequest.Status)
+	}
+	response = doJSON(t, http.DefaultClient, http.MethodPost,
+		server.URL+"/api/v1/edit-requests/"+profileRequest.ID+"/approve",
+		`{"note":"同意修改"}`, owner.Token)
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("approve profile request status = %d, body = %s", response.StatusCode, readBody(t, response))
+	}
+	response = doJSON(t, http.DefaultClient, http.MethodGet,
+		server.URL+"/api/v1/persons/"+created.ID, "", owner.Token)
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("get profile result status = %d", response.StatusCode)
+	}
+	var profileResult struct {
+		GivenName string `json:"givenName"`
+	}
+	decodeBody(t, response, &profileResult)
+	if profileResult.GivenName != "审核后" {
+		t.Fatalf("profile request not applied: %q", profileResult.GivenName)
 	}
 }

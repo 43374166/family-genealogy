@@ -90,7 +90,7 @@ func (s *Store) EditRequestBranches(
 	}
 
 	switch requestType {
-	case "update_person":
+	case "update_person", "update_person_profile":
 		if !targetID.Valid {
 			return nil, ErrNotFound
 		}

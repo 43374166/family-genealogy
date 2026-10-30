@@ -11,23 +11,23 @@ import (
 )
 
 type UpdatePersonInput struct {
-	Surname      string
-	GivenName    string
-	CourtesyName string
-	Alias        string
-	Gender       string
-	GenerationNo int
-	BranchID     string
-	BirthOrder   *int
-	BirthYear    *int
-	DeathYear    *int
-	LifeStatus   string
-	BirthPlace   string
-	Residence    string
-	Occupation   string
-	Education    string
-	Biography    string
-	Version      int
+	Surname      string `json:"surname"`
+	GivenName    string `json:"givenName"`
+	CourtesyName string `json:"courtesyName"`
+	Alias        string `json:"alias"`
+	Gender       string `json:"gender"`
+	GenerationNo int    `json:"generationNo"`
+	BranchID     string `json:"branchId"`
+	BirthOrder   *int   `json:"birthOrder"`
+	BirthYear    *int   `json:"birthYear"`
+	DeathYear    *int   `json:"deathYear"`
+	LifeStatus   string `json:"lifeStatus"`
+	BirthPlace   string `json:"birthPlace"`
+	Residence    string `json:"residence"`
+	Occupation   string `json:"occupation"`
+	Education    string `json:"education"`
+	Biography    string `json:"biography"`
+	Version      int    `json:"version"`
 }
 
 func (s *Store) UpdatePerson(

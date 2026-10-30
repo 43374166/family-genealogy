@@ -39,6 +39,7 @@ class _EditPersonPageState extends State<EditPersonPage> {
   bool _loadingBranches = true;
   bool _submitting = false;
   bool _started = false;
+  bool _canWrite = false;
   String? _error;
 
   @override
@@ -68,6 +69,7 @@ class _EditPersonPageState extends State<EditPersonPage> {
     super.didChangeDependencies();
     if (_started) return;
     _started = true;
+    _canWrite = SessionScope.of(context).canWrite;
     _loadBranches();
   }
 
@@ -124,34 +126,70 @@ class _EditPersonPageState extends State<EditPersonPage> {
       _error = null;
     });
     try {
-      await SessionScope.of(context).updatePerson(
-        personId: widget.person.id,
-        surname: _surname.text.trim(),
-        givenName: _givenName.text.trim(),
-        courtesyName: _courtesyName.text.trim(),
-        alias: _alias.text.trim(),
-        gender: _gender,
-        generationNo: _generation,
-        branchId: _branchId!,
-        birthOrder: int.tryParse(_birthOrder.text.trim()),
-        birthYear: int.tryParse(_birthYear.text.trim()),
-        deathYear: _lifeStatus == 'deceased'
-            ? int.tryParse(_deathYear.text.trim())
-            : null,
-        lifeStatus: _lifeStatus,
-        birthPlace: _birthPlace.text.trim(),
-        residence: _residence.text.trim(),
-        occupation: _occupation.text.trim(),
-        education: _education.text.trim(),
-        biography: _biography.text.trim(),
-        version: widget.person.version,
-      );
+      final session = SessionScope.of(context);
+      final surname = _surname.text.trim();
+      final givenName = _givenName.text.trim();
+      final courtesyName = _courtesyName.text.trim();
+      final alias = _alias.text.trim();
+      final birthOrder = int.tryParse(_birthOrder.text.trim());
+      final birthYear = int.tryParse(_birthYear.text.trim());
+      final deathYear = _lifeStatus == 'deceased'
+          ? int.tryParse(_deathYear.text.trim())
+          : null;
+      final birthPlace = _birthPlace.text.trim();
+      final residence = _residence.text.trim();
+      final occupation = _occupation.text.trim();
+      final education = _education.text.trim();
+      final biography = _biography.text.trim();
+      if (_canWrite) {
+        await session.updatePerson(
+          personId: widget.person.id,
+          surname: surname,
+          givenName: givenName,
+          courtesyName: courtesyName,
+          alias: alias,
+          gender: _gender,
+          generationNo: _generation,
+          branchId: _branchId!,
+          birthOrder: birthOrder,
+          birthYear: birthYear,
+          deathYear: deathYear,
+          lifeStatus: _lifeStatus,
+          birthPlace: birthPlace,
+          residence: residence,
+          occupation: occupation,
+          education: education,
+          biography: biography,
+          version: widget.person.version,
+        );
+      } else {
+        await session.createProfileRequest(
+          personId: widget.person.id,
+          surname: surname,
+          givenName: givenName,
+          courtesyName: courtesyName,
+          alias: alias,
+          gender: _gender,
+          generationNo: _generation,
+          branchId: _branchId!,
+          birthOrder: birthOrder,
+          birthYear: birthYear,
+          deathYear: deathYear,
+          lifeStatus: _lifeStatus,
+          birthPlace: birthPlace,
+          residence: residence,
+          occupation: occupation,
+          education: education,
+          biography: biography,
+          version: widget.person.version,
+        );
+      }
       if (!mounted) return;
       await showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('资料已保存'),
-          content: const Text('人物资料已更新，族谱会同步刷新。'),
+          title: Text(_canWrite ? '资料已保存' : '申请已提交'),
+          content: Text(_canWrite ? '人物资料已更新，族谱会同步刷新。' : '修改申请已提交，等待族长或管理员审核。'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
@@ -183,7 +221,10 @@ class _EditPersonPageState extends State<EditPersonPage> {
         bottom: false,
         child: Column(
           children: [
-            const AppPageHeader(title: '编辑人物', subtitle: '修改后直接写入族谱并记审计'),
+            AppPageHeader(
+              title: '编辑人物',
+              subtitle: _canWrite ? '修改后直接写入族谱并记审计' : '提交族长或管理员审核',
+            ),
             Expanded(
               child: Form(
                 key: _formKey,
@@ -374,7 +415,7 @@ class _EditPersonPageState extends State<EditPersonPage> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Text('保存修改'),
+                          : Text(_canWrite ? '保存修改' : '提交审核'),
                     ),
                   ],
                 ),
