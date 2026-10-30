@@ -1,7 +1,7 @@
 name: family_tree
 description: "家族族谱 · 多家族 Flutter 移动端原型（iOS / Android）"
 publish_to: "none"
-version: 0.11.0+16
+version: 0.12.0+17
 
 environment:
   sdk: ^3.9.2
@@ -11,6 +11,7 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
+  qr_flutter: ^4.1.0
   cupertino_icons: ^1.0.8
   http: ^1.2.2
 

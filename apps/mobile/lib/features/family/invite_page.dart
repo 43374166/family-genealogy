@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/app_page_header.dart';
@@ -94,6 +95,126 @@ class _InvitePageState extends State<InvitePage> {
     ).showSnackBar(SnackBar(content: Text('邀请码 $code 已复制')));
   }
 
+  Future<void> _copyInviteText(ApiInvite invite) async {
+    final familyName = SessionScope.of(context).family?.name ?? '家族';
+    final role = invite.role == 'admin'
+        ? '分支管理员（${invite.branchName}）'
+        : '普通成员';
+    final text =
+        '邀请你加入$familyName，角色：$role。\n'
+        '邀请码：${invite.code}\n'
+        '打开“家族族谱”App → 登录页 → “有邀请码？注册加入家族”。';
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('邀请文字已复制')));
+  }
+
+  Future<void> _showQr(ApiInvite invite) async {
+    final familyName = SessionScope.of(context).family?.name ?? '家族';
+    await showDialog<void>(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(22, 20, 22, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '扫码加入$familyName',
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.ink,
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                '让对方用手机相机扫码，复制邀请码后注册',
+                style: TextStyle(fontSize: 10.5, color: AppColors.inkMuted),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.line),
+                ),
+                child: QrImageView(
+                  data: invite.code,
+                  version: QrVersions.auto,
+                  size: 210,
+                  backgroundColor: Colors.white,
+                  eyeStyle: const QrEyeStyle(
+                    eyeShape: QrEyeShape.square,
+                    color: AppColors.ink,
+                  ),
+                  dataModuleStyle: const QrDataModuleStyle(
+                    dataModuleShape: QrDataModuleShape.square,
+                    color: AppColors.ink,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                invite.code,
+                style: const TextStyle(
+                  fontSize: 23,
+                  letterSpacing: 3,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.ink,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                invite.role == 'admin'
+                    ? '分支管理员 · ${invite.branchName}'
+                    : '普通成员',
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  color: AppColors.inkMuted,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _copyInviteText(invite),
+                      icon: const Icon(Icons.notes_rounded, size: 17),
+                      label: const Text('复制文字'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: () async {
+                        await _copy(invite.code);
+                        if (context.mounted) Navigator.of(context).pop();
+                      },
+                      icon: const Icon(Icons.copy_rounded, size: 17),
+                      label: const Text('复制邀请码'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('关闭'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -140,7 +261,7 @@ class _InvitePageState extends State<InvitePage> {
                               const SizedBox(width: 12),
                               const Expanded(
                                 child: Text(
-                                  '成员用邀请码注册后先成为普通成员，再在“我的”里申请绑定族谱人物。二维码分享后续接入。',
+                                  '成员用邀请码注册后先成为普通成员，再在“我的”里申请绑定族谱人物。点每条邀请右侧的二维码即可当面分享。',
                                   style: TextStyle(
                                     fontSize: 11,
                                     height: 1.65,
@@ -249,6 +370,7 @@ class _InvitePageState extends State<InvitePage> {
                             _InviteCard(
                               invite: invite,
                               onCopy: () => _copy(invite.code),
+                              onQr: () => _showQr(invite),
                             ),
                             const SizedBox(height: 9),
                           ],
@@ -263,10 +385,15 @@ class _InvitePageState extends State<InvitePage> {
 }
 
 class _InviteCard extends StatelessWidget {
-  const _InviteCard({required this.invite, required this.onCopy});
+  const _InviteCard({
+    required this.invite,
+    required this.onCopy,
+    required this.onQr,
+  });
 
   final ApiInvite invite;
   final VoidCallback onCopy;
+  final VoidCallback onQr;
 
   @override
   Widget build(BuildContext context) {
@@ -316,7 +443,18 @@ class _InviteCard extends StatelessWidget {
                 color: active ? AppColors.jade : AppColors.inkMuted,
                 background: active ? AppColors.jadeSoft : AppColors.slateSoft,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 4),
+              if (active)
+                IconButton(
+                  onPressed: onQr,
+                  tooltip: '二维码',
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(
+                    Icons.qr_code_2_rounded,
+                    size: 21,
+                    color: AppColors.primary,
+                  ),
+                ),
               const Icon(
                 Icons.copy_rounded,
                 size: 18,
