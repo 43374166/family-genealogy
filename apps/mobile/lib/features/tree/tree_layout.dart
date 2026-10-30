@@ -20,6 +20,15 @@ class TreePersonPlacement {
   Offset get center => rect.center;
 }
 
+/// One parent-to-child connector. [colorSlot] comes from the child's position
+/// among its siblings, so siblings can be drawn in different colours.
+class TreeEdge {
+  const TreeEdge({required this.points, required this.colorSlot});
+
+  final List<Offset> points;
+  final int colorSlot;
+}
+
 /// Computed geometry for one family tree.
 ///
 /// The layout is intentionally data-driven: generations come from the API and
@@ -40,7 +49,7 @@ class TreeLayout {
   });
 
   final List<TreePersonPlacement> placements;
-  final List<List<Offset>> edges;
+  final List<TreeEdge> edges;
   final List<(Offset, Offset)> marriageBridges;
   final List<Offset> unionNodes;
   final List<Offset> branchNodes;
@@ -70,7 +79,6 @@ class _Unit {
 
   final List<ApiPerson> members;
   final int generation;
-  final Set<String> parentIds = {};
   final Set<_Unit> parents = {};
   final Set<_Unit> children = {};
 
@@ -91,13 +99,14 @@ class _TreeLayoutBuilder {
   final Map<int, double> topByGeneration = {};
   final Map<int, double> rowHeightByGeneration = {};
   final Map<String, TreePersonPlacement> placementsById = {};
+  final Map<_Unit, double> _subtreeWidthCache = {};
 
   static const double _contentLeft = 80;
-  static const double _top = 30;
+  static const double _top = 28;
   static const double _right = 28;
-  static const double _bottom = 34;
+  static const double _bottom = 30;
   static const double _memberGap = 14;
-  static const double _unitGap = 38;
+  static const double _childGap = 30;
   static const double _familyGap = 92;
   static const double _generationGap = 78;
   static const double _wideWidth = 150;
@@ -112,11 +121,9 @@ class _TreeLayoutBuilder {
     generations.addAll(rawGenerations);
 
     for (final generation in generations) {
-      final people =
-          tree.persons
-              .where((person) => person.generationNo == generation)
-              .toList()
-            ..sort(_comparePeople);
+      final people = tree.persons
+          .where((person) => person.generationNo == generation)
+          .toList();
       compactByGeneration[generation] =
           people.length > 3 || tree.persons.length > 22;
       rowHeightByGeneration[generation] = compactByGeneration[generation]!
@@ -125,12 +132,8 @@ class _TreeLayoutBuilder {
     }
 
     _buildUnits();
-    _initializeOrder();
-    for (var pass = 0; pass < 5; pass++) {
-      _alignToParents();
-      _alignToChildren();
-    }
-    _finalizeHorizontal();
+    _chooseLayoutParents();
+    _layoutForest();
     _buildPlacements();
     final geometry = _buildConnections();
     return TreeLayout(
@@ -167,8 +170,8 @@ class _TreeLayoutBuilder {
   void _buildUnits() {
     final spouseOf = <String, String>{};
     for (final edge in tree.spouses) {
-      // Spouse relationship status is married/widowed/divorced/unknown, not
-      // active. Only an explicitly divorced pair should be laid out apart.
+      // Spouse status is married/widowed/divorced/unknown. Only an explicitly
+      // divorced pair should be placed apart.
       if (edge.status == 'divorced') continue;
       final a = persons[edge.personAId];
       final b = persons[edge.personBId];
@@ -182,9 +185,12 @@ class _TreeLayoutBuilder {
     final used = <String>{};
     for (final generation in generations) {
       final units = <_Unit>[];
-      for (final person in tree.persons.where(
-        (person) => person.generationNo == generation,
-      )) {
+      final people =
+          tree.persons
+              .where((person) => person.generationNo == generation)
+              .toList()
+            ..sort(_comparePeople);
+      for (final person in people) {
         if (!used.add(person.id)) continue;
         final members = <ApiPerson>[person];
         final spouseId = spouseOf[person.id];
@@ -207,24 +213,8 @@ class _TreeLayoutBuilder {
             (members.length - 1) * _memberGap;
         units.add(unit);
       }
-      units.sort((a, b) {
-        final aMember = a.members.first;
-        final bMember = b.members.first;
-        return _comparePeople(aMember, bMember);
-      });
+      units.sort((a, b) => _comparePeople(a.members.first, b.members.first));
       unitsByGeneration[generation] = units;
-    }
-
-    for (final generation in generations) {
-      for (final unit in unitsByGeneration[generation]!) {
-        for (final member in unit.members) {
-          for (final edge in tree.parentChild) {
-            if (edge.childId == member.id || edge.parentId == member.id) {
-              if (edge.childId == member.id) unit.parentIds.add(edge.parentId);
-            }
-          }
-        }
-      }
     }
 
     final unitByPerson = <String, _Unit>{
@@ -246,131 +236,91 @@ class _TreeLayoutBuilder {
     return tree.parentChild.any((edge) => edge.childId == personId);
   }
 
-  void _initializeOrder() {
+  /// A child with two parents normally has both parents in one couple unit.
+  /// If the data has them in separate units, keep the child under one parent
+  /// for layout purposes so it is not drawn twice.
+  void _chooseLayoutParents() {
     for (final generation in generations) {
-      var x = 0.0;
       for (final unit in unitsByGeneration[generation]!) {
-        unit.left = x;
-        x += unit.width + _unitGap;
+        if (unit.parents.length < 2) continue;
+        final keep = unit.parents.toList()
+          ..sort((a, b) => _comparePeople(a.members.first, b.members.first));
+        final layoutParent = keep.first;
+        for (final parent in unit.parents) {
+          if (parent != layoutParent) parent.children.remove(unit);
+        }
+        unit.parents
+          ..clear()
+          ..add(layoutParent);
       }
     }
   }
 
-  void _alignToParents() {
-    for (final generation in generations) {
-      final units = unitsByGeneration[generation]!;
-      final desired = <_Unit, double>{
-        for (final unit in units)
-          unit: unit.parents.isEmpty
-              ? unit.center
-              : unit.parents
-                        .map((parent) => parent.center)
-                        .reduce((a, b) => a + b) /
-                    unit.parents.length,
-      };
-      _pack(units, desired);
-    }
-  }
-
-  void _alignToChildren() {
-    for (final generation in generations.reversed) {
-      final units = unitsByGeneration[generation]!;
-      final desired = <_Unit, double>{
-        for (final unit in units)
-          unit: unit.children.isEmpty
-              ? unit.center
-              : unit.children
-                        .map((child) => child.center)
-                        .reduce((a, b) => a + b) /
-                    unit.children.length,
-      };
-      _pack(units, desired);
-    }
-  }
-
-  void _pack(List<_Unit> units, Map<_Unit, double> desired) {
-    // Keep each root family together and leave a clear visual gap between the
-    // grandfather's branch, the second-grandfather's branch, etc. Sorting all
-    // units by their desired centre alone would interleave those families.
-    final groups = <String, List<_Unit>>{};
-    for (final unit in units) {
-      groups.putIfAbsent(_unitRoot(unit), () => []).add(unit);
-    }
-    final orderedRoots = groups.keys.toList()
-      ..sort((a, b) {
-        final personA = persons[a];
-        final personB = persons[b];
-        if (personA == null || personB == null) return a.compareTo(b);
-        return _comparePeople(personA, personB);
-      });
-
-    var x = 0.0;
-    var firstGroup = true;
-    for (final root in orderedRoots) {
-      final group = groups[root]!;
-      group.sort((a, b) {
-        final result = desired[a]!.compareTo(desired[b]!);
-        if (result != 0) return result;
-        return _comparePeople(a.members.first, b.members.first);
-      });
-      if (!firstGroup) x += _familyGap;
-      firstGroup = false;
-      for (final unit in group) {
-        unit.left = x;
-        x += unit.width + _unitGap;
-      }
-    }
-  }
-
-  final Map<String, String> _rootCache = {};
-
-  String _unitRoot(_Unit unit) {
-    for (final member in unit.members) {
-      if (_hasParent(member.id)) return _rootOf(member.id);
-    }
-    return _rootOf(unit.members.first.id);
-  }
-
-  String _rootOf(String personId) {
-    final cached = _rootCache[personId];
-    if (cached != null) return cached;
-    String? parent;
-    for (final edge in tree.parentChild) {
-      if (edge.childId == personId) {
-        parent = edge.parentId;
-        break;
-      }
-    }
-    final root = parent == null ? personId : _rootOf(parent);
-    _rootCache[personId] = root;
-    return root;
-  }
-
-  void _finalizeHorizontal() {
-    var maxWidth = 0.0;
-    for (final generation in generations) {
-      final row = unitsByGeneration[generation]!;
-      if (row.isEmpty) continue;
-      maxWidth = math.max(maxWidth, _rowRight(row));
-    }
+  void _layoutForest() {
     var top = _top;
     for (final generation in generations) {
-      final row = unitsByGeneration[generation]!;
-      final rowWidth = row.isEmpty ? 0.0 : _rowRight(row);
-      final offset = _contentLeft + (maxWidth - rowWidth) / 2;
-      for (final unit in row) {
-        unit.left += offset;
-      }
       topByGeneration[generation] = top;
       top += rowHeightByGeneration[generation]! + _generationGap;
     }
-    _canvasWidth = _contentLeft + maxWidth + _right;
+
+    final roots =
+        unitsByGeneration.values
+            .expand((row) => row)
+            .where((unit) => unit.parents.isEmpty)
+            .toList()
+          ..sort((a, b) {
+            final generation = a.generation.compareTo(b.generation);
+            if (generation != 0) return generation;
+            return _comparePeople(a.members.first, b.members.first);
+          });
+
+    var left = _contentLeft;
+    for (var index = 0; index < roots.length; index++) {
+      final root = roots[index];
+      _placeUnit(root, left);
+      left += _subtreeWidth(root);
+      if (index != roots.length - 1) left += _familyGap;
+    }
+    _canvasWidth = left + _right;
     _canvasHeight = top - _generationGap + _bottom;
   }
 
-  double _rowRight(List<_Unit> row) => row
-      .map((unit) => unit.left + unit.width)
-      .reduce((a, b) => math.max(a, b));
+  double _subtreeWidth(_Unit unit) {
+    final cached = _subtreeWidthCache[unit];
+    if (cached != null) return cached;
+    final children = _sortedChildren(unit);
+    var childrenWidth = 0.0;
+    for (var index = 0; index < children.length; index++) {
+      childrenWidth += _subtreeWidth(children[index]);
+      if (index != children.length - 1) childrenWidth += _childGap;
+    }
+    final width = math.max(unit.width, childrenWidth);
+    _subtreeWidthCache[unit] = width;
+    return width;
+  }
+
+  void _placeUnit(_Unit unit, double left) {
+    final width = _subtreeWidth(unit);
+    unit.left = left + (width - unit.width) / 2;
+    final children = _sortedChildren(unit);
+    if (children.isEmpty) return;
+    var childrenWidth = 0.0;
+    for (var index = 0; index < children.length; index++) {
+      childrenWidth += _subtreeWidth(children[index]);
+      if (index != children.length - 1) childrenWidth += _childGap;
+    }
+    var childLeft = left + (width - childrenWidth) / 2;
+    for (final child in children) {
+      _placeUnit(child, childLeft);
+      childLeft += _subtreeWidth(child) + _childGap;
+    }
+  }
+
+  List<_Unit> _sortedChildren(_Unit unit) {
+    final children = unit.children.toList()
+      ..sort((a, b) => _comparePeople(a.members.first, b.members.first));
+    return children;
+  }
 
   double _canvasWidth = 0;
   double _canvasHeight = 0;
@@ -405,7 +355,7 @@ class _TreeLayoutBuilder {
   }
 
   _TreeGeometry _buildConnections() {
-    final edges = <List<Offset>>[];
+    final edges = <TreeEdge>[];
     final bridges = <(Offset, Offset)>[];
     final unions = <Offset>[];
     final branches = <Offset>[];
@@ -424,47 +374,63 @@ class _TreeLayoutBuilder {
       unions.add(Offset((first.rect.right + second.rect.left) / 2, y));
     }
 
-    final parentEdges = <String, List<ApiParentChildEdge>>{};
+    final grouped = <String, List<ApiParentChildEdge>>{};
     for (final edge in tree.parentChild) {
-      parentEdges.putIfAbsent(edge.childId, () => []).add(edge);
+      final key = ([edge.parentId]..sort()).join('|');
+      grouped.putIfAbsent(key, () => []).add(edge);
     }
 
-    for (final entry in parentEdges.entries) {
-      final child = placementsById[entry.key];
-      if (child == null) continue;
-      final parents = entry.value
-          .map((edge) => placementsById[edge.parentId])
-          .whereType<TreePersonPlacement>()
-          .toList();
-      if (parents.isEmpty) continue;
-      parents.sort((a, b) => a.center.dx.compareTo(b.center.dx));
+    for (final group in grouped.values) {
+      final children =
+          group
+              .map((edge) => placementsById[edge.childId])
+              .whereType<TreePersonPlacement>()
+              .toList()
+            ..sort((a, b) => a.center.dx.compareTo(b.center.dx));
+      if (children.isEmpty) continue;
+      final parentPlacements =
+          group
+              .map((edge) => placementsById[edge.parentId])
+              .whereType<TreePersonPlacement>()
+              .toSet()
+              .toList()
+            ..sort((a, b) => a.center.dx.compareTo(b.center.dx));
+      if (parentPlacements.isEmpty) continue;
 
-      final double anchorX;
-      final double startY;
-      if (parents.length >= 2 &&
-          parents[0].generation == parents[1].generation) {
-        anchorX = (parents[0].center.dx + parents[1].center.dx) / 2;
-        startY = parents[0].center.dy;
-      } else {
-        anchorX =
-            parents.map((parent) => parent.center.dx).reduce((a, b) => a + b) /
-            parents.length;
-        startY = parents.map((parent) => parent.rect.bottom).reduce(math.max);
+      for (var index = 0; index < children.length; index++) {
+        final child = children[index];
+        final double anchorX;
+        final double startY;
+        if (parentPlacements.length >= 2 &&
+            parentPlacements[0].generation == parentPlacements[1].generation) {
+          anchorX =
+              (parentPlacements[0].center.dx + parentPlacements[1].center.dx) /
+              2;
+          startY = parentPlacements[0].center.dy;
+        } else {
+          anchorX =
+              parentPlacements
+                  .map((parent) => parent.center.dx)
+                  .reduce((a, b) => a + b) /
+              parentPlacements.length;
+          startY = parentPlacements
+              .map((parent) => parent.rect.bottom)
+              .reduce(math.max);
+        }
+        final childX = child.center.dx;
+        final childTop = child.rect.top;
+        final distance = math.max(20.0, childTop - startY);
+        final midY = startY + distance * 0.46;
+        final path = <Offset>[
+          Offset(anchorX, startY),
+          Offset(anchorX, midY),
+          Offset(childX, midY),
+          Offset(childX, childTop),
+        ];
+        edges.add(TreeEdge(points: path, colorSlot: index));
+        unions.add(Offset(anchorX, startY));
+        branches.add(Offset(childX, midY));
       }
-
-      final childX = child.center.dx;
-      final childTop = child.rect.top;
-      final distance = math.max(20.0, childTop - startY);
-      final midY = startY + distance * 0.46;
-      final path = <Offset>[
-        Offset(anchorX, startY),
-        Offset(anchorX, midY),
-        Offset(childX, midY),
-        Offset(childX, childTop),
-      ];
-      edges.add(path);
-      unions.add(Offset(anchorX, startY));
-      branches.add(Offset(childX, midY));
     }
 
     return _TreeGeometry(
@@ -485,7 +451,9 @@ class _TreeLayoutBuilder {
       final minLeft = row
           .map((unit) => unit.left)
           .reduce((a, b) => math.min(a, b));
-      final maxRight = _rowRight(row);
+      final maxRight = row
+          .map((unit) => unit.left + unit.width)
+          .reduce((a, b) => math.max(a, b));
       result[generation] = Offset(
         (minLeft + maxRight) / 2,
         topByGeneration[generation]! + rowHeightByGeneration[generation]! / 2,
@@ -505,7 +473,7 @@ class _TreeGeometry {
     required this.canvasHeight,
   });
 
-  final List<List<Offset>> edges;
+  final List<TreeEdge> edges;
   final List<(Offset, Offset)> bridges;
   final List<Offset> unions;
   final List<Offset> branches;

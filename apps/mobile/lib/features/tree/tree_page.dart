@@ -179,7 +179,7 @@ class _TreePageState extends State<TreePage>
                             transformationController: _transformation,
                             constrained: false,
                             boundaryMargin: const EdgeInsets.all(140),
-                            minScale: 0.30,
+                            minScale: 0.16,
                             maxScale: 2.0,
                             clipBehavior: Clip.none,
                             alignment: Alignment.topLeft,
@@ -343,7 +343,7 @@ class _TreePageState extends State<TreePage>
     );
     final scale = math
         .min(usableWidth / layout.width, usableHeight / layout.height)
-        .clamp(0.30, 0.90);
+        .clamp(0.16, 0.90);
     final dx = (_viewportSize.width - layout.width * scale) / 2;
     final target = Matrix4.identity()
       ..translateByDouble(dx, 8.0, 0, 1)
@@ -389,7 +389,7 @@ class _TreePageState extends State<TreePage>
 
   void _zoomBy(double factor) {
     final current = _transformation.value.getMaxScaleOnAxis();
-    final target = (current * factor).clamp(0.30, 2.0);
+    final target = (current * factor).clamp(0.16, 2.0);
     if ((target - current).abs() < 0.001) return;
     final focal = Offset(_viewportSize.width / 2, _viewportSize.height * 0.42);
     final scene = _transformation.toScene(focal);
@@ -715,19 +715,21 @@ class _TreeLinesPainter extends CustomPainter {
     required this.branchNodes,
   });
 
-  final List<List<Offset>> edges;
+  final List<TreeEdge> edges;
   final List<(Offset, Offset)> marriageBridges;
   final List<Offset> unionNodes;
   final List<Offset> branchNodes;
 
+  static const List<Color> _edgeColors = [
+    Color(0xFF3F6E9E),
+    Color(0xFF3A8D70),
+    Color(0xFFC08A32),
+    Color(0xFFB45D5A),
+    Color(0xFF7B67A8),
+  ];
+
   @override
   void paint(Canvas canvas, Size size) {
-    final linePaint = Paint()
-      ..color = const Color(0xFF6D888F).withValues(alpha: 0.86)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
     final bridgePaint = Paint()
       ..color = const Color(0xFF9A7E58).withValues(alpha: 0.98)
       ..style = PaintingStyle.stroke
@@ -750,7 +752,14 @@ class _TreeLinesPainter extends CustomPainter {
     }
 
     for (final edge in edges) {
-      drawPolyline(edge, linePaint);
+      final color = _edgeColors[edge.colorSlot % _edgeColors.length];
+      final coloredPaint = Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.8
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+      drawPolyline(edge.points, coloredPaint);
     }
 
     // A short bridge joins the two cards; the child line starts exactly at its
