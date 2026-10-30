@@ -16,6 +16,7 @@ import (
 	"github.com/43374166/family-genealogy/server/internal/config"
 	"github.com/43374166/family-genealogy/server/internal/database"
 	"github.com/43374166/family-genealogy/server/internal/httpapi"
+	"github.com/43374166/family-genealogy/server/internal/store"
 )
 
 func main() {
@@ -50,7 +51,11 @@ func run() error {
 	}
 	defer db.Close()
 
-	router := httpapi.NewRouter(httpapi.Dependencies{DB: db, Logger: logger})
+	router := httpapi.NewRouter(httpapi.Dependencies{
+		DB:     db,
+		Store:  store.New(db.DB),
+		Logger: logger,
+	})
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
 		Handler:           router,

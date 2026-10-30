@@ -5,9 +5,9 @@ info:
   description: |
     多家族族谱产品的 v1 契约。契约先行，服务端实现必须与此一致。
 
-    当前后端已落地健康检查与迁移基础；认证、家庭、人物、树和审核接口按本契约逐步实现。
-    所有时间使用 RFC 3339 UTC；错误使用 RFC 9457 `application/problem+json`；
-    JSON 字段使用 camelCase。
+    当前后端已实现登录、当前账户/家庭、族谱树、人物查询和人物详情；资料申请与审核
+    接口仍按本契约逐步实现。所有时间使用 RFC 3339 UTC；错误使用 RFC 9457
+    `application/problem+json`；JSON 字段使用 camelCase。
   contact:
     name: Family Tree API
 servers:

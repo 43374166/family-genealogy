@@ -96,7 +96,10 @@ jobs:
           fi
           cat /tmp/mysql-migrate.log
 
-      - name: Run tests including MySQL constraints
+      - name: Seed demo family
+        run: go run ./cmd/seed
+
+      - name: Run tests including MySQL constraints and read APIs
         run: go test -race -count=1 ./...
 
   postgres-reference:

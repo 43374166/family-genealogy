@@ -4,8 +4,9 @@
 后端已开始搭建可靠数据层（PostgreSQL 17 设计作为参考保留），Web、鸿蒙和小程序暂留扩展位置。
 
 后端数据契约见 [`packages/api-contracts/openapi.yaml`](packages/api-contracts/openapi.yaml)，
-数据模型见 [`docs/backend/data-model.md`](docs/backend/data-model.md)。当前后端只落地了
-迁移、健康检查和配置骨架；登录、真实数据 API 与审核流程还未实现。
+数据模型见 [`docs/backend/data-model.md`](docs/backend/data-model.md)。当前后端已落地
+MySQL schema、迁移、登录/会话、家庭/族谱树/人物只读 API；资料申请、审核、写入和
+Flutter 接真实 API 还未完成。
 
 > **产品不绑定任何姓氏。** APP 品牌名为「家族族谱」；首页的大标题、成员、家支和故事
 > 都属于当前登录账户所在的家庭空间。代码里的家庭资料统一来自
@@ -39,7 +40,7 @@
 | React Web | `apps/web` | 📁 占位，后续开发 |
 | 鸿蒙端 | `apps/harmony` | 📁 占位，需单独验证 Flutter/ArkUI 路线 |
 | 微信小程序 | `apps/mini-program` | 📁 占位，后续独立实现并复用 API |
-| Go 服务端 | `server` | 🚧 MySQL 8.4 schema + 迁移 + Go 骨架 + CI；PG 17 设计保留，业务 API 待实现 |
+| Go 服务端 | `server` | ✅ MySQL 8.4 + 登录/会话 + 家庭/族谱树/人物只读 API；PG 17 设计保留，写入与审核待做 |
 | API 契约 | `packages/api-contracts` | ✅ OpenAPI 3.1 初版 |
 
 已实现的首期移动端页面：

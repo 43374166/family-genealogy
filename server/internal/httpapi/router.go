@@ -5,12 +5,14 @@ import (
 	"net/http"
 
 	"github.com/43374166/family-genealogy/server/internal/buildinfo"
+	"github.com/43374166/family-genealogy/server/internal/store"
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
 )
 
 type Dependencies struct {
 	DB     Pinger
+	Store  *store.Store
 	Logger *slog.Logger
 }
 
@@ -30,9 +32,25 @@ func NewRouter(deps Dependencies) http.Handler {
 	router.Get("/healthz", health.live)
 	router.Get("/readyz", health.ready)
 
+	api := &API{Store: deps.Store, Logger: logger}
 	router.Route("/api/v1", func(r chi.Router) {
 		r.Get("/meta", func(w http.ResponseWriter, _ *http.Request) {
 			writeJSON(w, http.StatusOK, buildinfo.Current())
+		})
+
+		if deps.Store == nil {
+			return
+		}
+
+		r.Post("/auth/login", api.login)
+		r.Group(func(r chi.Router) {
+			r.Use(api.authenticate)
+			r.Post("/auth/logout", api.logout)
+			r.Get("/me", api.me)
+			r.Get("/family", api.getFamily)
+			r.Get("/tree", api.getTree)
+			r.Get("/persons", api.listPersons)
+			r.Get("/persons/{personID}", api.getPerson)
 		})
 	})
 

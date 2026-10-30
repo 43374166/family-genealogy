@@ -13,8 +13,31 @@
 - PostgreSQL 17 设计保留在 [`internal/database/migrations/postgres/00001_init.sql`](internal/database/migrations/postgres/00001_init.sql)，
   CI 会用干净 PostgreSQL 17 验证该参考设计。
 
-业务接口尚未实现，契约见 [`packages/api-contracts/openapi.yaml`](../packages/api-contracts/openapi.yaml)，
+已经实现的 API：
+
+- `POST /api/v1/auth/login`（Argon2id 密码校验，返回 30 天不透明会话令牌）
+- `POST /api/v1/auth/logout`
+- `GET /api/v1/me`
+- `GET /api/v1/family`
+- `GET /api/v1/tree?generation=&branchId=`
+- `GET /api/v1/persons?q=&generation=&branchId=&cursor=&limit=`
+- `GET /api/v1/persons/{personId}`
+
+尚未实现：资料申请/审核、编辑关系、照片上传、家庭切换、刷新令牌和登录限流。
+契约见 [`packages/api-contracts/openapi.yaml`](../packages/api-contracts/openapi.yaml)，
 数据模型说明见 [`docs/backend/data-model.md`](../docs/backend/data-model.md)。
+
+## 演示数据
+
+迁移后执行一次：
+
+```powershell
+$env:DATABASE_DSN = "familytree:change-me@tcp(127.0.0.1:3306)/familytree?parseTime=true&loc=UTC&charset=utf8mb4&collation=utf8mb4_0900_ai_ci"
+go run ./cmd/seed
+```
+
+演示账号：`zhangsan / Demo#2026`（仅本地演示，上线前必须移除或改密）。
+种子会写入 1 个家族、5 个家支、15 个人物和对应关系；重复执行会检测并跳过。
 
 ## 本地运行（不用 Docker）
 
