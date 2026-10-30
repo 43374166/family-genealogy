@@ -19,6 +19,7 @@
 - `POST /api/v1/auth/register`（邀请码可选；不填则创建个人家族并成为族长）
 - `POST /api/v1/auth/switch-family`（切换当前家族）
 - `GET /api/v1/families`、`POST /api/v1/families`（列出/创建家族）
+- `POST /api/v1/families/join`（登录后用邀请码加入另一个家族）
 - `POST /api/v1/auth/sms/send`、`POST /api/v1/auth/sms/login`（手机号验证码登录）
 - `POST /api/v1/auth/phone/send`、`POST /api/v1/auth/phone/bind`（登录后绑定手机号）
 - `POST /api/v1/auth/logout`

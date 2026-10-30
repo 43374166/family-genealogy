@@ -435,6 +435,14 @@ class AppSession extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<ApiMe> joinFamily(String inviteCode) async {
+    final me = await _api.joinFamily(inviteCode);
+    _applyMe(me);
+    await refreshTree();
+    notifyListeners();
+    return me;
+  }
+
   Future<void> createFamily({
     required String name,
     required String surname,

@@ -6,6 +6,7 @@ import '../../core/widgets/soft_card.dart';
 import '../../core/widgets/status_pill.dart';
 import '../../services/api_client.dart';
 import '../../services/app_session.dart';
+import 'join_family_page.dart';
 
 class FamilySwitchPage extends StatefulWidget {
   const FamilySwitchPage({super.key});
@@ -159,6 +160,26 @@ class _FamilySwitchPageState extends State<FamilySwitchPage> {
                     label: const Text('创建新家族'),
                     style: FilledButton.styleFrom(
                       backgroundColor: AppColors.primary,
+                      minimumSize: const Size.fromHeight(48),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: _busy
+                        ? null
+                        : () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const JoinFamilyPage(),
+                            ),
+                          ),
+                    icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
+                    label: const Text('填写邀请码或扫码加入'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      side: const BorderSide(color: AppColors.primary),
                       minimumSize: const Size.fromHeight(48),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),

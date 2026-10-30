@@ -73,6 +73,7 @@ func NewRouter(deps Dependencies) http.Handler {
 			r.Post("/auth/switch-family", api.switchFamily)
 			r.Get("/families", api.listFamilies)
 			r.Post("/families", api.createFamily)
+			r.Post("/families/join", api.joinFamily)
 			r.Get("/invites", api.listInvites)
 			r.Post("/invites", api.createInvite)
 			r.Get("/accounts", api.listFamilyAccounts)

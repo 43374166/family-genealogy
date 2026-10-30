@@ -71,6 +71,15 @@ class ApiClient {
     return ApiMe.fromJson(body);
   }
 
+  Future<ApiMe> joinFamily(String inviteCode) async {
+    final body = await _request(
+      'POST',
+      '/api/v1/families/join',
+      body: {'inviteCode': inviteCode},
+    );
+    return ApiMe.fromJson(body);
+  }
+
   Future<ApiMe> createFamily({
     required String name,
     required String surname,
