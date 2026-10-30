@@ -1,7 +1,7 @@
 # 家族族谱 · 多家族信息管理系统
 
-以族谱树为核心的多家族信息管理系统。Flutter 移动端原型已经可运行；Go + PostgreSQL
-后端已开始搭建可靠数据层，Web、鸿蒙和小程序暂留扩展位置。
+以族谱树为核心的多家族信息管理系统。Flutter 移动端原型已经可运行；Go + MySQL 8.4
+后端已开始搭建可靠数据层（PostgreSQL 17 设计作为参考保留），Web、鸿蒙和小程序暂留扩展位置。
 
 后端数据契约见 [`packages/api-contracts/openapi.yaml`](packages/api-contracts/openapi.yaml)，
 数据模型见 [`docs/backend/data-model.md`](docs/backend/data-model.md)。当前后端只落地了
@@ -39,7 +39,7 @@
 | React Web | `apps/web` | 📁 占位，后续开发 |
 | 鸿蒙端 | `apps/harmony` | 📁 占位，需单独验证 Flutter/ArkUI 路线 |
 | 微信小程序 | `apps/mini-program` | 📁 占位，后续独立实现并复用 API |
-| Go 服务端 | `server` | 🚧 PostgreSQL schema + 迁移 + Go 骨架 + CI，业务 API 待实现 |
+| Go 服务端 | `server` | 🚧 MySQL 8.4 schema + 迁移 + Go 骨架 + CI；PG 17 设计保留，业务 API 待实现 |
 | API 契约 | `packages/api-contracts` | ✅ OpenAPI 3.1 初版 |
 
 已实现的首期移动端页面：

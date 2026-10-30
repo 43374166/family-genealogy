@@ -14,7 +14,7 @@ func TestLoadRequiresDatabaseURL(t *testing.T) {
 }
 
 func TestLoadDefaults(t *testing.T) {
-	t.Setenv("DATABASE_DSN", "postgres://example")
+	t.Setenv("DATABASE_DSN", "familytree:secret@tcp(127.0.0.1:3306)/familytree?parseTime=true")
 	t.Setenv("APP_ENV", "")
 	t.Setenv("HTTP_ADDR", "")
 	t.Setenv("DB_MAX_CONNS", "")
@@ -37,7 +37,7 @@ func TestLoadDefaults(t *testing.T) {
 }
 
 func TestLoadRejectsUsefulMisconfiguration(t *testing.T) {
-	t.Setenv("DATABASE_DSN", "postgres://example")
+	t.Setenv("DATABASE_DSN", "familytree:secret@tcp(127.0.0.1:3306)/familytree?parseTime=true")
 	t.Setenv("APP_ENV", "development")
 	t.Setenv("DB_MAX_CONNS", "0")
 
@@ -47,7 +47,7 @@ func TestLoadRejectsUsefulMisconfiguration(t *testing.T) {
 }
 
 func TestLoadRejectsUnknownLogLevel(t *testing.T) {
-	t.Setenv("DATABASE_DSN", "postgres://example")
+	t.Setenv("DATABASE_DSN", "familytree:secret@tcp(127.0.0.1:3306)/familytree?parseTime=true")
 	t.Setenv("APP_ENV", "development")
 	t.Setenv("LOG_LEVEL", "verbose")
 

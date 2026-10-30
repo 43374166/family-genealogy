@@ -1,41 +1,47 @@
-# server · Go API + PostgreSQL
+# server · Go API + MySQL
 
-多家族族谱后端的第一个可靠基础层。当前包含：
+多家族族谱后端的可靠基础层。**运行库为 MySQL 8.4 LTS**；PostgreSQL 17 的 DDL
+保留为设计参考，不参与默认运行。
 
-- PostgreSQL 17 schema 与迁移（家庭、账户、成员、人物、家支、父母子女、婚姻、资料申请、审计、会话）。
-- Go API 骨架：配置、连接池、请求 ID、结构化日志、panic 恢复、安全响应头、优雅退出。
+当前包含：
+
+- MySQL 8.4 schema 与迁移：家庭、账户、成员、人物、家支、父母子女、婚姻、资料申请、审计、会话。
+- Go API 骨架：配置、`database/sql` 连接池、请求 ID、结构化日志、panic 恢复、安全响应头、优雅退出。
 - `GET /healthz`、`GET /readyz`、`GET /api/v1/meta`。
-- Goose 嵌入式迁移，生产作为独立 job 执行，API 启动时不自动迁移。
-- 单元测试 + PostgreSQL 约束集成测试 + GitHub Actions。
+- Goose 嵌入式迁移；生产作为独立 job 执行，API 启动时不自动迁移。
+- 单元测试 + MySQL 约束集成测试 + 真实 MySQL 8.4 CI。
+- PostgreSQL 17 设计保留在 [`internal/database/migrations/postgres/00001_init.sql`](internal/database/migrations/postgres/00001_init.sql)，
+  CI 会用干净 PostgreSQL 17 验证该参考设计。
 
 业务接口尚未实现，契约见 [`packages/api-contracts/openapi.yaml`](../packages/api-contracts/openapi.yaml)，
 数据模型说明见 [`docs/backend/data-model.md`](../docs/backend/data-model.md)。
 
-## 本地运行
+## 本地运行（不用 Docker）
 
-要求 Go 1.25+ 和 PostgreSQL 17（或 Docker）。
+要求 Go 1.25+ 和本机 MySQL 8.4 LTS（MySQL 8.0.35 也已验证兼容）。
 
-```bash
-cd server
-cp .env.example .env
-# 修改 .env 中 DATABASE_URL / POSTGRES_PASSWORD，然后加载环境变量
+先创建数据库和应用账号：
+
+```sql
+CREATE DATABASE familytree CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+CREATE USER 'familytree'@'%' IDENTIFIED BY 'change-me';
+GRANT ALL PRIVILEGES ON familytree.* TO 'familytree'@'%';
 ```
 
-Windows PowerShell 示例：
+迁移会创建触发器和检查约束。如果 MySQL 开启了 binary logging，迁移账号需要
+`SUPER`（或服务端设置 `log_bin_trust_function_creators=1`）；运行 API 的账号不需要
+这个权限。生产建议单独使用受控迁移账号。
+
+Windows PowerShell：
 
 ```powershell
-$env:DATABASE_URL = "postgres://familytree:change-me@localhost:5432/familytree?sslmode=disable"
+$env:DATABASE_DSN = "familytree:change-me@tcp(127.0.0.1:3306)/familytree?parseTime=true&loc=UTC&charset=utf8mb4&collation=utf8mb4_0900_ai_ci"
 go run ./cmd/migrate up
 go run ./cmd/api
 ```
 
-Docker Compose（会先跑迁移，再启动 API）：
-
-```bash
-cd server
-cp .env.example .env
-docker compose up --build
-```
+Docker Compose 是可选方案；`compose.yaml` 已切到 MySQL 8.4，并在开发环境关闭
+binary log，方便受限账号执行迁移。
 
 ## 检查
 
@@ -45,21 +51,22 @@ go vet ./...
 go test ./...
 ```
 
-带 PostgreSQL 约束测试：
+带 MySQL 约束测试：
 
 ```powershell
-$env:TEST_DATABASE_URL = "postgres://familytree:change-me@localhost:5432/family_tree_test?sslmode=disable"
+$env:TEST_DATABASE_DSN = "familytree:change-me@tcp(127.0.0.1:3306)/family_tree_test?parseTime=true&loc=UTC&charset=utf8mb4&collation=utf8mb4_0900_ai_ci"
 go test -race ./...
 ```
 
-集成测试只在设置 `TEST_DATABASE_URL` 时运行；目标数据库需先执行 `go run ./cmd/migrate up`，
-并且必须是可丢弃的测试库（测试会留下测试数据）。
+集成测试只在设置 `TEST_DATABASE_DSN` 时运行；目标数据库需先迁移，并且必须是可丢弃的
+测试库（测试会留下测试数据）。
 
 ## 设计约束
 
 - 所有业务表带 `family_id`，跨家族关系由复合外键在数据库层拒绝。
-- 父母子女关系有自环、重复和环路触发器；同族关系写入使用 advisory lock 串行化。
-- 人物生卒日期使用年/月/日分量 + 公历/农历 + 闰月 + 原文，不伪造完整日期。
+- MySQL 没有部分唯一索引，使用生成列 + 唯一索引实现“一个活跃 owner / 一个活跃父/母 / 一个活跃账户人物”。
+- 父母子女关系有自环、重复和顺序环路触发器；并发写关系时，业务层仍需在事务内串行化同族写入。
+- 人物生卒日期使用年/月/日分量 + 公历/农历 + 闰月 + 原文；完整日期校验由业务层补齐。
 - `edit_requests` 与正式写入必须在同一事务中完成；审计日志只追加。
-- 生产必须 TLS 连接数据库、迁移账号与运行账号分离、每日全量备份 + WAL 归档。
-- 不把 `DATABASE_URL` 写入日志；不提交 `.env`。
+- 生产必须 TLS 连接 MySQL、迁移账号与运行账号分离、每日全量备份 + binlog 归档。
+- 不把 `DATABASE_DSN` 写入日志；不提交 `.env`。
