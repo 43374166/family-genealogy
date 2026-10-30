@@ -81,6 +81,11 @@ func (s *Store) CreateBindingRequest(
 		"person_binding_request", requestID, "", nil, after, AuditMeta{}); err != nil {
 		return nil, err
 	}
+	if err := notifyReviewers(ctx, tx, familyID, requesterUserID,
+		"binding_request", "新的人物绑定申请", "有新的族谱人物绑定申请待审核",
+		"binding_request", requestID); err != nil {
+		return nil, err
+	}
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit binding request: %w", err)
 	}
@@ -255,6 +260,17 @@ func (s *Store) ReviewBindingRequest(
 	}
 	if err := insertAudit(ctx, tx, familyID, reviewerUserID, action,
 		"person_binding_request", requestID, "", nil, afterData, meta); err != nil {
+		return nil, err
+	}
+	title, body := "人物绑定已通过", "你与族谱人物的绑定申请已通过"
+	if !approve {
+		title, body = "人物绑定被驳回", "你的人物绑定申请未通过"
+	}
+	if note != "" {
+		body = body + "：" + note
+	}
+	if err := insertNotification(ctx, tx, requesterID, familyID,
+		"binding_request", title, body, "binding_request", requestID); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {

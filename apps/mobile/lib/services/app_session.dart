@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 
 import '../models/family_member.dart';
@@ -20,6 +22,8 @@ class AppSession extends ChangeNotifier {
   bool _loading = false;
   bool _restoring = false;
   String? _error;
+  int _unreadNotifications = 0;
+  Timer? _notificationTimer;
 
   ApiUser? get user => _session?.user;
   ApiFamily? get family => _family ?? _session?.family;
@@ -32,6 +36,7 @@ class AppSession extends ChangeNotifier {
   bool get loading => _loading;
   bool get restoring => _restoring;
   String? get error => _error;
+  int get unreadNotifications => _unreadNotifications;
   String get serverUrl => _api.baseUrl;
 
   String? get roleLabel =>
@@ -64,6 +69,7 @@ class AppSession extends ChangeNotifier {
         _error = '登录成功，但族谱加载失败：${error.message}';
       }
       await _persistSession();
+      _startNotificationPolling();
       return true;
     } on ApiException catch (error) {
       _session = null;
@@ -327,6 +333,7 @@ class AppSession extends ChangeNotifier {
       _applyMe(me);
       await refreshTree();
       await _persistSession();
+      _startNotificationPolling();
       return true;
     } on ApiException catch (error) {
       _error = error.message;
@@ -370,6 +377,9 @@ class AppSession extends ChangeNotifier {
     } finally {
       _restoring = false;
       _loading = false;
+      if (_session != null) {
+        _startNotificationPolling();
+      }
       notifyListeners();
     }
   }
@@ -432,6 +442,51 @@ class AppSession extends ChangeNotifier {
     final me = await _api.switchFamily(familyId);
     _applyMe(me);
     await refreshTree();
+    await refreshUnreadNotifications();
+    notifyListeners();
+  }
+
+  Future<ApiNotificationPage> notifications() async {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    return _api.notifications();
+  }
+
+  Future<void> refreshUnreadNotifications() async {
+    if (!isAuthenticated) return;
+    try {
+      final count = await _api.unreadNotificationCount();
+      if (_unreadNotifications == count) return;
+      _unreadNotifications = count;
+      notifyListeners();
+    } catch (_) {
+      // Notification polling is best-effort; pages still have manual refresh.
+    }
+  }
+
+  void _startNotificationPolling() {
+    _notificationTimer?.cancel();
+    _notificationTimer = Timer.periodic(
+      const Duration(seconds: 45),
+      (_) => refreshUnreadNotifications(),
+    );
+    refreshUnreadNotifications();
+  }
+
+  void _stopNotificationPolling() {
+    _notificationTimer?.cancel();
+    _notificationTimer = null;
+    _unreadNotifications = 0;
+  }
+
+  Future<void> markNotificationRead({int? id, bool all = false}) async {
+    await _api.markNotificationRead(id: id, all: all);
+    if (all) {
+      _unreadNotifications = 0;
+    } else if (_unreadNotifications > 0) {
+      _unreadNotifications--;
+    }
     notifyListeners();
   }
 
@@ -770,6 +825,7 @@ class AppSession extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    _stopNotificationPolling();
     try {
       await _api.logout();
     } finally {
@@ -808,6 +864,7 @@ class AppSession extends ChangeNotifier {
 
   @override
   void dispose() {
+    _stopNotificationPolling();
     _api.close();
     super.dispose();
   }

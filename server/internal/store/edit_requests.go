@@ -99,6 +99,11 @@ func (s *Store) CreateEditRequest(
 	); err != nil {
 		return nil, fmt.Errorf("insert edit request: %w", err)
 	}
+	if err := notifyReviewers(ctx, tx, familyID, requesterUserID,
+		"edit_request", "新的资料修改申请", "有新的资料修改申请待审核",
+		"edit_request", requestID); err != nil {
+		return nil, err
+	}
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit edit request: %w", err)
 	}
@@ -134,7 +139,12 @@ func (s *Store) CreateProfileRequest(
 		return nil, fmt.Errorf("encode profile request: %w", err)
 	}
 	requestID := uuid.NewString()
-	if _, err := s.db.ExecContext(ctx, `
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin profile request: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO edit_requests
 			(id, family_id, requester_user_id, request_type, target_person_id,
 			 base_version, payload, status)
@@ -143,6 +153,14 @@ func (s *Store) CreateProfileRequest(
 		currentVersion, string(payload),
 	); err != nil {
 		return nil, fmt.Errorf("insert profile request: %w", err)
+	}
+	if err := notifyReviewers(ctx, tx, familyID, requesterUserID,
+		"edit_request", "新的资料修改申请", "有新的资料修改申请待审核",
+		"edit_request", requestID); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit profile request: %w", err)
 	}
 	return s.GetEditRequest(ctx, familyID, requestID)
 }
@@ -351,6 +369,7 @@ func (s *Store) ReviewEditRequest(
 	defer func() { _ = tx.Rollback() }()
 
 	var (
+		requesterID string
 		targetID    sql.NullString
 		baseVersion sql.NullInt64
 		payload     []byte
@@ -358,12 +377,12 @@ func (s *Store) ReviewEditRequest(
 		requestType string
 	)
 	err = tx.QueryRowContext(ctx, `
-		SELECT target_person_id, base_version, payload, status, request_type
+		SELECT requester_user_id, target_person_id, base_version, payload, status, request_type
 		FROM edit_requests
 		WHERE family_id = ? AND id = ?
 		LIMIT 1
 		FOR UPDATE`, familyID, requestID,
-	).Scan(&targetID, &baseVersion, &payload, &status, &requestType)
+	).Scan(&requesterID, &targetID, &baseVersion, &payload, &status, &requestType)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -534,6 +553,17 @@ func (s *Store) ReviewEditRequest(
 		return nil, fmt.Errorf("update edit request review: %w", err)
 	}
 	if err := insertAudit(ctx, tx, familyID, reviewerUserID, action, entityType, entityID, requestID, beforeData, afterData, meta); err != nil {
+		return nil, err
+	}
+	title, body := "资料修改已通过", "你的资料修改申请已审核通过"
+	if !approve {
+		title, body = "资料修改被驳回", "你的资料修改申请未通过"
+	}
+	if note != "" {
+		body = body + "：" + note
+	}
+	if err := insertNotification(ctx, tx, requesterID, familyID,
+		"edit_request", title, body, "edit_request", requestID); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {

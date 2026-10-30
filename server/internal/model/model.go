@@ -122,6 +122,17 @@ type Photo struct {
 	CreatedAt        time.Time  `json:"createdAt"`
 }
 
+type Notification struct {
+	ID         int64     `json:"id"`
+	Kind       string    `json:"kind"`
+	Title      string    `json:"title"`
+	Body       string    `json:"body"`
+	TargetType string    `json:"targetType"`
+	TargetID   *string   `json:"targetId,omitempty"`
+	IsRead     bool      `json:"isRead"`
+	CreatedAt  time.Time `json:"createdAt"`
+}
+
 type Story struct {
 	ID           string    `json:"id"`
 	FamilyID     string    `json:"familyId"`

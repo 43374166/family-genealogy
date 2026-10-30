@@ -71,6 +71,26 @@ class ApiClient {
     return ApiMe.fromJson(body);
   }
 
+  Future<ApiNotificationPage> notifications({int limit = 50}) async {
+    final body = await _request('GET', '/api/v1/notifications?limit=$limit');
+    return ApiNotificationPage.fromJson(body);
+  }
+
+  Future<int> unreadNotificationCount() async {
+    final body = await _request('GET', '/api/v1/notifications/unread-count');
+    final count = body['count'];
+    if (count is num) return count.toInt();
+    return int.tryParse('$count') ?? 0;
+  }
+
+  Future<void> markNotificationRead({int? id, bool all = false}) async {
+    await _request(
+      'POST',
+      '/api/v1/notifications/read',
+      body: {'id': id ?? 0, 'all': all},
+    );
+  }
+
   Future<ApiStoryPage> stories() async {
     final body = await _request('GET', '/api/v1/stories');
     return ApiStoryPage.fromJson(body);

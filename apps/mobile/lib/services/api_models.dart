@@ -302,6 +302,55 @@ class ApiBranchAdminGrantPage {
   }
 }
 
+class ApiNotification {
+  const ApiNotification({
+    required this.id,
+    required this.kind,
+    required this.title,
+    required this.body,
+    required this.targetType,
+    required this.targetId,
+    required this.isRead,
+    required this.createdAt,
+  });
+
+  final int id;
+  final String kind;
+  final String title;
+  final String body;
+  final String targetType;
+  final String targetId;
+  final bool isRead;
+  final DateTime? createdAt;
+
+  factory ApiNotification.fromJson(Map<String, dynamic> json) {
+    return ApiNotification(
+      id: _int(json['id']),
+      kind: _string(json['kind']),
+      title: _string(json['title']),
+      body: _string(json['body']),
+      targetType: _string(json['targetType']),
+      targetId: _string(json['targetId']),
+      isRead: json['isRead'] == true,
+      createdAt: DateTime.tryParse(_string(json['createdAt'])),
+    );
+  }
+}
+
+class ApiNotificationPage {
+  const ApiNotificationPage({required this.items, required this.unreadCount});
+
+  final List<ApiNotification> items;
+  final int unreadCount;
+
+  factory ApiNotificationPage.fromJson(Map<String, dynamic> json) {
+    return ApiNotificationPage(
+      items: _list(json['items'], ApiNotification.fromJson),
+      unreadCount: _int(json['unreadCount']),
+    );
+  }
+}
+
 class ApiStory {
   const ApiStory({
     required this.id,
