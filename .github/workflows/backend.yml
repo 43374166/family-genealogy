@@ -77,7 +77,18 @@ jobs:
         run: go build ./...
 
       - name: Apply MySQL migrations to clean database
-        run: go run ./cmd/migrate up
+        run: |
+          set +e
+          go run ./cmd/migrate up > /tmp/mysql-migrate.log 2>&1
+          code=$?
+          if [ "$code" -ne 0 ]; then
+            tail -n 40 /tmp/mysql-migrate.log
+            tail -n 15 /tmp/mysql-migrate.log | while IFS= read -r line; do
+              echo "::error title=MySQL migration::${line}"
+            done
+            exit "$code"
+          fi
+          cat /tmp/mysql-migrate.log
 
       - name: Run tests including MySQL constraints
         run: go test -race -count=1 ./...
