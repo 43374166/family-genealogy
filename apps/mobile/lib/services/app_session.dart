@@ -11,11 +11,13 @@ class AppSession extends ChangeNotifier {
   ApiSession? _session;
   ApiMembership? _membership;
   ApiTree? _tree;
+  ApiFamily? _family;
   bool _loading = false;
   String? _error;
 
   ApiUser? get user => _session?.user;
-  ApiFamily? get family => _session?.family;
+  ApiFamily? get family => _family ?? _session?.family;
+  bool get canWrite => _membership?.canReview ?? false;
   ApiMembership? get membership => _membership;
   ApiTree? get tree => _tree;
   bool get isAuthenticated => _session != null;
@@ -40,6 +42,7 @@ class AppSession extends ChangeNotifier {
         loginName: loginName,
         password: password,
       );
+      _family = _session?.family;
       try {
         final me = await _api.me();
         _membership = me.membership;
@@ -56,12 +59,14 @@ class AppSession extends ChangeNotifier {
       _session = null;
       _membership = null;
       _tree = null;
+      _family = null;
       _error = error.message;
       return false;
     } catch (_) {
       _session = null;
       _membership = null;
       _tree = null;
+      _family = null;
       _error = '登录失败，请稍后重试';
       return false;
     } finally {
@@ -129,11 +134,74 @@ class AppSession extends ChangeNotifier {
     if (!isAuthenticated) return;
     try {
       _tree = await _api.tree();
+      _family = await _api.family();
       _error = null;
     } on ApiException catch (error) {
       _error = error.message;
     }
     notifyListeners();
+  }
+
+  Future<ApiPerson> createPerson({
+    required String surname,
+    required String givenName,
+    required String gender,
+    required int generationNo,
+    required String branchId,
+    int? birthOrder,
+    int? birthYear,
+    String biography = '',
+  }) async {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    final person = await _api.createPerson(
+      surname: surname,
+      givenName: givenName,
+      gender: gender,
+      generationNo: generationNo,
+      branchId: branchId,
+      birthOrder: birthOrder,
+      birthYear: birthYear,
+      biography: biography,
+    );
+    await refreshTree();
+    return person;
+  }
+
+  Future<void> addParentChild({
+    required String parentId,
+    required String childId,
+    required String parentRole,
+  }) async {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    await _api.addParentChild(
+      parentId: parentId,
+      childId: childId,
+      parentRole: parentRole,
+    );
+    await refreshTree();
+  }
+
+  Future<void> addSpouse({
+    required String personAId,
+    required String personBId,
+  }) async {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    await _api.addSpouse(personAId: personAId, personBId: personBId);
+    await refreshTree();
+  }
+
+  Future<List<ApiBranch>> branches() async {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    final page = await _api.branches();
+    return page.items;
   }
 
   Future<void> logout() async {
@@ -143,6 +211,7 @@ class AppSession extends ChangeNotifier {
       _session = null;
       _membership = null;
       _tree = null;
+      _family = null;
       _error = null;
       notifyListeners();
     }

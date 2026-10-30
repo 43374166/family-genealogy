@@ -95,6 +95,39 @@ class ApiFamily {
   }
 }
 
+class ApiBranch {
+  const ApiBranch({
+    required this.id,
+    required this.name,
+    this.parentId,
+    this.sortOrder = 0,
+  });
+
+  final String id;
+  final String? parentId;
+  final String name;
+  final int sortOrder;
+
+  factory ApiBranch.fromJson(Map<String, dynamic> json) {
+    return ApiBranch(
+      id: _string(json['id']),
+      name: _string(json['name']),
+      parentId: _nullableString(json['parentId']),
+      sortOrder: _int(json['sortOrder']),
+    );
+  }
+}
+
+class ApiBranchPage {
+  const ApiBranchPage({required this.items});
+
+  final List<ApiBranch> items;
+
+  factory ApiBranchPage.fromJson(Map<String, dynamic> json) {
+    return ApiBranchPage(items: _list(json['items'], ApiBranch.fromJson));
+  }
+}
+
 class ApiPartialDate {
   const ApiPartialDate({
     this.year,

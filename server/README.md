@@ -21,7 +21,11 @@
 - `GET /api/v1/family`
 - `GET /api/v1/tree?generation=&branchId=`
 - `GET /api/v1/persons?q=&generation=&branchId=&cursor=&limit=`
+- `POST /api/v1/persons`（owner/admin 直接新增人物）
 - `GET /api/v1/persons/{personId}`
+- `GET /api/v1/branches`
+- `POST /api/v1/relationships/parent-child`
+- `POST /api/v1/relationships/spouse`
 - `POST /api/v1/edit-requests`（提交人物资料修改申请）
 - `GET /api/v1/edit-requests?status=&mine=&limit=`
 - `GET /api/v1/edit-requests/{requestId}`
@@ -29,8 +33,9 @@
 - `POST /api/v1/edit-requests/{requestId}/reject`
 
 资料申请只允许修改籍贯、现居地、职业、教育和生平；审核通过时在事务内更新
-`persons` 并追加 `audit_logs`。编辑关系、照片上传、家庭切换、刷新令牌和登录限流
-尚未实现。
+`persons` 并追加 `audit_logs`。owner/admin 可新增人物和父母子女/配偶关系，
+服务端校验世代、重复角色、配偶同代和父母子女环路。普通成员的写入申请、照片上传、
+家庭切换、刷新令牌和登录限流尚未实现。
 契约见 [`packages/api-contracts/openapi.yaml`](../packages/api-contracts/openapi.yaml)，
 数据模型说明见 [`docs/backend/data-model.md`](../docs/backend/data-model.md)。
 

@@ -72,6 +72,65 @@ class ApiClient {
     return ApiFamily.fromJson(body);
   }
 
+  Future<ApiBranchPage> branches() async {
+    final body = await _request('GET', '/api/v1/branches');
+    return ApiBranchPage.fromJson(body);
+  }
+
+  Future<ApiPerson> createPerson({
+    required String surname,
+    required String givenName,
+    required String gender,
+    required int generationNo,
+    required String branchId,
+    int? birthOrder,
+    int? birthYear,
+    String biography = '',
+  }) async {
+    final body = await _request(
+      'POST',
+      '/api/v1/persons',
+      body: {
+        'surname': surname,
+        'givenName': givenName,
+        'gender': gender,
+        'generationNo': generationNo,
+        'branchId': branchId,
+        'birthOrder': birthOrder,
+        'birthYear': birthYear,
+        'biography': biography,
+      },
+    );
+    return ApiPerson.fromJson(body);
+  }
+
+  Future<void> addParentChild({
+    required String parentId,
+    required String childId,
+    required String parentRole,
+  }) async {
+    await _request(
+      'POST',
+      '/api/v1/relationships/parent-child',
+      body: {
+        'parentId': parentId,
+        'childId': childId,
+        'parentRole': parentRole,
+      },
+    );
+  }
+
+  Future<void> addSpouse({
+    required String personAId,
+    required String personBId,
+  }) async {
+    await _request(
+      'POST',
+      '/api/v1/relationships/spouse',
+      body: {'personAId': personAId, 'personBId': personBId},
+    );
+  }
+
   Future<ApiPerson> person(String personId) async {
     final body = await _request(
       'GET',

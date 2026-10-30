@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import '../../core/theme/app_colors.dart';
 import '../../features/home/home_page.dart';
 import '../../features/messages/messages_page.dart';
+import '../../features/person/add_person_page.dart';
+import '../../features/person/add_relationship_page.dart';
 import '../../features/profile/profile_page.dart';
 import '../../features/requests/profile_edit_page.dart';
 import '../../features/tree/tree_page.dart';
@@ -63,6 +65,20 @@ class _AppShellState extends State<AppShell> {
       context: context,
       isScrollControlled: true,
       builder: (context) => _AddSheet(
+        onAddPerson: () {
+          Navigator.pop(context);
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const AddPersonPage()),
+          );
+        },
+        onAddRelation: () {
+          Navigator.pop(context);
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const AddRelationshipPage(),
+            ),
+          );
+        },
         onEditProfile: () {
           Navigator.pop(context);
           Navigator.of(context).push(
@@ -262,8 +278,14 @@ class _AddButton extends StatelessWidget {
 }
 
 class _AddSheet extends StatelessWidget {
-  const _AddSheet({required this.onEditProfile});
+  const _AddSheet({
+    required this.onAddPerson,
+    required this.onAddRelation,
+    required this.onEditProfile,
+  });
 
+  final VoidCallback onAddPerson;
+  final VoidCallback onAddRelation;
   final VoidCallback onEditProfile;
 
   @override
@@ -272,18 +294,18 @@ class _AddSheet extends StatelessWidget {
       (
         icon: Icons.person_add_alt_1_rounded,
         title: '新增家族成员',
-        subtitle: '由族长或家支管理员录入正式档案',
+        subtitle: '由族长录入正式档案',
         color: AppColors.primary,
         background: AppColors.primarySoft,
-        onTap: () => _notice(context, '新增人物需在服务端接入后开放'),
+        onTap: onAddPerson,
       ),
       (
         icon: Icons.family_restroom_rounded,
         title: '添加亲属关系',
-        subtitle: '维护父母、子女与配偶关系',
+        subtitle: '维护父母与配偶关系',
         color: AppColors.jade,
         background: AppColors.jadeSoft,
-        onTap: () => _notice(context, '关系维护需在服务端接入后开放'),
+        onTap: onAddRelation,
       ),
       (
         icon: Icons.edit_note_rounded,
@@ -339,7 +361,7 @@ class _AddSheet extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           const Text(
-            '当前为本地原型，写入能力将在服务端接入后启用。',
+            '族长直接写入，保存后会立即同步到族谱。',
             style: TextStyle(fontSize: 11, color: AppColors.inkMuted),
           ),
           const SizedBox(height: 16),

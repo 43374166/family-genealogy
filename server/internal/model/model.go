@@ -43,6 +43,13 @@ type PartialDate struct {
 	Text        string `json:"text,omitempty"`
 }
 
+type Branch struct {
+	ID        string  `json:"id"`
+	ParentID  *string `json:"parentId,omitempty"`
+	Name      string  `json:"name"`
+	SortOrder int     `json:"sortOrder"`
+}
+
 type PersonSummary struct {
 	ID              string       `json:"id"`
 	FullName        string       `json:"fullName"`

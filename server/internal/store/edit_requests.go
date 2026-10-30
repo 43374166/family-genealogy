@@ -438,7 +438,8 @@ func insertAudit(
 		INSERT INTO audit_logs
 			(family_id, actor_user_id, action, entity_type, entity_id,
 			 edit_request_id, before_data, after_data, ip, user_agent, trace_id)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''))`,
+		VALUES (?, ?, ?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''),
+		        NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''))`,
 		familyID, actorUserID, action, entityType, entityID, requestID,
 		string(beforeData), string(afterData), meta.IP, meta.UserAgent, meta.TraceID,
 	)
