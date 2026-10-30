@@ -123,10 +123,16 @@ type Session struct {
 	Family    Family    `json:"family"`
 }
 
-type Me struct {
-	User       User       `json:"user"`
-	Membership Membership `json:"membership"`
+type FamilyMembership struct {
 	Family     Family     `json:"family"`
+	Membership Membership `json:"membership"`
+}
+
+type Me struct {
+	User       User               `json:"user"`
+	Membership Membership         `json:"membership"`
+	Family     Family             `json:"family"`
+	Families   []FamilyMembership `json:"families"`
 }
 
 func GenerationLabel(generation int) string {

@@ -133,7 +133,7 @@ func (a *API) loginWithPhone(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, r, http.StatusUnauthorized, "ACCOUNT_DISABLED", "account is not active")
 		return
 	}
-	membership, family, err := a.Store.GetPrimaryMembership(r.Context(), user.ID)
+	membership, family, err := a.Store.GetPreferredMembership(r.Context(), user.ID)
 	if err != nil {
 		if errors.Is(err, store.ErrNoMembership) {
 			writeProblem(w, r, http.StatusForbidden, "NO_FAMILY", "account has no active family")
@@ -196,7 +196,7 @@ func (a *API) createSession(
 	}
 	expiresAt := time.Now().UTC().Add(sessionLifetime)
 	if _, err := a.Store.CreateSession(
-		r.Context(), user.ID, digest, expiresAt,
+		r.Context(), user.ID, digest, expiresAt, family.ID,
 		clientIP(r), truncate(r.UserAgent(), 512),
 	); err != nil {
 		return model.Session{}, fmt.Errorf("create session: %w", err)

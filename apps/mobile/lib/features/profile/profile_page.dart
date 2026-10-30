@@ -12,6 +12,7 @@ import '../../services/app_session.dart';
 import '../family/bind_person_page.dart';
 import '../family/binding_requests_page.dart';
 import '../family/branch_admins_page.dart';
+import '../family/family_switch_page.dart';
 import '../family/invite_page.dart';
 import '../family/phone_bind_page.dart';
 import '../person/api_person_detail_page.dart';
@@ -90,6 +91,19 @@ class ProfilePage extends StatelessWidget {
                           label: '家庭资料',
                           trailing: familyName,
                           onTap: () => showFamilyProfileSheet(context),
+                        ),
+                        const Divider(height: 1, indent: 47),
+                        _MenuRow(
+                          icon: Icons.swap_horiz_rounded,
+                          color: AppColors.primary,
+                          background: AppColors.primarySoft,
+                          label: '我的家族',
+                          trailing: '${session.families.length} 个',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const FamilySwitchPage(),
+                            ),
+                          ),
                         ),
                         const Divider(height: 1, indent: 47),
                         if (session.isOwner) ...[
@@ -363,7 +377,7 @@ class ProfilePage extends StatelessWidget {
             ),
             const SizedBox(height: 5),
             const Text(
-              '家族族谱 · Flutter + MySQL v0.17.0',
+              '家族族谱 · Flutter + MySQL v0.18.0',
               style: TextStyle(fontSize: 10.5, color: AppColors.inkMuted),
             ),
             const SizedBox(height: 16),

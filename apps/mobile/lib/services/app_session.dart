@@ -16,6 +16,7 @@ class AppSession extends ChangeNotifier {
   ApiMembership? _membership;
   ApiTree? _tree;
   ApiFamily? _family;
+  List<ApiFamilyMembership> _families = const [];
   bool _loading = false;
   bool _restoring = false;
   String? _error;
@@ -25,6 +26,7 @@ class AppSession extends ChangeNotifier {
   bool get canWrite => _membership?.canReview ?? false;
   bool get isOwner => _membership?.role == 'owner';
   ApiMembership? get membership => _membership;
+  List<ApiFamilyMembership> get families => _families;
   ApiTree? get tree => _tree;
   bool get isAuthenticated => _session != null;
   bool get loading => _loading;
@@ -52,7 +54,7 @@ class AppSession extends ChangeNotifier {
       _family = _session?.family;
       try {
         final me = await _api.me();
-        _membership = me.membership;
+        _applyMe(me);
       } on ApiException {
         _membership = null;
       }
@@ -274,8 +276,10 @@ class AppSession extends ChangeNotifier {
     required String loginName,
     required String password,
     required String displayName,
-    required String inviteCode,
+    String inviteCode = '',
     String phone = '',
+    String familyName = '',
+    String surname = '',
   }) async {
     try {
       await _api.register(
@@ -285,6 +289,8 @@ class AppSession extends ChangeNotifier {
         displayName: displayName,
         inviteCode: inviteCode,
         phone: phone,
+        familyName: familyName,
+        surname: surname,
       );
       final ok = await login(
         serverUrl: serverUrl,
@@ -318,8 +324,7 @@ class AppSession extends ChangeNotifier {
       _session = session;
       _family = session.family;
       final me = await _api.me();
-      _membership = me.membership;
-      _family = me.family;
+      _applyMe(me);
       await refreshTree();
       await _persistSession();
       return true;
@@ -348,8 +353,7 @@ class AppSession extends ChangeNotifier {
         user: me.user,
         family: me.family,
       );
-      _membership = me.membership;
-      _family = me.family;
+      _applyMe(me);
       try {
         _tree = await _api.tree();
       } on ApiException catch (error) {
@@ -401,13 +405,50 @@ class AppSession extends ChangeNotifier {
     if (!isAuthenticated) return;
     try {
       final me = await _api.me();
-      _membership = me.membership;
-      _family = me.family;
+      _applyMe(me);
       notifyListeners();
     } on ApiException catch (error) {
       _error = error.message;
       notifyListeners();
     }
+  }
+
+  void _applyMe(ApiMe me) {
+    _membership = me.membership;
+    _family = me.family;
+    _families = me.families;
+    final current = _session;
+    if (current != null) {
+      _session = ApiSession(
+        token: current.token,
+        expiresAt: current.expiresAt,
+        user: me.user,
+        family: me.family,
+      );
+    }
+  }
+
+  Future<void> switchFamily(String familyId) async {
+    final me = await _api.switchFamily(familyId);
+    _applyMe(me);
+    await refreshTree();
+    notifyListeners();
+  }
+
+  Future<void> createFamily({
+    required String name,
+    required String surname,
+  }) async {
+    final me = await _api.createFamily(name: name, surname: surname);
+    _applyMe(me);
+    await refreshTree();
+    notifyListeners();
+  }
+
+  Future<void> reloadFamilies() async {
+    final items = await _api.families();
+    _families = items;
+    notifyListeners();
   }
 
   Future<List<ApiInvite>> invites() async {

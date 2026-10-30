@@ -21,6 +21,8 @@ type registerRequest struct {
 	DisplayName string `json:"displayName"`
 	Phone       string `json:"phone"`
 	InviteCode  string `json:"inviteCode"`
+	FamilyName  string `json:"familyName"`
+	Surname     string `json:"surname"`
 }
 
 type createInviteRequest struct {
@@ -52,6 +54,8 @@ func (a *API) register(w http.ResponseWriter, r *http.Request) {
 	payload.DisplayName = strings.TrimSpace(payload.DisplayName)
 	payload.Phone = strings.TrimSpace(payload.Phone)
 	payload.InviteCode = strings.ToUpper(strings.TrimSpace(payload.InviteCode))
+	payload.FamilyName = strings.TrimSpace(payload.FamilyName)
+	payload.Surname = strings.TrimSpace(payload.Surname)
 	if payload.LoginName == "" || len([]rune(payload.LoginName)) > 80 {
 		writeProblem(w, r, http.StatusUnprocessableEntity, "INVALID_LOGIN_NAME", "loginName is required")
 		return
@@ -68,8 +72,8 @@ func (a *API) register(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, r, http.StatusUnprocessableEntity, "INVALID_PHONE", "phone must use E.164 format, e.g. +8613800000000")
 		return
 	}
-	if len(payload.InviteCode) < 6 {
-		writeProblem(w, r, http.StatusUnprocessableEntity, "INVITE_REQUIRED", "a valid invite code is required")
+	if payload.InviteCode != "" && len(payload.InviteCode) < 6 {
+		writeProblem(w, r, http.StatusUnprocessableEntity, "INVALID_INVITE", "invite code is too short")
 		return
 	}
 	passwordHash, err := auth.HashPassword(payload.Password)
@@ -78,11 +82,42 @@ func (a *API) register(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 		return
 	}
-	user, family, err := a.Store.RegisterWithInvite(r.Context(), store.RegisterInput{
+	registerInput := store.RegisterInput{
 		LoginName: payload.LoginName, DisplayName: payload.DisplayName,
 		Phone: payload.Phone, PasswordHash: passwordHash,
 		InviteCode: payload.InviteCode,
-	})
+	}
+	var (
+		user   *model.User
+		family *model.Family
+	)
+	if payload.InviteCode == "" {
+		if payload.FamilyName == "" {
+			payload.FamilyName = payload.DisplayName + "的家族"
+		}
+		if payload.Surname == "" {
+			runes := []rune(payload.DisplayName)
+			if len(runes) > 0 {
+				payload.Surname = string(runes[0])
+			} else {
+				payload.Surname = "家"
+			}
+		}
+		if len([]rune(payload.FamilyName)) > 80 || len([]rune(payload.Surname)) > 20 {
+			writeProblem(w, r, http.StatusUnprocessableEntity, "INVALID_FAMILY", "family name or surname is too long")
+			return
+		}
+		user, family, err = a.Store.RegisterOpen(
+			r.Context(), registerInput,
+			store.NewFamily{
+				Name: payload.FamilyName, Surname: payload.Surname,
+			},
+		)
+	} else {
+		user, family, err = a.Store.RegisterWithInvite(
+			r.Context(), registerInput,
+		)
+	}
 	if err != nil {
 		switch {
 		case errors.Is(err, store.ErrNotFound):

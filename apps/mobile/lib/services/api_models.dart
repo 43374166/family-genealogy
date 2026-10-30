@@ -535,22 +535,39 @@ class ApiSpouseEdge {
   }
 }
 
+class ApiFamilyMembership {
+  const ApiFamilyMembership({required this.family, required this.membership});
+
+  final ApiFamily family;
+  final ApiMembership membership;
+
+  factory ApiFamilyMembership.fromJson(Map<String, dynamic> json) {
+    return ApiFamilyMembership(
+      family: ApiFamily.fromJson(_map(json['family'])),
+      membership: ApiMembership.fromJson(_map(json['membership'])),
+    );
+  }
+}
+
 class ApiMe {
   const ApiMe({
     required this.user,
     required this.membership,
     required this.family,
+    this.families = const [],
   });
 
   final ApiUser user;
   final ApiMembership membership;
   final ApiFamily family;
+  final List<ApiFamilyMembership> families;
 
   factory ApiMe.fromJson(Map<String, dynamic> json) {
     return ApiMe(
       user: ApiUser.fromJson(_map(json['user'])),
       membership: ApiMembership.fromJson(_map(json['membership'])),
       family: ApiFamily.fromJson(_map(json['family'])),
+      families: _list(json['families'], ApiFamilyMembership.fromJson),
     );
   }
 }

@@ -96,6 +96,29 @@ func (s *Store) GetPrimaryMembership(ctx context.Context, userID string) (*model
 	return &membership, family, nil
 }
 
+func (s *Store) GetPreferredMembership(
+	ctx context.Context,
+	userID string,
+) (*model.Membership, *model.Family, error) {
+	var familyID sql.NullString
+	err := s.db.QueryRowContext(ctx, `
+		SELECT active_family_id FROM user_sessions
+		WHERE user_id = ? AND active_family_id IS NOT NULL AND revoked_at IS NULL
+		ORDER BY last_used_at DESC, created_at DESC
+		LIMIT 1`, userID,
+	).Scan(&familyID)
+	if err == nil && familyID.Valid {
+		membership, family, err := s.GetMembership(ctx, userID, familyID.String)
+		if err == nil {
+			return membership, family, nil
+		}
+		if !errors.Is(err, ErrNoMembership) {
+			return nil, nil, err
+		}
+	}
+	return s.GetPrimaryMembership(ctx, userID)
+}
+
 func (s *Store) GetFamily(ctx context.Context, familyID string) (*model.Family, error) {
 	var family model.Family
 	err := s.db.QueryRowContext(ctx, `
@@ -124,13 +147,14 @@ func (s *Store) CreateSession(
 	userID string,
 	tokenHash []byte,
 	expiresAt time.Time,
-	ip, userAgent string,
+	activeFamilyID, ip, userAgent string,
 ) (string, error) {
 	sessionID := uuid.NewString()
 	_, err := s.db.ExecContext(ctx, `
-		INSERT INTO user_sessions (id, user_id, token_hash, expires_at, ip, user_agent)
-		VALUES (?, ?, ?, ?, NULLIF(?, ''), NULLIF(?, ''))`,
-		sessionID, userID, tokenHash, expiresAt, ip, userAgent,
+		INSERT INTO user_sessions
+			(id, user_id, active_family_id, token_hash, expires_at, ip, user_agent)
+		VALUES (?, ?, NULLIF(?, ''), ?, ?, NULLIF(?, ''), NULLIF(?, ''))`,
+		sessionID, userID, activeFamilyID, tokenHash, expiresAt, ip, userAgent,
 	)
 	if err != nil {
 		return "", fmt.Errorf("create session: %w", err)
@@ -138,10 +162,116 @@ func (s *Store) CreateSession(
 	return sessionID, nil
 }
 
+func (s *Store) GetMembership(
+	ctx context.Context,
+	userID, familyID string,
+) (*model.Membership, *model.Family, error) {
+	var membership model.Membership
+	var personID sql.NullString
+	err := s.db.QueryRowContext(ctx, `
+		SELECT id, role, status, person_id, joined_at
+		FROM family_memberships
+		WHERE user_id = ? AND family_id = ? AND status = 'active'
+		LIMIT 1`, userID, familyID,
+	).Scan(
+		&membership.ID, &membership.Role, &membership.Status,
+		&personID, &membership.JoinedAt,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil, ErrNoMembership
+	}
+	if err != nil {
+		return nil, nil, fmt.Errorf("lookup family membership: %w", err)
+	}
+	if personID.Valid {
+		v := personID.String
+		membership.PersonID = &v
+	}
+	family, err := s.GetFamily(ctx, familyID)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &membership, family, nil
+}
+
+func (s *Store) SwitchSessionFamily(
+	ctx context.Context,
+	sessionID, userID, familyID string,
+) (*model.Membership, *model.Family, error) {
+	membership, family, err := s.GetMembership(ctx, userID, familyID)
+	if err != nil {
+		return nil, nil, err
+	}
+	result, err := s.db.ExecContext(ctx, `
+		UPDATE user_sessions SET active_family_id = ?
+		WHERE id = ? AND user_id = ?`,
+		familyID, sessionID, userID,
+	)
+	if err != nil {
+		return nil, nil, fmt.Errorf("switch session family: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return nil, nil, fmt.Errorf("switch family rows: %w", err)
+	}
+	if affected != 1 {
+		return nil, nil, ErrNotFound
+	}
+	return membership, family, nil
+}
+
+func (s *Store) ListUserFamilies(
+	ctx context.Context,
+	userID string,
+) ([]model.FamilyMembership, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT family_id, id, role, status, person_id, joined_at
+		FROM family_memberships
+		WHERE user_id = ? AND status = 'active'
+		ORDER BY joined_at ASC, created_at ASC`, userID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list user families: %w", err)
+	}
+	defer rows.Close()
+	items := make([]model.FamilyMembership, 0)
+	for rows.Next() {
+		var (
+			familyID, membershipID, role, status string
+			personID                             sql.NullString
+			joinedAt                             time.Time
+		)
+		if err := rows.Scan(
+			&familyID, &membershipID, &role, &status, &personID, &joinedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan user family: %w", err)
+		}
+		family, err := s.GetFamily(ctx, familyID)
+		if err != nil {
+			return nil, err
+		}
+		membership := model.Membership{
+			ID: membershipID, Role: role, Status: status, JoinedAt: joinedAt,
+		}
+		if personID.Valid {
+			value := personID.String
+			membership.PersonID = &value
+		}
+		items = append(items, model.FamilyMembership{
+			Family: *family, Membership: membership,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate user families: %w", err)
+	}
+	return items, nil
+}
+
 func (s *Store) GetPrincipal(ctx context.Context, tokenHash []byte) (*Principal, error) {
 	var principal Principal
+	var activeFamilyID sql.NullString
 	err := s.db.QueryRowContext(ctx, `
-		SELECT s.id, s.expires_at,
+		SELECT s.id, s.expires_at, s.active_family_id,
 		       u.id, u.login_name, u.display_name, COALESCE(u.phone, ''), u.status
 		FROM user_sessions s
 		JOIN users u ON u.id = s.user_id
@@ -150,7 +280,7 @@ func (s *Store) GetPrincipal(ctx context.Context, tokenHash []byte) (*Principal,
 		  AND s.expires_at > UTC_TIMESTAMP(6)
 		LIMIT 1`, tokenHash,
 	).Scan(
-		&principal.SessionID, &principal.ExpiresAt,
+		&principal.SessionID, &principal.ExpiresAt, &activeFamilyID,
 		&principal.User.ID, &principal.User.LoginName,
 		&principal.User.DisplayName, &principal.User.Phone, &principal.User.Status,
 	)
@@ -164,7 +294,22 @@ func (s *Store) GetPrincipal(ctx context.Context, tokenHash []byte) (*Principal,
 		return nil, ErrUnauthorized
 	}
 
-	membership, family, err := s.GetPrimaryMembership(ctx, principal.User.ID)
+	var membership *model.Membership
+	var family *model.Family
+	if activeFamilyID.Valid {
+		membership, family, err = s.GetMembership(
+			ctx, principal.User.ID, activeFamilyID.String,
+		)
+	}
+	if !activeFamilyID.Valid || err != nil {
+		membership, family, err = s.GetPrimaryMembership(ctx, principal.User.ID)
+		if err == nil && activeFamilyID.Valid {
+			_, _ = s.db.ExecContext(ctx, `
+				UPDATE user_sessions SET active_family_id = ? WHERE id = ?`,
+				family.ID, principal.SessionID,
+			)
+		}
+	}
 	if err != nil {
 		if errors.Is(err, ErrNoMembership) {
 			return nil, ErrUnauthorized

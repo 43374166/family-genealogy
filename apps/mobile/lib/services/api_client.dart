@@ -62,6 +62,46 @@ class ApiClient {
     return session;
   }
 
+  Future<ApiMe> switchFamily(String familyId) async {
+    final body = await _request(
+      'POST',
+      '/api/v1/auth/switch-family',
+      body: {'familyId': familyId},
+    );
+    return ApiMe.fromJson(body);
+  }
+
+  Future<ApiMe> createFamily({
+    required String name,
+    required String surname,
+    String motto = '',
+    String region = '',
+    String description = '',
+  }) async {
+    final body = await _request(
+      'POST',
+      '/api/v1/families',
+      body: {
+        'name': name,
+        'surname': surname,
+        'motto': motto,
+        'region': region,
+        'description': description,
+      },
+    );
+    return ApiMe.fromJson(body);
+  }
+
+  Future<List<ApiFamilyMembership>> families() async {
+    final body = await _request('GET', '/api/v1/families');
+    final items = body['items'];
+    if (items is! List) return const [];
+    return items
+        .whereType<Map<String, dynamic>>()
+        .map(ApiFamilyMembership.fromJson)
+        .toList(growable: false);
+  }
+
   Future<void> sendLoginCode(String phone) async {
     await _request(
       'POST',
@@ -108,8 +148,10 @@ class ApiClient {
     required String loginName,
     required String password,
     required String displayName,
-    required String inviteCode,
+    String inviteCode = '',
     String phone = '',
+    String familyName = '',
+    String surname = '',
   }) async {
     _baseUrl = normalizeBaseUrl(serverUrl);
     final body = await _request(
@@ -122,6 +164,8 @@ class ApiClient {
         'displayName': displayName,
         'inviteCode': inviteCode,
         'phone': phone,
+        'familyName': familyName,
+        'surname': surname,
       },
     );
     return ApiRegistration.fromJson(body);

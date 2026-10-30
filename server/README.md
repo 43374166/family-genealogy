@@ -16,7 +16,9 @@
 已经实现的 API：
 
 - `POST /api/v1/auth/login`（Argon2id 密码校验，返回 30 天不透明会话令牌）
-- `POST /api/v1/auth/register`（邀请码注册，手机号字段可选）
+- `POST /api/v1/auth/register`（邀请码可选；不填则创建个人家族并成为族长）
+- `POST /api/v1/auth/switch-family`（切换当前家族）
+- `GET /api/v1/families`、`POST /api/v1/families`（列出/创建家族）
 - `POST /api/v1/auth/sms/send`、`POST /api/v1/auth/sms/login`（手机号验证码登录）
 - `POST /api/v1/auth/phone/send`、`POST /api/v1/auth/phone/bind`（登录后绑定手机号）
 - `POST /api/v1/auth/logout`
@@ -50,7 +52,10 @@
 `persons` 并追加 `audit_logs`。owner/admin 可新增人物和父母子女/配偶关系，
 服务端校验世代、重复角色、配偶同代和父母子女环路。普通成员的新增人物/关系写入走
 `/edit-requests/write`，审核通过时在同一事务应用。邀请码注册走
-`/auth/register`，绑定人物走 `bind-requests`，通过后写入 `family_memberships.person_id`。
+`/auth/register`：可带邀请码加入现有家族，也可不填邀请码自动创建个人家族。账号可属于
+多个家族，会话记录当前 `active_family_id`，登录默认恢复上次使用的家族，并可通过
+`/auth/switch-family` 切换。绑定人物走 `bind-requests`，通过后写入
+`family_memberships.person_id`。
 分支管理员由 owner 通过邀请码指定家支，或在“分支管理员”页任命已有成员；默认含
 下级支。owner/admin 可直接编辑人物姓名、性别、世代、家支、生卒、籍贯、职业、教育和
 生平，并可删除错误亲属关系后重新添加；删除关系只删关系边，不删除人物。管理员只能

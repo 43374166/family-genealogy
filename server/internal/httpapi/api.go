@@ -101,7 +101,7 @@ func (a *API) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, family, err := a.Store.GetPrimaryMembership(r.Context(), user.ID)
+	_, family, err := a.Store.GetPreferredMembership(r.Context(), user.ID)
 	if err != nil {
 		if errors.Is(err, store.ErrNoMembership) {
 			writeProblem(w, r, http.StatusForbidden, "NO_FAMILY", "account has no active family")
@@ -120,7 +120,8 @@ func (a *API) login(w http.ResponseWriter, r *http.Request) {
 	}
 	expiresAt := time.Now().UTC().Add(sessionLifetime)
 	if _, err := a.Store.CreateSession(
-		r.Context(), user.ID, digest, expiresAt, clientIP(r), truncate(r.UserAgent(), 512),
+		r.Context(), user.ID, digest, expiresAt, family.ID,
+		clientIP(r), truncate(r.UserAgent(), 512),
 	); err != nil {
 		a.Logger.ErrorContext(r.Context(), "session creation failed", "error", err)
 		writeProblem(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
@@ -158,10 +159,16 @@ func (a *API) me(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "not authenticated")
 		return
 	}
+	families, err := a.Store.ListUserFamilies(r.Context(), principal.User.ID)
+	if err != nil {
+		a.writeAccessError(w, r, err)
+		return
+	}
 	writeJSON(w, http.StatusOK, model.Me{
 		User:       principal.User,
 		Membership: principal.Membership,
 		Family:     principal.Family,
+		Families:   families,
 	})
 }
 

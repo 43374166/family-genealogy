@@ -20,6 +20,8 @@ class _RegisterPageState extends State<RegisterPage> {
   final _loginName = TextEditingController();
   final _displayName = TextEditingController();
   final _phone = TextEditingController();
+  final _familyName = TextEditingController();
+  final _surname = TextEditingController();
   final _password = TextEditingController();
   final _confirm = TextEditingController();
 
@@ -33,6 +35,8 @@ class _RegisterPageState extends State<RegisterPage> {
     _loginName.dispose();
     _displayName.dispose();
     _phone.dispose();
+    _familyName.dispose();
+    _surname.dispose();
     _password.dispose();
     _confirm.dispose();
     super.dispose();
@@ -51,6 +55,8 @@ class _RegisterPageState extends State<RegisterPage> {
       displayName: _displayName.text.trim(),
       inviteCode: _inviteCode.text.trim().toUpperCase(),
       phone: _phone.text.trim(),
+      familyName: _familyName.text.trim(),
+      surname: _surname.text.trim(),
     );
     if (!mounted) return;
     if (error == null) {
@@ -73,7 +79,12 @@ class _RegisterPageState extends State<RegisterPage> {
           key: _formKey,
           child: Column(
             children: [
-              const AppPageHeader(title: '加入家族', subtitle: '使用族长提供的邀请码注册'),
+              AppPageHeader(
+                title: '创建账号',
+                subtitle: _inviteCode.text.trim().isEmpty
+                    ? '不填邀请码也可以先创建自己的家族'
+                    : '使用邀请码加入现有家族',
+              ),
               Expanded(
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(22, 12, 22, 26),
@@ -84,7 +95,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     ),
                     const SizedBox(height: 6),
                     const Text(
-                      '手机号可先留空，后续接入手机号一键登录。',
+                      '邀请码可选：填了加入对方家族，不填会创建一个属于你的家族并成为族长。',
                       style: TextStyle(
                         fontSize: 11,
                         height: 1.5,
@@ -94,13 +105,33 @@ class _RegisterPageState extends State<RegisterPage> {
                     const SizedBox(height: 20),
                     _Field(
                       controller: _inviteCode,
-                      label: '邀请码',
-                      hint: '向族长获取，例如 A7K9P2QX',
+                      label: '邀请码（可选）',
+                      hint: '有邀请码就填，没有可以自己创建家族',
                       icon: Icons.key_rounded,
                       textCapitalization: TextCapitalization.characters,
-                      validator: (value) =>
-                          (value ?? '').trim().length < 6 ? '请输入有效邀请码' : null,
+                      onChanged: (_) => setState(() {}),
+                      validator: (value) {
+                        final text = (value ?? '').trim();
+                        if (text.isEmpty) return null;
+                        return text.length < 6 ? '请输入有效邀请码' : null;
+                      },
                     ),
+                    if (_inviteCode.text.trim().isEmpty) ...[
+                      const SizedBox(height: 12),
+                      _Field(
+                        controller: _familyName,
+                        label: '家族名称（可选）',
+                        hint: '例如：凌氏家族；不填用“你的名字的家族”',
+                        icon: Icons.diversity_3_rounded,
+                      ),
+                      const SizedBox(height: 12),
+                      _Field(
+                        controller: _surname,
+                        label: '姓氏（可选）',
+                        hint: '例如：凌',
+                        icon: Icons.badge_outlined,
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     _Field(
                       controller: _loginName,
@@ -193,13 +224,19 @@ class _RegisterPageState extends State<RegisterPage> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Text('注册并加入'),
+                          : Text(
+                              _inviteCode.text.trim().isEmpty
+                                  ? '创建账号并创建家族'
+                                  : '注册并加入家族',
+                            ),
                     ),
                     const SizedBox(height: 12),
-                    const Text(
-                      '注册后先成为普通成员，再申请绑定族谱中的人物；绑定需族长审核。',
+                    Text(
+                      _inviteCode.text.trim().isEmpty
+                          ? '不填邀请码时，你会成为新家族的族长，可以自己先录入族谱；以后也可以加入其他家族。'
+                          : '注册后先成为普通成员，再申请绑定族谱中的人物；绑定需族长审核。',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 10,
                         height: 1.5,
                         color: AppColors.inkMuted,
@@ -227,6 +264,7 @@ class _Field extends StatelessWidget {
     this.textCapitalization = TextCapitalization.none,
     this.suffix,
     this.validator,
+    this.onChanged,
   });
 
   final TextEditingController controller;
@@ -238,6 +276,7 @@ class _Field extends StatelessWidget {
   final TextCapitalization textCapitalization;
   final Widget? suffix;
   final String? Function(String?)? validator;
+  final ValueChanged<String>? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -247,6 +286,7 @@ class _Field extends StatelessWidget {
       keyboardType: keyboardType,
       textCapitalization: textCapitalization,
       validator: validator,
+      onChanged: onChanged,
       style: const TextStyle(fontSize: 14),
       decoration: InputDecoration(
         labelText: label,
