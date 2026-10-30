@@ -214,6 +214,91 @@ class ApiBindingRequestPage {
   }
 }
 
+class ApiFamilyAccount {
+  const ApiFamilyAccount({
+    required this.userId,
+    required this.loginName,
+    required this.displayName,
+    required this.role,
+    required this.personName,
+  });
+
+  final String userId;
+  final String loginName;
+  final String displayName;
+  final String role;
+  final String personName;
+
+  factory ApiFamilyAccount.fromJson(Map<String, dynamic> json) {
+    return ApiFamilyAccount(
+      userId: _string(json['userId']),
+      loginName: _string(json['loginName']),
+      displayName: _string(json['displayName']),
+      role: _string(json['role'], fallback: 'member'),
+      personName: _string(json['personName']),
+    );
+  }
+}
+
+class ApiFamilyAccountPage {
+  const ApiFamilyAccountPage({required this.items});
+
+  final List<ApiFamilyAccount> items;
+
+  factory ApiFamilyAccountPage.fromJson(Map<String, dynamic> json) {
+    return ApiFamilyAccountPage(
+      items: _list(json['items'], ApiFamilyAccount.fromJson),
+    );
+  }
+}
+
+class ApiBranchAdminGrant {
+  const ApiBranchAdminGrant({
+    required this.id,
+    required this.userId,
+    required this.displayName,
+    required this.loginName,
+    required this.branchId,
+    required this.branchName,
+    required this.includeDescendants,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String userId;
+  final String displayName;
+  final String loginName;
+  final String branchId;
+  final String branchName;
+  final bool includeDescendants;
+  final DateTime? createdAt;
+
+  factory ApiBranchAdminGrant.fromJson(Map<String, dynamic> json) {
+    return ApiBranchAdminGrant(
+      id: _string(json['id']),
+      userId: _string(json['userId']),
+      displayName: _string(json['displayName']),
+      loginName: _string(json['loginName']),
+      branchId: _string(json['branchId']),
+      branchName: _string(json['branchName']),
+      includeDescendants: json['includeDescendants'] == true,
+      createdAt: DateTime.tryParse(_string(json['createdAt'])),
+    );
+  }
+}
+
+class ApiBranchAdminGrantPage {
+  const ApiBranchAdminGrantPage({required this.items});
+
+  final List<ApiBranchAdminGrant> items;
+
+  factory ApiBranchAdminGrantPage.fromJson(Map<String, dynamic> json) {
+    return ApiBranchAdminGrantPage(
+      items: _list(json['items'], ApiBranchAdminGrant.fromJson),
+    );
+  }
+}
+
 class ApiRegistration {
   const ApiRegistration({required this.user, required this.family});
 

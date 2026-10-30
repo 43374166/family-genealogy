@@ -22,6 +22,7 @@
 - `POST /api/v1/bind-requests`（成员申请绑定族谱人物）
 - `GET /api/v1/bind-requests?status=&mine=`
 - `POST /api/v1/bind-requests/{requestId}/approve|reject`
+- `GET /api/v1/accounts`、`GET|POST /api/v1/branch-admins`、`DELETE /api/v1/branch-admins/{grantId}`（owner 任免）
 - `GET /api/v1/me`
 - `GET /api/v1/family`
 - `GET /api/v1/tree?generation=&branchId=`
@@ -43,9 +44,10 @@
 服务端校验世代、重复角色、配偶同代和父母子女环路。普通成员的新增人物/关系写入走
 `/edit-requests/write`，审核通过时在同一事务应用。邀请码注册走
 `/auth/register`，绑定人物走 `bind-requests`，通过后写入 `family_memberships.person_id`。
-分支管理员由 owner 通过邀请码指定家支（默认含下级支），只能审核本支范围内的
-写入/绑定申请和直接写入；邀请码创建仍仅限 owner。照片上传、管理员任免页、二维码
-邀请、刷新令牌和登录限流尚未实现。
+分支管理员由 owner 通过邀请码指定家支，或在“分支管理员”页任命已有成员；默认含
+下级支。管理员只能审核本支范围内的写入/绑定申请和直接写入；撤销最后一个授权后自动
+降为普通成员。邀请码创建仍仅限 owner。照片上传、二维码邀请、刷新令牌和登录限流
+尚未实现。
 契约见 [`packages/api-contracts/openapi.yaml`](../packages/api-contracts/openapi.yaml)，
 数据模型说明见 [`docs/backend/data-model.md`](../docs/backend/data-model.md)。
 

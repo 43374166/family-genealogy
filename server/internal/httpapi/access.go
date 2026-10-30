@@ -34,6 +34,12 @@ type bindingPayload struct {
 	PersonID string `json:"personId"`
 }
 
+type branchAdminPayload struct {
+	UserID             string `json:"userId"`
+	BranchID           string `json:"branchId"`
+	IncludeDescendants bool   `json:"includeDescendants"`
+}
+
 var phonePattern = regexp.MustCompile(`^\+[1-9][0-9]{7,14}$`)
 
 func (a *API) register(w http.ResponseWriter, r *http.Request) {
@@ -156,6 +162,96 @@ func (a *API) listInvites(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"items": invites})
+}
+
+func (a *API) listFamilyAccounts(w http.ResponseWriter, r *http.Request) {
+	principal, ok := principalFrom(r.Context())
+	if !ok {
+		writeProblem(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "not authenticated")
+		return
+	}
+	if principal.Membership.Role != "owner" {
+		writeProblem(w, r, http.StatusForbidden, "ACCOUNT_FORBIDDEN", "only the owner can view accounts")
+		return
+	}
+	items, err := a.Store.ListFamilyAccounts(r.Context(), principal.Family.ID)
+	if err != nil {
+		a.writeAccessError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
+func (a *API) listBranchAdmins(w http.ResponseWriter, r *http.Request) {
+	principal, ok := principalFrom(r.Context())
+	if !ok {
+		writeProblem(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "not authenticated")
+		return
+	}
+	if principal.Membership.Role != "owner" {
+		writeProblem(w, r, http.StatusForbidden, "ADMIN_FORBIDDEN", "only the owner can manage branch admins")
+		return
+	}
+	items, err := a.Store.ListBranchAdminGrants(r.Context(), principal.Family.ID)
+	if err != nil {
+		a.writeAccessError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
+func (a *API) grantBranchAdmin(w http.ResponseWriter, r *http.Request) {
+	principal, ok := principalFrom(r.Context())
+	if !ok {
+		writeProblem(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "not authenticated")
+		return
+	}
+	if principal.Membership.Role != "owner" {
+		writeProblem(w, r, http.StatusForbidden, "ADMIN_FORBIDDEN", "only the owner can manage branch admins")
+		return
+	}
+	var payload branchAdminPayload
+	if err := decodeJSON(w, r, &payload); err != nil {
+		writeProblem(w, r, http.StatusBadRequest, "INVALID_JSON", err.Error())
+		return
+	}
+	payload.UserID = strings.TrimSpace(payload.UserID)
+	payload.BranchID = strings.TrimSpace(payload.BranchID)
+	if payload.UserID == "" || payload.BranchID == "" {
+		writeProblem(w, r, http.StatusUnprocessableEntity, "INVALID_ASSIGNMENT", "userId and branchId are required")
+		return
+	}
+	grant, err := a.Store.GrantBranchAdmin(
+		r.Context(), principal.Family.ID, principal.User.ID,
+		payload.UserID, payload.BranchID,
+		payload.IncludeDescendants, auditMeta(r),
+	)
+	if err != nil {
+		a.writeAccessError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, grant)
+}
+
+func (a *API) revokeBranchAdmin(w http.ResponseWriter, r *http.Request) {
+	principal, ok := principalFrom(r.Context())
+	if !ok {
+		writeProblem(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "not authenticated")
+		return
+	}
+	if principal.Membership.Role != "owner" {
+		writeProblem(w, r, http.StatusForbidden, "ADMIN_FORBIDDEN", "only the owner can manage branch admins")
+		return
+	}
+	grantID := strings.TrimSpace(chi.URLParam(r, "grantID"))
+	if err := a.Store.RevokeBranchAdmin(
+		r.Context(), principal.Family.ID, principal.User.ID,
+		grantID, auditMeta(r),
+	); err != nil {
+		a.writeAccessError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"status": "revoked"})
 }
 
 func (a *API) createBindingRequest(w http.ResponseWriter, r *http.Request) {

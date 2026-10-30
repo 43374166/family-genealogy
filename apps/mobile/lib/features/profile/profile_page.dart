@@ -11,6 +11,7 @@ import '../../models/family_member.dart';
 import '../../services/app_session.dart';
 import '../family/bind_person_page.dart';
 import '../family/binding_requests_page.dart';
+import '../family/branch_admins_page.dart';
 import '../family/invite_page.dart';
 import '../person/api_person_detail_page.dart';
 import '../requests/requests_page.dart';
@@ -95,6 +96,19 @@ class ProfilePage extends StatelessWidget {
                             onTap: () => Navigator.of(context).push(
                               MaterialPageRoute<void>(
                                 builder: (_) => const InvitePage(),
+                              ),
+                            ),
+                          ),
+                          const Divider(height: 1, indent: 47),
+                          _MenuRow(
+                            icon: Icons.admin_panel_settings_outlined,
+                            color: AppColors.gold,
+                            background: AppColors.goldSoft,
+                            label: '分支管理员',
+                            trailing: '任免',
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => const BranchAdminsPage(),
                               ),
                             ),
                           ),
@@ -328,7 +342,7 @@ class ProfilePage extends StatelessWidget {
             ),
             const SizedBox(height: 5),
             const Text(
-              '家族族谱 · Flutter + MySQL v0.10.0',
+              '家族族谱 · Flutter + MySQL v0.11.0',
               style: TextStyle(fontSize: 10.5, color: AppColors.inkMuted),
             ),
             const SizedBox(height: 16),

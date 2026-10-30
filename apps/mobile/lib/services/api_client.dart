@@ -120,6 +120,40 @@ class ApiClient {
     return ApiInvite.fromJson(body);
   }
 
+  Future<ApiFamilyAccountPage> accounts() async {
+    final body = await _request('GET', '/api/v1/accounts');
+    return ApiFamilyAccountPage.fromJson(body);
+  }
+
+  Future<ApiBranchAdminGrantPage> branchAdmins() async {
+    final body = await _request('GET', '/api/v1/branch-admins');
+    return ApiBranchAdminGrantPage.fromJson(body);
+  }
+
+  Future<ApiBranchAdminGrant> grantBranchAdmin({
+    required String userId,
+    required String branchId,
+    bool includeDescendants = true,
+  }) async {
+    final body = await _request(
+      'POST',
+      '/api/v1/branch-admins',
+      body: {
+        'userId': userId,
+        'branchId': branchId,
+        'includeDescendants': includeDescendants,
+      },
+    );
+    return ApiBranchAdminGrant.fromJson(body);
+  }
+
+  Future<void> revokeBranchAdmin(String grantId) async {
+    await _request(
+      'DELETE',
+      '/api/v1/branch-admins/${Uri.encodeComponent(grantId)}',
+    );
+  }
+
   Future<ApiBindingRequest> createBindingRequest(String personId) async {
     final body = await _request(
       'POST',

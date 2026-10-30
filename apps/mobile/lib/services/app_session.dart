@@ -207,6 +207,44 @@ class AppSession extends ChangeNotifier {
     );
   }
 
+  Future<List<ApiFamilyAccount>> accounts() async {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    final page = await _api.accounts();
+    return page.items;
+  }
+
+  Future<List<ApiBranchAdminGrant>> branchAdmins() async {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    final page = await _api.branchAdmins();
+    return page.items;
+  }
+
+  Future<ApiBranchAdminGrant> grantBranchAdmin({
+    required String userId,
+    required String branchId,
+    bool includeDescendants = true,
+  }) {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    return _api.grantBranchAdmin(
+      userId: userId,
+      branchId: branchId,
+      includeDescendants: includeDescendants,
+    );
+  }
+
+  Future<void> revokeBranchAdmin(String grantId) {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    return _api.revokeBranchAdmin(grantId);
+  }
+
   Future<ApiBindingRequest> createBindingRequest(String personId) {
     if (!isAuthenticated) {
       throw const ApiException('登录状态已失效，请重新登录');
