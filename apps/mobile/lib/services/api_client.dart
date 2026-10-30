@@ -299,6 +299,66 @@ class ApiClient {
     );
   }
 
+  Future<ApiPerson> updatePerson({
+    required String personId,
+    required String surname,
+    required String givenName,
+    required String courtesyName,
+    required String alias,
+    required String gender,
+    required int generationNo,
+    required String branchId,
+    int? birthOrder,
+    int? birthYear,
+    int? deathYear,
+    required String lifeStatus,
+    required String birthPlace,
+    required String residence,
+    required String occupation,
+    required String education,
+    required String biography,
+    required int version,
+  }) async {
+    final body = await _request(
+      'PATCH',
+      '/api/v1/persons/${Uri.encodeComponent(personId)}',
+      body: {
+        'surname': surname,
+        'givenName': givenName,
+        'courtesyName': courtesyName,
+        'alias': alias,
+        'gender': gender,
+        'generationNo': generationNo,
+        'branchId': branchId,
+        'birthOrder': birthOrder,
+        'birthYear': birthYear,
+        'deathYear': deathYear,
+        'lifeStatus': lifeStatus,
+        'birthPlace': birthPlace,
+        'residence': residence,
+        'occupation': occupation,
+        'education': education,
+        'biography': biography,
+        'version': version,
+      },
+    );
+    return ApiPerson.fromJson(body);
+  }
+
+  Future<void> deleteParentChild(String edgeId) async {
+    await _request(
+      'DELETE',
+      '/api/v1/relationships/parent-child/${Uri.encodeComponent(edgeId)}',
+    );
+  }
+
+  Future<void> deleteSpouse(String edgeId) async {
+    await _request(
+      'DELETE',
+      '/api/v1/relationships/spouse/${Uri.encodeComponent(edgeId)}',
+    );
+  }
+
   Future<ApiPerson> person(String personId) async {
     final body = await _request(
       'GET',

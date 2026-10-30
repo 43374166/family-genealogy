@@ -85,6 +85,7 @@ type Person struct {
 }
 
 type Relative struct {
+	EdgeID   string `json:"edgeId"`
 	PersonID string `json:"personId"`
 	FullName string `json:"fullName"`
 	Relation string `json:"relation"`

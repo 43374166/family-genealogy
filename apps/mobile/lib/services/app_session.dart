@@ -83,6 +83,69 @@ class AppSession extends ChangeNotifier {
     }
   }
 
+  Future<ApiPerson> updatePerson({
+    required String personId,
+    required String surname,
+    required String givenName,
+    required String courtesyName,
+    required String alias,
+    required String gender,
+    required int generationNo,
+    required String branchId,
+    int? birthOrder,
+    int? birthYear,
+    int? deathYear,
+    required String lifeStatus,
+    required String birthPlace,
+    required String residence,
+    required String occupation,
+    required String education,
+    required String biography,
+    required int version,
+  }) async {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    final person = await _api.updatePerson(
+      personId: personId,
+      surname: surname,
+      givenName: givenName,
+      courtesyName: courtesyName,
+      alias: alias,
+      gender: gender,
+      generationNo: generationNo,
+      branchId: branchId,
+      birthOrder: birthOrder,
+      birthYear: birthYear,
+      deathYear: deathYear,
+      lifeStatus: lifeStatus,
+      birthPlace: birthPlace,
+      residence: residence,
+      occupation: occupation,
+      education: education,
+      biography: biography,
+      version: version,
+    );
+    await refreshTree();
+    return person;
+  }
+
+  Future<void> deleteParentChild(String edgeId) async {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    await _api.deleteParentChild(edgeId);
+    await refreshTree();
+  }
+
+  Future<void> deleteSpouse(String edgeId) async {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    await _api.deleteSpouse(edgeId);
+    await refreshTree();
+  }
+
   Future<ApiPerson> fetchPerson(String personId) {
     if (!isAuthenticated) {
       throw const ApiException('登录状态已失效，请重新登录');

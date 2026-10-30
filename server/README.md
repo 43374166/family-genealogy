@@ -30,10 +30,13 @@
 - `GET /api/v1/tree?generation=&branchId=`
 - `GET /api/v1/persons?q=&generation=&branchId=&cursor=&limit=`
 - `POST /api/v1/persons`（owner/admin 直接新增人物）
+- `PATCH /api/v1/persons/{personId}`（owner/admin 直接编辑资料，带版本冲突保护）
 - `GET /api/v1/persons/{personId}`
 - `GET /api/v1/branches`
 - `POST /api/v1/relationships/parent-child`
+- `DELETE /api/v1/relationships/parent-child/{edgeId}`
 - `POST /api/v1/relationships/spouse`
+- `DELETE /api/v1/relationships/spouse/{edgeId}`
 - `POST /api/v1/edit-requests`（提交人物资料修改申请）
 - `POST /api/v1/edit-requests/write`（成员提交新增人物/父母子女/配偶申请）
 - `GET /api/v1/edit-requests?status=&mine=&limit=`
@@ -47,7 +50,9 @@
 `/edit-requests/write`，审核通过时在同一事务应用。邀请码注册走
 `/auth/register`，绑定人物走 `bind-requests`，通过后写入 `family_memberships.person_id`。
 分支管理员由 owner 通过邀请码指定家支，或在“分支管理员”页任命已有成员；默认含
-下级支。管理员只能审核本支范围内的写入/绑定申请和直接写入；撤销最后一个授权后自动
+下级支。owner/admin 可直接编辑人物姓名、性别、世代、家支、生卒、籍贯、职业、教育和
+生平，并可删除错误亲属关系后重新添加；删除关系只删关系边，不删除人物。管理员只能
+审核本支范围内的写入/绑定申请和直接写入；撤销最后一个授权后自动
 降为普通成员。邀请码创建仍仅限 owner。手机号验证码登录已接入华为云消息&短信
 （MSGSMS）SDK；需要配置应用 app_key/app_secret、通道号、签名和验证码模板，未配置时
 返回 `SMS_UNAVAILABLE`。照片上传、刷新令牌和登录限流尚未实现。

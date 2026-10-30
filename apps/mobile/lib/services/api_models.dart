@@ -468,17 +468,20 @@ class ApiRelative {
     required this.personId,
     required this.fullName,
     required this.relation,
+    this.edgeId = '',
   });
 
   final String personId;
   final String fullName;
   final String relation;
+  final String edgeId;
 
   factory ApiRelative.fromJson(Map<String, dynamic> json) {
     return ApiRelative(
       personId: _string(json['personId']),
       fullName: _string(json['fullName']),
       relation: _string(json['relation']),
+      edgeId: _string(json['edgeId']),
     );
   }
 }

@@ -9,6 +9,7 @@ import '../../services/api_client.dart';
 import '../../services/api_models.dart';
 import '../../services/app_session.dart';
 import '../requests/edit_request_page.dart';
+import 'edit_person_page.dart';
 
 /// API-backed person profile. The summary received from a search result can be
 /// passed as [initialPerson] so the page paints immediately; the full record is
@@ -64,9 +65,66 @@ class _ApiPersonDetailPageState extends State<ApiPersonDetailPage> {
     }
   }
 
+  Future<void> _editPerson(ApiPerson person) async {
+    final updated = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(builder: (_) => EditPersonPage(person: person)),
+    );
+    if (updated == true && mounted) {
+      await _load();
+    }
+  }
+
+  Future<void> _deleteRelation(ApiRelative relative, String group) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('删除亲属关系'),
+        content: Text(
+          '确定删除与 ${relative.fullName} 的${relative.relation}关系吗？只删除关系，不删除人物。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('删除关系'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    if (relative.edgeId.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('关系标识缺失，请刷新后重试')));
+      return;
+    }
+    try {
+      final session = SessionScope.of(context);
+      if (group == '配偶') {
+        await session.deleteSpouse(relative.edgeId);
+      } else {
+        await session.deleteParentChild(relative.edgeId);
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('关系已删除')));
+      await _load();
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final person = _person;
+    final session = SessionScope.of(context);
     return Scaffold(
       backgroundColor: AppColors.background,
       body: CustomScrollView(
@@ -117,7 +175,11 @@ class _ApiPersonDetailPageState extends State<ApiPersonDetailPage> {
                       children: [
                         _ProfileHero(person: person),
                         const SizedBox(height: 14),
-                        _Relationships(person: person),
+                        _Relationships(
+                          person: person,
+                          canWrite: session.canWrite,
+                          onDelete: _deleteRelation,
+                        ),
                         const SizedBox(height: 14),
                         _LifeDetails(person: person),
                         const SizedBox(height: 14),
@@ -127,16 +189,20 @@ class _ApiPersonDetailPageState extends State<ApiPersonDetailPage> {
                           children: [
                             Expanded(
                               child: OutlinedButton.icon(
-                                onPressed: () => Navigator.of(context).push(
-                                  MaterialPageRoute<void>(
-                                    builder: (_) => EditRequestPage(
-                                      personId: person.id,
-                                      initialPerson: person,
-                                    ),
-                                  ),
-                                ),
+                                onPressed: session.canWrite
+                                    ? () => _editPerson(person)
+                                    : () => Navigator.of(context).push(
+                                        MaterialPageRoute<void>(
+                                          builder: (_) => EditRequestPage(
+                                            personId: person.id,
+                                            initialPerson: person,
+                                          ),
+                                        ),
+                                      ),
                                 icon: const Icon(Icons.edit_outlined, size: 17),
-                                label: const Text('申请修改资料'),
+                                label: Text(
+                                  session.canWrite ? '编辑资料' : '申请修改资料',
+                                ),
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: AppColors.ink,
                                   side: const BorderSide(color: AppColors.line),
@@ -421,9 +487,15 @@ class _GenerationBadge extends StatelessWidget {
 }
 
 class _Relationships extends StatelessWidget {
-  const _Relationships({required this.person});
+  const _Relationships({
+    required this.person,
+    required this.canWrite,
+    required this.onDelete,
+  });
 
   final ApiPerson person;
+  final bool canWrite;
+  final Future<void> Function(ApiRelative relative, String group) onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -496,6 +568,17 @@ class _Relationships extends StatelessWidget {
                             color: AppColors.inkMuted,
                           ),
                         ),
+                        if (canWrite)
+                          IconButton(
+                            onPressed: () => onDelete(relative, group.$1),
+                            tooltip: '删除关系',
+                            visualDensity: VisualDensity.compact,
+                            icon: const Icon(
+                              Icons.delete_outline_rounded,
+                              size: 17,
+                              color: AppColors.cinnabar,
+                            ),
+                          ),
                         const SizedBox(width: 3),
                         const Icon(
                           Icons.chevron_right_rounded,

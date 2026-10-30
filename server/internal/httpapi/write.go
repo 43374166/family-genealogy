@@ -255,6 +255,8 @@ func (a *API) writeWriteError(w http.ResponseWriter, r *http.Request, err error)
 		writeProblem(w, r, http.StatusUnprocessableEntity, "INVALID_RELATIONSHIP", "relationship is not valid for this family")
 	case errors.Is(err, store.ErrForbidden):
 		writeProblem(w, r, http.StatusForbidden, "BRANCH_SCOPE_FORBIDDEN", "this branch is outside your admin scope")
+	case errors.Is(err, store.ErrVersionConflict):
+		writeProblem(w, r, http.StatusConflict, "VERSION_CONFLICT", "this person has changed; reload and try again")
 	default:
 		logError(a.Logger, r, "write operation failed", err)
 		writeProblem(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")

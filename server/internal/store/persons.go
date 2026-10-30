@@ -194,21 +194,21 @@ func (s *Store) relations(ctx context.Context, familyID, personID, kind string) 
 	switch kind {
 	case "parents":
 		query = `
-			SELECT p.id, p.full_name, pc.parent_role
+			SELECT pc.id, p.id, p.full_name, pc.parent_role
 			FROM parent_child_relationships pc
 			JOIN persons p ON p.id = pc.parent_id AND p.family_id = pc.family_id
 			WHERE pc.child_id = ? AND pc.family_id = ? AND pc.status = 'active'
 			ORDER BY p.birth_year IS NULL, p.birth_year ASC, p.id ASC`
 	case "children":
 		query = `
-			SELECT p.id, p.full_name, 'child'
+			SELECT pc.id, p.id, p.full_name, 'child'
 			FROM parent_child_relationships pc
 			JOIN persons p ON p.id = pc.child_id AND p.family_id = pc.family_id
 			WHERE pc.parent_id = ? AND pc.family_id = ? AND pc.status = 'active'
 			ORDER BY p.birth_year IS NULL, p.birth_year ASC, p.id ASC`
 	case "spouses":
 		query = `
-			SELECT p.id, p.full_name, s.status
+			SELECT s.id, p.id, p.full_name, s.status
 			FROM spouse_relationships s
 			JOIN persons p ON p.family_id = s.family_id
 			 AND p.id = CASE WHEN s.person_a_id = ? THEN s.person_b_id ELSE s.person_a_id END
@@ -232,7 +232,7 @@ func (s *Store) relations(ctx context.Context, familyID, personID, kind string) 
 	for rows.Next() {
 		var relative model.Relative
 		var relation string
-		if err := rows.Scan(&relative.PersonID, &relative.FullName, &relation); err != nil {
+		if err := rows.Scan(&relative.EdgeID, &relative.PersonID, &relative.FullName, &relation); err != nil {
 			return nil, fmt.Errorf("scan %s: %w", kind, err)
 		}
 		switch kind {
