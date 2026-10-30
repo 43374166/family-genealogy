@@ -9,8 +9,10 @@ import '../../core/widgets/status_pill.dart';
 import '../../data/demo_data.dart';
 import '../../models/family_member.dart';
 import '../../services/app_session.dart';
+import '../family/bind_person_page.dart';
+import '../family/binding_requests_page.dart';
+import '../family/invite_page.dart';
 import '../person/api_person_detail_page.dart';
-import '../person/person_detail_page.dart';
 import '../requests/requests_page.dart';
 import 'family_profile_sheet.dart';
 
@@ -21,7 +23,16 @@ class ProfilePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final session = SessionScope.of(context);
     final linkedPersonId = session.membership?.personId;
-    final person = session.memberById(linkedPersonId) ?? DemoData.currentUser;
+    final person =
+        session.memberById(linkedPersonId) ??
+        FamilyMember(
+          id: session.user?.id ?? 'account',
+          familyId: session.family?.id ?? '',
+          branchId: '',
+          name: session.user?.displayName ?? '家族成员',
+          gender: Gender.male,
+          generation: 0,
+        );
     final familyName = session.family?.name ?? DemoData.family.name;
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -67,21 +78,73 @@ class ProfilePage extends StatelessWidget {
                           onTap: () => showFamilyProfileSheet(context),
                         ),
                         const Divider(height: 1, indent: 47),
+                        if (session.canWrite) ...[
+                          _MenuRow(
+                            icon: Icons.link_rounded,
+                            color: AppColors.primary,
+                            background: AppColors.primarySoft,
+                            label: '邀请成员',
+                            trailing: '邀请码',
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => const InvitePage(),
+                              ),
+                            ),
+                          ),
+                          const Divider(height: 1, indent: 47),
+                          _MenuRow(
+                            icon: Icons.how_to_reg_outlined,
+                            color: AppColors.jade,
+                            background: AppColors.jadeSoft,
+                            label: '绑定审核',
+                            trailing: '成员绑定',
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => const BindingRequestsPage(),
+                              ),
+                            ),
+                          ),
+                          const Divider(height: 1, indent: 47),
+                        ] else if (linkedPersonId == null) ...[
+                          _MenuRow(
+                            icon: Icons.person_pin_circle_outlined,
+                            color: AppColors.gold,
+                            background: AppColors.goldSoft,
+                            label: '绑定族谱人物',
+                            trailing: '未绑定',
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => const BindPersonPage(),
+                              ),
+                            ),
+                          ),
+                          const Divider(height: 1, indent: 47),
+                        ],
                         _MenuRow(
                           icon: Icons.person_outline_rounded,
                           color: AppColors.primary,
                           background: AppColors.primarySoft,
                           label: '个人档案',
-                          trailing: person.generationLabel,
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => linkedPersonId == null
-                                  ? PersonDetailPage(person: person)
-                                  : ApiPersonDetailPage(
-                                      personId: linkedPersonId,
-                                    ),
-                            ),
-                          ),
+                          trailing: linkedPersonId == null
+                              ? '未绑定'
+                              : person.generationLabel,
+                          onTap: () {
+                            if (linkedPersonId == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('尚未绑定族谱人物，请先提交绑定申请'),
+                                ),
+                              );
+                              return;
+                            }
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => ApiPersonDetailPage(
+                                  personId: linkedPersonId,
+                                ),
+                              ),
+                            );
+                          },
                         ),
                         const Divider(height: 1, indent: 47),
                         _MenuRow(
@@ -256,7 +319,7 @@ class ProfilePage extends StatelessWidget {
             ),
             const SizedBox(height: 5),
             const Text(
-              '家族族谱 · Flutter + MySQL v0.8.1',
+              '家族族谱 · Flutter + MySQL v0.9.0',
               style: TextStyle(fontSize: 10.5, color: AppColors.inkMuted),
             ),
             const SizedBox(height: 16),
@@ -398,7 +461,9 @@ class _ProfileCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 5),
                           Text(
-                            '${person.generationLabel} · 族谱成员',
+                            person.generation > 0
+                                ? '${person.generationLabel} · 族谱成员'
+                                : '账号已加入家庭 · 尚未绑定族谱人物',
                             style: const TextStyle(
                               fontSize: 10.5,
                               color: AppColors.inkSoft,
@@ -433,16 +498,20 @@ class _ProfileCard extends StatelessWidget {
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    const Icon(
-                      Icons.verified_user_outlined,
+                    Icon(
+                      person.generation > 0
+                          ? Icons.verified_user_outlined
+                          : Icons.link_off_rounded,
                       size: 13,
-                      color: AppColors.jade,
+                      color: person.generation > 0
+                          ? AppColors.jade
+                          : AppColors.inkMuted,
                     ),
                     const SizedBox(width: 5),
-                    const Expanded(
+                    Expanded(
                       child: Text(
-                        '账号已与本人档案关联',
-                        style: TextStyle(
+                        person.generation > 0 ? '账号已与本人档案关联' : '尚未绑定族谱人物',
+                        style: const TextStyle(
                           fontSize: 9.5,
                           color: AppColors.inkSoft,
                         ),

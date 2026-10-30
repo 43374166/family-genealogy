@@ -57,6 +57,30 @@ class ApiClient {
     return session;
   }
 
+  Future<ApiRegistration> register({
+    required String serverUrl,
+    required String loginName,
+    required String password,
+    required String displayName,
+    required String inviteCode,
+    String phone = '',
+  }) async {
+    _baseUrl = normalizeBaseUrl(serverUrl);
+    final body = await _request(
+      'POST',
+      '/api/v1/auth/register',
+      authenticated: false,
+      body: {
+        'loginName': loginName,
+        'password': password,
+        'displayName': displayName,
+        'inviteCode': inviteCode,
+        'phone': phone,
+      },
+    );
+    return ApiRegistration.fromJson(body);
+  }
+
   Future<ApiTree> tree() async {
     final body = await _request('GET', '/api/v1/tree');
     return ApiTree.fromJson(body);
@@ -70,6 +94,67 @@ class ApiClient {
   Future<ApiFamily> family() async {
     final body = await _request('GET', '/api/v1/family');
     return ApiFamily.fromJson(body);
+  }
+
+  Future<ApiInvitePage> invites() async {
+    final body = await _request('GET', '/api/v1/invites');
+    return ApiInvitePage.fromJson(body);
+  }
+
+  Future<ApiInvite> createInvite({
+    int maxUses = 1,
+    int expiresInDays = 7,
+  }) async {
+    final body = await _request(
+      'POST',
+      '/api/v1/invites',
+      body: {
+        'role': 'member',
+        'maxUses': maxUses,
+        'expiresInDays': expiresInDays,
+      },
+    );
+    return ApiInvite.fromJson(body);
+  }
+
+  Future<ApiBindingRequest> createBindingRequest(String personId) async {
+    final body = await _request(
+      'POST',
+      '/api/v1/bind-requests',
+      body: {'personId': personId},
+    );
+    return ApiBindingRequest.fromJson(body);
+  }
+
+  Future<ApiBindingRequestPage> bindingRequests({
+    String? status,
+    bool mine = false,
+    int limit = 50,
+  }) async {
+    final params = <String, String>{
+      'limit': '$limit',
+      if (status != null && status.isNotEmpty) 'status': status,
+      if (mine) 'mine': 'true',
+    };
+    final body = await _request(
+      'GET',
+      '/api/v1/bind-requests?${Uri(queryParameters: params).query}',
+    );
+    return ApiBindingRequestPage.fromJson(body);
+  }
+
+  Future<ApiBindingRequest> reviewBindingRequest(
+    String requestId, {
+    required bool approve,
+    String note = '',
+  }) async {
+    final body = await _request(
+      'POST',
+      '/api/v1/bind-requests/${Uri.encodeComponent(requestId)}/'
+          '${approve ? 'approve' : 'reject'}',
+      body: {'note': note},
+    );
+    return ApiBindingRequest.fromJson(body);
   }
 
   Future<ApiBranchPage> branches() async {

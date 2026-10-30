@@ -16,7 +16,12 @@
 已经实现的 API：
 
 - `POST /api/v1/auth/login`（Argon2id 密码校验，返回 30 天不透明会话令牌）
+- `POST /api/v1/auth/register`（邀请码注册，手机号字段可选预留）
 - `POST /api/v1/auth/logout`
+- `GET /api/v1/invites`、`POST /api/v1/invites`
+- `POST /api/v1/bind-requests`（成员申请绑定族谱人物）
+- `GET /api/v1/bind-requests?status=&mine=`
+- `POST /api/v1/bind-requests/{requestId}/approve|reject`
 - `GET /api/v1/me`
 - `GET /api/v1/family`
 - `GET /api/v1/tree?generation=&branchId=`
@@ -36,8 +41,9 @@
 资料申请只允许修改籍贯、现居地、职业、教育和生平；审核通过时在事务内更新
 `persons` 并追加 `audit_logs`。owner/admin 可新增人物和父母子女/配偶关系，
 服务端校验世代、重复角色、配偶同代和父母子女环路。普通成员的新增人物/关系写入走
-`/edit-requests/write`，审核通过时在同一事务应用。照片上传、家庭切换、刷新令牌和
-登录限流尚未实现。
+`/edit-requests/write`，审核通过时在同一事务应用。邀请码注册走
+`/auth/register`，绑定人物走 `bind-requests`，通过后写入 `family_memberships.person_id`。
+照片上传、分支管理员任命、二维码邀请、刷新令牌和登录限流尚未实现。
 契约见 [`packages/api-contracts/openapi.yaml`](../packages/api-contracts/openapi.yaml)，
 数据模型说明见 [`docs/backend/data-model.md`](../docs/backend/data-model.md)。
 

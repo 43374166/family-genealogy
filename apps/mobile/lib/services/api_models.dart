@@ -118,6 +118,116 @@ class ApiBranch {
   }
 }
 
+class ApiInvite {
+  const ApiInvite({
+    required this.id,
+    required this.code,
+    required this.role,
+    required this.branchName,
+    required this.maxUses,
+    required this.usedCount,
+    required this.expiresAt,
+    required this.status,
+  });
+
+  final String id;
+  final String code;
+  final String role;
+  final String branchName;
+  final int maxUses;
+  final int usedCount;
+  final DateTime? expiresAt;
+  final String status;
+
+  factory ApiInvite.fromJson(Map<String, dynamic> json) {
+    return ApiInvite(
+      id: _string(json['id']),
+      code: _string(json['code']),
+      role: _string(json['role'], fallback: 'member'),
+      branchName: _string(json['branchName']),
+      maxUses: _int(json['maxUses'], fallback: 1),
+      usedCount: _int(json['usedCount']),
+      expiresAt: DateTime.tryParse(_string(json['expiresAt'])),
+      status: _string(json['status'], fallback: 'active'),
+    );
+  }
+}
+
+class ApiInvitePage {
+  const ApiInvitePage({required this.items});
+
+  final List<ApiInvite> items;
+
+  factory ApiInvitePage.fromJson(Map<String, dynamic> json) {
+    return ApiInvitePage(items: _list(json['items'], ApiInvite.fromJson));
+  }
+}
+
+class ApiBindingRequest {
+  const ApiBindingRequest({
+    required this.id,
+    required this.requesterName,
+    required this.personId,
+    required this.personName,
+    required this.status,
+    required this.reviewNote,
+    required this.submittedAt,
+    this.reviewedAt,
+  });
+
+  final String id;
+  final String requesterName;
+  final String personId;
+  final String personName;
+  final String status;
+  final String reviewNote;
+  final DateTime? submittedAt;
+  final DateTime? reviewedAt;
+
+  bool get isPending => status == 'pending';
+  bool get isApproved => status == 'approved';
+  bool get isRejected => status == 'rejected';
+
+  factory ApiBindingRequest.fromJson(Map<String, dynamic> json) {
+    return ApiBindingRequest(
+      id: _string(json['id']),
+      requesterName: _string(json['requesterName']),
+      personId: _string(json['personId']),
+      personName: _string(json['personName']),
+      status: _string(json['status'], fallback: 'pending'),
+      reviewNote: _string(json['reviewNote']),
+      submittedAt: DateTime.tryParse(_string(json['submittedAt'])),
+      reviewedAt: DateTime.tryParse(_string(json['reviewedAt'])),
+    );
+  }
+}
+
+class ApiBindingRequestPage {
+  const ApiBindingRequestPage({required this.items});
+
+  final List<ApiBindingRequest> items;
+
+  factory ApiBindingRequestPage.fromJson(Map<String, dynamic> json) {
+    return ApiBindingRequestPage(
+      items: _list(json['items'], ApiBindingRequest.fromJson),
+    );
+  }
+}
+
+class ApiRegistration {
+  const ApiRegistration({required this.user, required this.family});
+
+  final ApiUser user;
+  final ApiFamily family;
+
+  factory ApiRegistration.fromJson(Map<String, dynamic> json) {
+    return ApiRegistration(
+      user: ApiUser.fromJson(_map(json['user'])),
+      family: ApiFamily.fromJson(_map(json['family'])),
+    );
+  }
+}
+
 class ApiBranchPage {
   const ApiBranchPage({required this.items});
 

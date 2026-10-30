@@ -41,8 +41,8 @@ MySQL schema、迁移、登录/会话、家庭/族谱树/人物只读 API；Flut
 | React Web | `apps/web` | 📁 占位，后续开发 |
 | 鸿蒙端 | `apps/harmony` | 📁 占位，需单独验证 Flutter/ArkUI 路线 |
 | 微信小程序 | `apps/mini-program` | 📁 占位，后续独立实现并复用 API |
-| Go 服务端 | `server` | ✅ MySQL 8.4 + 登录/会话 + 家庭/族谱树/人物 API + 资料申请/审核/审计 + 人物/父母子女/配偶写入 |
-| Flutter 数据接入 | `apps/mobile` | ✅ 登录、首页、动态族谱树、人物详情、成员搜索、资料审核、新增人物与关系接真实 API；其余页面仍为演示数据 |
+| Go 服务端 | `server` | ✅ MySQL 8.4 + 登录/邀请码注册/绑定 + 族谱树/人物 API + 资料审核 + 人物/关系写入 |
+| Flutter 数据接入 | `apps/mobile` | ✅ 登录注册、动态族谱、人物详情、资料审核、新增人物与关系、绑定人物接真实 API；其余页面仍为演示数据 |
 | API 契约 | `packages/api-contracts` | ✅ OpenAPI 3.1 初版 |
 
 已实现的首期移动端页面：

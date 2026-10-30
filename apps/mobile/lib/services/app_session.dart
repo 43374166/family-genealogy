@@ -140,6 +140,91 @@ class AppSession extends ChangeNotifier {
     return _api.reviewEditRequest(requestId, approve: approve, note: note);
   }
 
+  Future<String?> register({
+    required String serverUrl,
+    required String loginName,
+    required String password,
+    required String displayName,
+    required String inviteCode,
+    String phone = '',
+  }) async {
+    try {
+      await _api.register(
+        serverUrl: serverUrl,
+        loginName: loginName,
+        password: password,
+        displayName: displayName,
+        inviteCode: inviteCode,
+        phone: phone,
+      );
+      final ok = await login(
+        serverUrl: serverUrl,
+        loginName: loginName,
+        password: password,
+      );
+      return ok ? null : _error;
+    } on ApiException catch (error) {
+      return error.message;
+    }
+  }
+
+  Future<void> refreshMe() async {
+    if (!isAuthenticated) return;
+    try {
+      final me = await _api.me();
+      _membership = me.membership;
+      _family = me.family;
+      notifyListeners();
+    } on ApiException catch (error) {
+      _error = error.message;
+      notifyListeners();
+    }
+  }
+
+  Future<List<ApiInvite>> invites() async {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    final page = await _api.invites();
+    return page.items;
+  }
+
+  Future<ApiInvite> createInvite({int maxUses = 1, int expiresInDays = 7}) {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    return _api.createInvite(maxUses: maxUses, expiresInDays: expiresInDays);
+  }
+
+  Future<ApiBindingRequest> createBindingRequest(String personId) {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    return _api.createBindingRequest(personId);
+  }
+
+  Future<ApiBindingRequestPage> bindingRequests({
+    String? status,
+    bool mine = false,
+    int limit = 50,
+  }) {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    return _api.bindingRequests(status: status, mine: mine, limit: limit);
+  }
+
+  Future<ApiBindingRequest> reviewBindingRequest(
+    String requestId, {
+    required bool approve,
+    String note = '',
+  }) {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    return _api.reviewBindingRequest(requestId, approve: approve, note: note);
+  }
+
   Future<void> refreshTree() async {
     if (!isAuthenticated) return;
     try {

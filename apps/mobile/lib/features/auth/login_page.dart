@@ -4,6 +4,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/api_client.dart';
 import '../../services/app_session.dart';
+import 'register_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -235,6 +236,24 @@ class _LoginPageState extends State<LoginPage> {
                                       style: TextStyle(
                                         fontSize: 10,
                                         color: AppColors.inkMuted,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 5),
+                                  Center(
+                                    child: TextButton(
+                                      onPressed: () {
+                                        Navigator.of(context).push(
+                                          MaterialPageRoute<void>(
+                                            builder: (_) => RegisterPage(
+                                              serverUrl: _serverUrl.text.trim(),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      child: const Text(
+                                        '有邀请码？注册加入家族',
+                                        style: TextStyle(fontSize: 11),
                                       ),
                                     ),
                                   ),
