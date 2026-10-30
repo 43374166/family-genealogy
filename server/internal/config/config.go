@@ -24,6 +24,11 @@ type Config struct {
 	SMSSignature    string
 	SMSRegion       string
 	OTPPepper       string
+	OBSEndpoint     string
+	OBSAccessKey    string
+	OBSSecretKey    string
+	OBSBucket       string
+	OBSPrefix       string
 }
 
 func Load() (Config, error) {
@@ -42,6 +47,11 @@ func Load() (Config, error) {
 		SMSSignature:    strings.TrimSpace(os.Getenv("HUAWEI_SMS_SIGNATURE")),
 		SMSRegion:       envOrDefault("HUAWEI_SMS_REGION", "cn-north-4"),
 		OTPPepper:       strings.TrimSpace(os.Getenv("OTP_PEPPER")),
+		OBSEndpoint:     strings.TrimSpace(os.Getenv("OBS_ENDPOINT")),
+		OBSAccessKey:    strings.TrimSpace(os.Getenv("OBS_ACCESS_KEY_ID")),
+		OBSSecretKey:    strings.TrimSpace(os.Getenv("OBS_SECRET_KEY")),
+		OBSBucket:       strings.TrimSpace(os.Getenv("OBS_BUCKET_NAME")),
+		OBSPrefix:       envOrDefault("OBS_UPLOAD_PREFIX", "familytree"),
 	}
 
 	switch cfg.Environment {

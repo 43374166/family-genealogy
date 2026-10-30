@@ -16,6 +16,7 @@ import (
 	"github.com/43374166/family-genealogy/server/internal/config"
 	"github.com/43374166/family-genealogy/server/internal/database"
 	"github.com/43374166/family-genealogy/server/internal/httpapi"
+	"github.com/43374166/family-genealogy/server/internal/obsstore"
 	"github.com/43374166/family-genealogy/server/internal/sms"
 	"github.com/43374166/family-genealogy/server/internal/store"
 )
@@ -67,11 +68,23 @@ func run() error {
 		smsSender = huawei
 	}
 
+	var photoStore *obsstore.Store
+	if cfg.OBSAccessKey != "" && cfg.OBSSecretKey != "" {
+		photoStore, err = obsstore.New(
+			cfg.OBSEndpoint, cfg.OBSAccessKey, cfg.OBSSecretKey,
+			cfg.OBSBucket, cfg.OBSPrefix,
+		)
+		if err != nil {
+			return fmt.Errorf("configure OBS: %w", err)
+		}
+	}
+
 	router := httpapi.NewRouter(httpapi.Dependencies{
 		DB:     db,
 		Store:  store.New(db.DB),
 		Logger: logger,
 		SMS:    smsSender,
+		Photos: photoStore,
 		OTP: store.OTPPolicy{
 			Cooldown: 60 * time.Second, MaxPerHour: 5,
 			TTL: 5 * time.Minute, MaxAttempts: 5,

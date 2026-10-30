@@ -302,6 +302,51 @@ class ApiBranchAdminGrantPage {
   }
 }
 
+class ApiPhoto {
+  const ApiPhoto({
+    required this.id,
+    required this.personId,
+    required this.personName,
+    required this.uploadedByUserId,
+    required this.uploadedByName,
+    required this.caption,
+    required this.contentPath,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String? personId;
+  final String personName;
+  final String uploadedByUserId;
+  final String uploadedByName;
+  final String caption;
+  final String contentPath;
+  final DateTime? createdAt;
+
+  factory ApiPhoto.fromJson(Map<String, dynamic> json) {
+    return ApiPhoto(
+      id: _string(json['id']),
+      personId: _nullableString(json['personId']),
+      personName: _string(json['personName']),
+      uploadedByUserId: _string(json['uploadedByUserId']),
+      uploadedByName: _string(json['uploadedByName']),
+      caption: _string(json['caption']),
+      contentPath: _string(json['contentPath']),
+      createdAt: DateTime.tryParse(_string(json['createdAt'])),
+    );
+  }
+}
+
+class ApiPhotoPage {
+  const ApiPhotoPage({required this.items});
+
+  final List<ApiPhoto> items;
+
+  factory ApiPhotoPage.fromJson(Map<String, dynamic> json) {
+    return ApiPhotoPage(items: _list(json['items'], ApiPhoto.fromJson));
+  }
+}
+
 class ApiImportPackage {
   const ApiImportPackage({
     required this.code,

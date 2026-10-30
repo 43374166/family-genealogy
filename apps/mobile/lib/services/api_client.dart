@@ -71,6 +71,68 @@ class ApiClient {
     return ApiMe.fromJson(body);
   }
 
+  Future<ApiPhotoPage> photos({String? personId}) async {
+    final params = <String, String>{
+      if (personId != null && personId.isNotEmpty) 'personId': personId,
+    };
+    final query = params.isEmpty
+        ? ''
+        : '?${Uri(queryParameters: params).query}';
+    final body = await _request('GET', '/api/v1/photos$query');
+    return ApiPhotoPage.fromJson(body);
+  }
+
+  Future<ApiPhoto> uploadPhoto({
+    required List<int> bytes,
+    required String filename,
+    required String contentType,
+    String personId = '',
+    String caption = '',
+  }) async {
+    final uri = Uri.parse('$_baseUrl/api/v1/photos');
+    final request = http.MultipartRequest('POST', uri);
+    if (_token != null) {
+      request.headers['Authorization'] = 'Bearer $_token';
+    }
+    request.fields['personId'] = personId;
+    request.fields['caption'] = caption;
+    request.files.add(
+      http.MultipartFile.fromBytes('file', bytes, filename: filename),
+    );
+    final streamed = await _client
+        .send(request)
+        .timeout(const Duration(seconds: 45));
+    final response = await http.Response.fromStream(streamed);
+    if (response.statusCode == 204) return ApiPhoto.fromJson(const {});
+    dynamic decoded;
+    try {
+      decoded = response.body.isEmpty ? null : jsonDecode(response.body);
+    } on FormatException {
+      throw ApiException('服务器返回了无法识别的数据', statusCode: response.statusCode);
+    }
+    final map = decoded is Map<String, dynamic>
+        ? decoded
+        : const <String, dynamic>{};
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        _errorMessage(map, response.statusCode),
+        statusCode: response.statusCode,
+        code: map['code'] as String?,
+      );
+    }
+    return ApiPhoto.fromJson(map);
+  }
+
+  Future<void> deletePhoto(String photoId) async {
+    await _request('DELETE', '/api/v1/photos/${Uri.encodeComponent(photoId)}');
+  }
+
+  String photoUrl(String contentPath) => '$_baseUrl$contentPath';
+
+  Map<String, String> get authHeaders => {
+    if (_token != null) 'Authorization': 'Bearer $_token',
+  };
+
   Future<ApiImportPackage> createImportPackage(String rootPersonId) async {
     final body = await _request(
       'POST',

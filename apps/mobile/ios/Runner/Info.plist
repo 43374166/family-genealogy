@@ -4,6 +4,8 @@
 <dict>
 	<key>NSCameraUsageDescription</key>
 	<string>扫描家族邀请二维码需要使用相机</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>选择家族照片需要使用相册</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>

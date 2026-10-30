@@ -13,6 +13,7 @@ import (
 
 	"github.com/43374166/family-genealogy/server/internal/auth"
 	"github.com/43374166/family-genealogy/server/internal/model"
+	"github.com/43374166/family-genealogy/server/internal/obsstore"
 	smssvc "github.com/43374166/family-genealogy/server/internal/sms"
 	"github.com/43374166/family-genealogy/server/internal/store"
 )
@@ -24,6 +25,7 @@ type API struct {
 	Logger *slog.Logger
 	SMS    smssvc.Sender
 	OTP    store.OTPPolicy
+	Photos *obsstore.Store
 }
 
 type principalKey struct{}

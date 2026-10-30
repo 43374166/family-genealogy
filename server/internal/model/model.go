@@ -108,6 +108,19 @@ type SpouseEdge struct {
 	EndYear   *int   `json:"endYear,omitempty"`
 }
 
+type Photo struct {
+	ID               string    `json:"id"`
+	FamilyID         string    `json:"familyId"`
+	PersonID         *string   `json:"personId,omitempty"`
+	PersonName       string    `json:"personName,omitempty"`
+	UploadedByUserID string    `json:"uploadedByUserId"`
+	UploadedByName   string    `json:"uploadedByName"`
+	ContentType      string    `json:"contentType"`
+	SizeBytes        int64     `json:"sizeBytes"`
+	Caption          string    `json:"caption"`
+	CreatedAt        time.Time `json:"createdAt"`
+}
+
 type Tree struct {
 	FamilyID    string            `json:"familyId"`
 	Version     int               `json:"version"`

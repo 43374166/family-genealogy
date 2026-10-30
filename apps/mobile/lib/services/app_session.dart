@@ -435,6 +435,43 @@ class AppSession extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<List<ApiPhoto>> photos({String? personId}) async {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    final page = await _api.photos(personId: personId);
+    return page.items;
+  }
+
+  Future<ApiPhoto> uploadPhoto({
+    required List<int> bytes,
+    required String filename,
+    String personId = '',
+    String caption = '',
+  }) {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    return _api.uploadPhoto(
+      bytes: bytes,
+      filename: filename,
+      contentType: '',
+      personId: personId,
+      caption: caption,
+    );
+  }
+
+  Future<void> deletePhoto(String photoId) {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    return _api.deletePhoto(photoId);
+  }
+
+  String photoUrl(String contentPath) => _api.photoUrl(contentPath);
+
+  Map<String, String> get photoHeaders => _api.authHeaders;
+
   Future<ApiImportPackage> createImportPackage(String rootPersonId) {
     if (!isAuthenticated) {
       throw const ApiException('登录状态已失效，请重新登录');

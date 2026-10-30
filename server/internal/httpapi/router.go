@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/43374166/family-genealogy/server/internal/buildinfo"
+	"github.com/43374166/family-genealogy/server/internal/obsstore"
 	smssvc "github.com/43374166/family-genealogy/server/internal/sms"
 	"github.com/43374166/family-genealogy/server/internal/store"
 	"github.com/go-chi/chi/v5"
@@ -18,6 +19,7 @@ type Dependencies struct {
 	Logger *slog.Logger
 	SMS    smssvc.Sender
 	OTP    store.OTPPolicy
+	Photos *obsstore.Store
 }
 
 func NewRouter(deps Dependencies) http.Handler {
@@ -50,7 +52,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	}
 	api := &API{
 		Store: deps.Store, Logger: logger,
-		SMS: smsSender, OTP: otpPolicy,
+		SMS: smsSender, OTP: otpPolicy, Photos: deps.Photos,
 	}
 	router.Route("/api/v1", func(r chi.Router) {
 		r.Get("/meta", func(w http.ResponseWriter, _ *http.Request) {
@@ -77,6 +79,10 @@ func NewRouter(deps Dependencies) http.Handler {
 			r.Post("/import-packages", api.createImportPackage)
 			r.Post("/import-packages/preview", api.previewImportPackage)
 			r.Post("/import-packages/import", api.importPackage)
+			r.Get("/photos", api.listPhotos)
+			r.Post("/photos", api.uploadPhoto)
+			r.Get("/photos/{photoID}/content", api.photoContent)
+			r.Delete("/photos/{photoID}", api.deletePhoto)
 			r.Get("/invites", api.listInvites)
 			r.Post("/invites", api.createInvite)
 			r.Get("/accounts", api.listFamilyAccounts)
