@@ -5,6 +5,7 @@ import 'core/theme/app_theme.dart';
 import 'features/auth/login_page.dart';
 import 'features/shell/app_shell.dart';
 import 'services/app_session.dart';
+import 'services/app_settings.dart';
 
 class FamilyTreeApp extends StatefulWidget {
   const FamilyTreeApp({super.key, this.session});
@@ -19,10 +20,12 @@ class FamilyTreeApp extends StatefulWidget {
 class _FamilyTreeAppState extends State<FamilyTreeApp> {
   late final AppSession _session = widget.session ?? AppSession();
   late final bool _ownsSession = widget.session == null;
+  final AppSettings _settings = AppSettings();
 
   @override
   void initState() {
     super.initState();
+    _settings.load();
     if (_ownsSession) {
       _session.restore();
     }
@@ -30,6 +33,7 @@ class _FamilyTreeAppState extends State<FamilyTreeApp> {
 
   @override
   void dispose() {
+    _settings.dispose();
     if (_ownsSession) {
       _session.dispose();
     }
@@ -38,21 +42,33 @@ class _FamilyTreeAppState extends State<FamilyTreeApp> {
 
   @override
   Widget build(BuildContext context) {
-    return SessionScope(
-      session: _session,
-      child: MaterialApp(
-        title: '家族族谱',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.light,
-        scrollBehavior: const _AppScrollBehavior(),
-        locale: const Locale('zh', 'CN'),
-        supportedLocales: const [Locale('zh', 'CN'), Locale('en', 'US')],
-        localizationsDelegates: const [
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        home: const _RootGate(),
+    return SettingsScope(
+      settings: _settings,
+      child: SessionScope(
+        session: _session,
+        child: MaterialApp(
+          title: '家族族谱',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.light,
+          scrollBehavior: const _AppScrollBehavior(),
+          locale: const Locale('zh', 'CN'),
+          supportedLocales: const [Locale('zh', 'CN'), Locale('en', 'US')],
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          builder: (context, child) {
+            final settings = SettingsScope.of(context);
+            return MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: TextScaler.linear(settings.textScale)),
+              child: child ?? const SizedBox.shrink(),
+            );
+          },
+          home: const _RootGate(),
+        ),
       ),
     );
   }

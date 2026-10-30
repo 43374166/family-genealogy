@@ -19,6 +19,7 @@ import '../family/invite_page.dart';
 import '../family/phone_bind_page.dart';
 import '../person/api_person_detail_page.dart';
 import '../requests/requests_page.dart';
+import '../settings/settings_page.dart';
 import 'family_profile_sheet.dart';
 
 String _maskPhone(String phone) {
@@ -58,7 +59,11 @@ class ProfilePage extends StatelessWidget {
               actions: [
                 HeaderIconButton(
                   icon: Icons.settings_outlined,
-                  onTap: () => _notice(context),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const SettingsPage(),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -277,11 +282,28 @@ class ProfilePage extends StatelessWidget {
                     child: Column(
                       children: [
                         _MenuRow(
+                          icon: Icons.settings_outlined,
+                          color: AppColors.inkSoft,
+                          background: AppColors.slateSoft,
+                          label: '设置',
+                          trailing: '账号/显示/通用',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const SettingsPage(),
+                            ),
+                          ),
+                        ),
+                        const Divider(height: 1, indent: 47),
+                        _MenuRow(
                           icon: Icons.shield_outlined,
                           color: AppColors.jade,
                           background: AppColors.jadeSoft,
                           label: '隐私与展示范围',
-                          onTap: () => _notice(context),
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const SettingsPage(),
+                            ),
+                          ),
                         ),
                         const Divider(height: 1, indent: 47),
                         _MenuRow(
@@ -298,7 +320,7 @@ class ProfilePage extends StatelessWidget {
                           color: AppColors.inkMuted,
                           background: AppColors.slateSoft,
                           label: '关于家族族谱',
-                          trailing: 'v0.4.0',
+                          trailing: 'v0.24.0',
                           onTap: () => _showAbout(context),
                         ),
                       ],
@@ -323,7 +345,7 @@ class ProfilePage extends StatelessWidget {
                         const SizedBox(width: 9),
                         Expanded(
                           child: Text(
-                            '当前已连接家庭服务器。资料写入、关系维护与审核流程将在下一阶段启用。',
+                            '当前已连接家庭服务器。族谱维护、成员绑定、审核、数据导入和家族相册均已启用。',
                             style: TextStyle(
                               fontSize: 10,
                               height: 1.65,
@@ -405,12 +427,12 @@ class ProfilePage extends StatelessWidget {
             ),
             const SizedBox(height: 5),
             const Text(
-              '家族族谱 · Flutter + MySQL v0.23.0',
+              '家族族谱 · Flutter + MySQL v0.24.0',
               style: TextStyle(fontSize: 10.5, color: AppColors.inkMuted),
             ),
             const SizedBox(height: 16),
             const Text(
-              '以人物为中心，记录家族世系、生平与共同记忆。\n当前已接入家庭服务器，写入与审核能力将在下一阶段开放。',
+              '以人物为中心，记录家族世系、生平与共同记忆。\n当前已接入家庭服务器，族谱维护、审核、导入和相册均已开放。',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 11.5,
