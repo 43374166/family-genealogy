@@ -10,6 +10,7 @@ import '../../core/widgets/soft_card.dart';
 import '../../models/family_member.dart';
 import '../../services/api_models.dart';
 import '../../services/app_session.dart';
+import '../family/bind_person_page.dart';
 import '../person/api_person_detail_page.dart';
 import '../search/member_search_page.dart';
 import 'tree_layout.dart';
@@ -96,6 +97,7 @@ class _TreePageState extends State<TreePage>
                   ),
                 ),
                 onDirectory: () {},
+                onSelf: _focusSelf,
               ),
               const Expanded(child: _TreeEmpty()),
             ],
@@ -126,6 +128,7 @@ class _TreePageState extends State<TreePage>
                       ),
                     ),
                     onDirectory: () => _showDirectory(context),
+                    onSelf: _focusSelf,
                   ),
                   _GenerationFilters(
                     generations: layout.generations,
@@ -302,23 +305,113 @@ class _TreePageState extends State<TreePage>
     if (member == null) return const SizedBox.shrink();
     final dimmed =
         _focusGeneration != null && member.generation != _focusGeneration;
+    final isSelf =
+        SessionScope.of(context).membership?.personId == placement.person.id;
     return Positioned.fromRect(
       rect: placement.rect,
       child: AnimatedOpacity(
         duration: const Duration(milliseconds: 220),
         opacity: dimmed ? 0.28 : 1,
-        child: _PersonNode(
-          person: member,
-          selected: _selectedId == placement.person.id,
-          compact: placement.compact,
-          generation: placement.generation,
-          onTap: () {
-            HapticFeedback.selectionClick();
-            setState(() => _selectedId = placement.person.id);
-          },
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            _PersonNode(
+              person: member,
+              selected: _selectedId == placement.person.id,
+              compact: placement.compact,
+              generation: placement.generation,
+              onTap: () {
+                HapticFeedback.selectionClick();
+                setState(() => _selectedId = placement.person.id);
+              },
+            ),
+            if (isSelf)
+              Positioned(
+                left: 2,
+                top: -7,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.25),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: const Text(
+                    '我',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.w600,
+                      height: 1.1,
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
+  }
+
+  void _focusSelf() {
+    final session = SessionScope.of(context);
+    final linkedId = session.membership?.personId;
+    if (linkedId == null || linkedId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('还没有绑定“我自己”，先绑定族谱人物'),
+          action: SnackBarAction(
+            label: '去绑定',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const BindPersonPage()),
+            ),
+          ),
+        ),
+      );
+      return;
+    }
+    final layout = _layout;
+    if (layout == null || _viewportSize.isEmpty) return;
+    TreePersonPlacement? target;
+    for (final placement in layout.placements) {
+      if (placement.person.id == linkedId) {
+        target = placement;
+        break;
+      }
+    }
+    if (target == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('你的族谱档案不在当前视图中')));
+      return;
+    }
+    HapticFeedback.selectionClick();
+    setState(() {
+      _focusGeneration = null;
+      _selectedId = linkedId;
+    });
+    final rect = target.rect;
+    const scale = 1.05;
+    final targetX = _viewportSize.width / 2;
+    final targetY = _viewportSize.height * 0.42;
+    final matrix = Matrix4.identity()
+      ..translateByDouble(
+        targetX - rect.center.dx * scale,
+        targetY - rect.center.dy * scale,
+        0,
+        1,
+      )
+      ..scaleByDouble(scale, scale, scale, 1);
+    _animateTo(matrix);
   }
 
   void _maybeScheduleFit(Size size) {
@@ -508,12 +601,14 @@ class _TreeHeader extends StatelessWidget {
     required this.onBack,
     required this.onSearch,
     required this.onDirectory,
+    required this.onSelf,
   });
 
   final String subtitle;
   final VoidCallback onBack;
   final VoidCallback onSearch;
   final VoidCallback onDirectory;
+  final VoidCallback onSelf;
 
   @override
   Widget build(BuildContext context) {
@@ -547,6 +642,26 @@ class _TreeHeader extends StatelessWidget {
               ],
             ),
           ),
+          TextButton.icon(
+            onPressed: onSelf,
+            icon: const Icon(Icons.my_location_rounded, size: 15),
+            label: const Text('自己'),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              backgroundColor: AppColors.primarySoft,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              minimumSize: const Size(0, 34),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              textStyle: const TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
+            ),
+          ),
+          const SizedBox(width: 3),
           RoundIconButton(
             icon: Icons.search_rounded,
             onTap: onSearch,
