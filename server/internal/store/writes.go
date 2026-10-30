@@ -19,27 +19,27 @@ var (
 )
 
 type NewPerson struct {
-	Surname      string
-	GivenName    string
-	CourtesyName string
-	Alias        string
-	Gender       string
-	GenerationNo int
-	BranchID     string
-	BirthOrder   *int
-	BirthYear    *int
-	Biography    string
+	Surname      string `json:"surname"`
+	GivenName    string `json:"givenName"`
+	CourtesyName string `json:"courtesyName,omitempty"`
+	Alias        string `json:"alias,omitempty"`
+	Gender       string `json:"gender"`
+	GenerationNo int    `json:"generationNo"`
+	BranchID     string `json:"branchId"`
+	BirthOrder   *int   `json:"birthOrder,omitempty"`
+	BirthYear    *int   `json:"birthYear,omitempty"`
+	Biography    string `json:"biography,omitempty"`
 }
 
 type ParentChildInput struct {
-	ParentID   string
-	ChildID    string
-	ParentRole string
+	ParentID   string `json:"parentId"`
+	ChildID    string `json:"childId"`
+	ParentRole string `json:"parentRole"`
 }
 
 type SpouseInput struct {
-	PersonAID string
-	PersonBID string
+	PersonAID string `json:"personAId"`
+	PersonBID string `json:"personBId"`
 }
 
 func (s *Store) CreatePerson(

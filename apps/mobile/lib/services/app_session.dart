@@ -108,6 +108,16 @@ class AppSession extends ChangeNotifier {
     );
   }
 
+  Future<ApiEditRequest> createWriteRequest({
+    required String requestType,
+    required Map<String, dynamic> payload,
+  }) {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    return _api.createWriteRequest(requestType: requestType, payload: payload);
+  }
+
   Future<ApiEditRequestPage> editRequests({
     String? status,
     bool mine = false,

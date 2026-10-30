@@ -67,33 +67,64 @@ class _AddRelationshipPageState extends State<AddRelationshipPage> {
     setState(() => _submitting = true);
     try {
       final session = SessionScope.of(context);
-      if (_kind == RelationKind.spouse) {
-        await session.addSpouse(personAId: subject.id, personBId: target.id);
+      if (session.canWrite) {
+        if (_kind == RelationKind.spouse) {
+          await session.addSpouse(personAId: subject.id, personBId: target.id);
+        } else {
+          await session.addParentChild(
+            parentId: target.id,
+            childId: subject.id,
+            parentRole: _kind == RelationKind.father ? 'father' : 'mother',
+          );
+        }
+        if (!mounted) return;
+        await showDialog<void>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('关系已添加'),
+            content: Text(
+              _kind == RelationKind.spouse
+                  ? '${subject.fullName} 与 ${target.fullName} 已建立配偶关系。'
+                  : '${target.fullName} 已设为 ${subject.fullName} 的${_kind == RelationKind.father ? '父亲' : '母亲'}。',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('知道了'),
+              ),
+            ],
+          ),
+        );
       } else {
-        await session.addParentChild(
-          parentId: target.id,
-          childId: subject.id,
-          parentRole: _kind == RelationKind.father ? 'father' : 'mother',
+        await session.createWriteRequest(
+          requestType: _kind == RelationKind.spouse
+              ? 'add_spouse'
+              : 'add_parent_child',
+          payload: _kind == RelationKind.spouse
+              ? {'personAId': subject.id, 'personBId': target.id}
+              : {
+                  'parentId': target.id,
+                  'childId': subject.id,
+                  'parentRole': _kind == RelationKind.father
+                      ? 'father'
+                      : 'mother',
+                },
+        );
+        if (!mounted) return;
+        await showDialog<void>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('申请已提交'),
+            content: const Text('关系申请已提交，等待族长或管理员审核。'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('知道了'),
+              ),
+            ],
+          ),
         );
       }
-      if (!mounted) return;
-      await showDialog<void>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('关系已添加'),
-          content: Text(
-            _kind == RelationKind.spouse
-                ? '${subject.fullName} 与 ${target.fullName} 已建立配偶关系。'
-                : '${target.fullName} 已设为 ${subject.fullName} 的${_kind == RelationKind.father ? '父亲' : '母亲'}。',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('知道了'),
-            ),
-          ],
-        ),
-      );
       if (!mounted) return;
       Navigator.of(context).pop(true);
     } on ApiException catch (error) {
@@ -115,13 +146,17 @@ class _AddRelationshipPageState extends State<AddRelationshipPage> {
   Widget build(BuildContext context) {
     final subject = _subject;
     final target = _target;
+    final canWrite = SessionScope.of(context).canWrite;
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         bottom: false,
         child: Column(
           children: [
-            const AppPageHeader(title: '添加关系', subtitle: '父母、配偶关系会立即写入族谱'),
+            AppPageHeader(
+              title: '添加关系',
+              subtitle: canWrite ? '父母、配偶关系会立即写入族谱' : '提交族长或管理员审核',
+            ),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(18, 8, 18, 26),
@@ -275,7 +310,7 @@ class _AddRelationshipPageState extends State<AddRelationshipPage> {
                       color: Colors.white,
                     ),
                   )
-                : const Text('保存关系'),
+                : Text(canWrite ? '保存关系' : '提交审核'),
           ),
         ),
       ),

@@ -56,6 +56,7 @@ func NewRouter(deps Dependencies) http.Handler {
 			r.Post("/relationships/parent-child", api.addParentChild)
 			r.Post("/relationships/spouse", api.addSpouse)
 			r.Post("/edit-requests", api.createEditRequest)
+			r.Post("/edit-requests/write", api.createWriteRequest)
 			r.Get("/edit-requests", api.listEditRequests)
 			r.Get("/edit-requests/{requestID}", api.getEditRequest)
 			r.Post("/edit-requests/{requestID}/approve", api.approveEditRequest)

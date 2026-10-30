@@ -173,6 +173,18 @@ class ApiClient {
     return ApiEditRequest.fromJson(body);
   }
 
+  Future<ApiEditRequest> createWriteRequest({
+    required String requestType,
+    required Map<String, dynamic> payload,
+  }) async {
+    final body = await _request(
+      'POST',
+      '/api/v1/edit-requests/write',
+      body: {'requestType': requestType, 'payload': payload},
+    );
+    return ApiEditRequest.fromJson(body);
+  }
+
   Future<ApiEditRequestPage> editRequests({
     String? status,
     bool mine = false,

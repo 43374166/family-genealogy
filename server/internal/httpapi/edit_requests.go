@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -20,6 +21,11 @@ type createEditRequestPayload struct {
 
 type reviewEditRequestPayload struct {
 	Note string `json:"note"`
+}
+
+type createWriteRequestPayload struct {
+	RequestType string          `json:"requestType"`
+	Payload     json.RawMessage `json:"payload"`
 }
 
 func canReview(role string) bool {
@@ -59,6 +65,93 @@ func (a *API) createEditRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, request)
+}
+
+func (a *API) createWriteRequest(w http.ResponseWriter, r *http.Request) {
+	principal, ok := principalFrom(r.Context())
+	if !ok {
+		writeProblem(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "not authenticated")
+		return
+	}
+	var body createWriteRequestPayload
+	if err := decodeJSON(w, r, &body); err != nil {
+		writeProblem(w, r, http.StatusBadRequest, "INVALID_JSON", err.Error())
+		return
+	}
+	body.RequestType = strings.TrimSpace(body.RequestType)
+	normalized, err := normalizeWritePayload(body.RequestType, body.Payload)
+	if err != nil {
+		writeProblem(w, r, http.StatusUnprocessableEntity, "INVALID_REQUEST", err.Error())
+		return
+	}
+	request, err := a.Store.CreateWriteRequest(
+		r.Context(), principal.Family.ID, principal.User.ID,
+		body.RequestType, normalized,
+	)
+	if err != nil {
+		a.writeEditRequestError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, request)
+}
+
+func normalizeWritePayload(requestType string, raw json.RawMessage) ([]byte, error) {
+	switch requestType {
+	case "create_person":
+		var payload createPersonPayload
+		if err := json.Unmarshal(raw, &payload); err != nil {
+			return nil, err
+		}
+		payload.Surname = strings.TrimSpace(payload.Surname)
+		payload.GivenName = strings.TrimSpace(payload.GivenName)
+		payload.CourtesyName = strings.TrimSpace(payload.CourtesyName)
+		payload.Alias = strings.TrimSpace(payload.Alias)
+		payload.BranchID = strings.TrimSpace(payload.BranchID)
+		payload.Biography = strings.TrimSpace(payload.Biography)
+		if err := validateNewPerson(payload); err != nil {
+			return nil, err
+		}
+		return json.Marshal(store.NewPerson{
+			Surname: payload.Surname, GivenName: payload.GivenName,
+			CourtesyName: payload.CourtesyName, Alias: payload.Alias,
+			Gender: payload.Gender, GenerationNo: payload.GenerationNo,
+			BranchID: payload.BranchID, BirthOrder: payload.BirthOrder,
+			BirthYear: payload.BirthYear, Biography: payload.Biography,
+		})
+	case "add_parent_child":
+		var payload parentChildPayload
+		if err := json.Unmarshal(raw, &payload); err != nil {
+			return nil, err
+		}
+		payload.ParentID = strings.TrimSpace(payload.ParentID)
+		payload.ChildID = strings.TrimSpace(payload.ChildID)
+		payload.ParentRole = strings.TrimSpace(payload.ParentRole)
+		if payload.ParentID == "" || payload.ChildID == "" {
+			return nil, errors.New("parentId and childId are required")
+		}
+		if payload.ParentRole != "father" && payload.ParentRole != "mother" {
+			return nil, errors.New("parentRole must be father or mother")
+		}
+		return json.Marshal(store.ParentChildInput{
+			ParentID: payload.ParentID, ChildID: payload.ChildID,
+			ParentRole: payload.ParentRole,
+		})
+	case "add_spouse":
+		var payload spousePayload
+		if err := json.Unmarshal(raw, &payload); err != nil {
+			return nil, err
+		}
+		payload.PersonAID = strings.TrimSpace(payload.PersonAID)
+		payload.PersonBID = strings.TrimSpace(payload.PersonBID)
+		if payload.PersonAID == "" || payload.PersonBID == "" {
+			return nil, errors.New("personAId and personBId are required")
+		}
+		return json.Marshal(store.SpouseInput{
+			PersonAID: payload.PersonAID, PersonBID: payload.PersonBID,
+		})
+	default:
+		return nil, errors.New("requestType must be create_person, add_parent_child or add_spouse")
+	}
 }
 
 func (a *API) listEditRequests(w http.ResponseWriter, r *http.Request) {
@@ -174,6 +267,8 @@ func (a *API) writeEditRequestError(w http.ResponseWriter, r *http.Request, err 
 		writeProblem(w, r, http.StatusConflict, "REQUEST_ALREADY_REVIEWED", "request is no longer pending")
 	case errors.Is(err, store.ErrNoChanges):
 		writeProblem(w, r, http.StatusUnprocessableEntity, "NO_CHANGES", "the request does not change any field")
+	case errors.Is(err, store.ErrInvalidRequest):
+		writeProblem(w, r, http.StatusUnprocessableEntity, "INVALID_REQUEST_TYPE", "unsupported request type")
 	case errors.Is(err, store.ErrForbidden):
 		writeProblem(w, r, http.StatusForbidden, "FORBIDDEN", "operation is not allowed")
 	default:

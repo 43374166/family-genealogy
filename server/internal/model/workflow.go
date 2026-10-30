@@ -48,6 +48,8 @@ type EditRequest struct {
 	BaseVersion     *int              `json:"baseVersion,omitempty"`
 	Changes         PersonEditChanges `json:"changes"`
 	ChangedFields   []string          `json:"changedFields"`
+	Payload         map[string]any    `json:"payload,omitempty"`
+	Summary         string            `json:"summary,omitempty"`
 	Status          string            `json:"status"`
 	ReviewerUserID  *string           `json:"reviewerUserId,omitempty"`
 	ReviewerName    string            `json:"reviewerName,omitempty"`

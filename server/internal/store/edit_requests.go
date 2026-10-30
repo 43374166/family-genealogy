@@ -17,6 +17,7 @@ var (
 	ErrVersionConflict = errors.New("version conflict")
 	ErrNoChanges       = errors.New("no changes")
 	ErrForbidden       = errors.New("forbidden")
+	ErrInvalidRequest  = errors.New("invalid request type")
 )
 
 type EditRequestFilter struct {
@@ -123,6 +124,23 @@ func normalizeChanges(changes model.PersonEditChanges, current editablePerson) m
 	return changes
 }
 
+func (s *Store) CreateWriteRequest(
+	ctx context.Context,
+	familyID, requesterUserID, requestType string,
+	payload []byte,
+) (*model.EditRequest, error) {
+	requestID := uuid.NewString()
+	if _, err := s.db.ExecContext(ctx, `
+		INSERT INTO edit_requests
+			(id, family_id, requester_user_id, request_type, payload, status)
+		VALUES (?, ?, ?, ?, ?, 'pending')`,
+		requestID, familyID, requesterUserID, requestType, string(payload),
+	); err != nil {
+		return nil, fmt.Errorf("insert write request: %w", err)
+	}
+	return s.GetEditRequest(ctx, familyID, requestID)
+}
+
 func (s *Store) GetEditRequest(ctx context.Context, familyID, requestID string) (*model.EditRequest, error) {
 	row := s.db.QueryRowContext(ctx, `
 		SELECT r.id, r.family_id, r.requester_user_id, u.display_name,
@@ -224,11 +242,42 @@ func scanEditRequest(scanner rowScanner) (*model.EditRequest, error) {
 		value := reviewedAt.Time
 		item.ReviewedAt = &value
 	}
-	if err := json.Unmarshal(payload, &item.Changes); err != nil {
-		return nil, fmt.Errorf("decode edit changes: %w", err)
+	var raw map[string]any
+	if err := json.Unmarshal(payload, &raw); err != nil {
+		return nil, fmt.Errorf("decode request payload: %w", err)
 	}
-	item.ChangedFields = item.Changes.FieldKeys()
+	item.Payload = raw
+	if item.RequestType == "update_person" {
+		if err := json.Unmarshal(payload, &item.Changes); err != nil {
+			return nil, fmt.Errorf("decode edit changes: %w", err)
+		}
+		item.ChangedFields = item.Changes.FieldKeys()
+	}
+	item.Summary = requestSummary(item.RequestType, raw, item.TargetName)
 	return &item, nil
+}
+
+func requestSummary(requestType string, payload map[string]any, targetName string) string {
+	switch requestType {
+	case "create_person":
+		surname, _ := payload["surname"].(string)
+		givenName, _ := payload["givenName"].(string)
+		if surname+givenName != "" {
+			return "新增人物：" + surname + givenName
+		}
+		return "新增人物"
+	case "add_parent_child":
+		return "添加父母关系"
+	case "add_spouse":
+		return "添加配偶关系"
+	case "update_person":
+		if targetName != "" {
+			return targetName + " · 资料修改"
+		}
+		return "资料修改"
+	default:
+		return requestType
+	}
 }
 
 func (s *Store) ReviewEditRequest(
@@ -249,14 +298,15 @@ func (s *Store) ReviewEditRequest(
 		baseVersion sql.NullInt64
 		payload     []byte
 		status      string
+		requestType string
 	)
 	err = tx.QueryRowContext(ctx, `
-		SELECT target_person_id, base_version, payload, status
+		SELECT target_person_id, base_version, payload, status, request_type
 		FROM edit_requests
 		WHERE family_id = ? AND id = ?
 		LIMIT 1
 		FOR UPDATE`, familyID, requestID,
-	).Scan(&targetID, &baseVersion, &payload, &status)
+	).Scan(&targetID, &baseVersion, &payload, &status, &requestType)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -266,51 +316,98 @@ func (s *Store) ReviewEditRequest(
 	if status != "pending" {
 		return nil, ErrConflict
 	}
-	if !targetID.Valid || !baseVersion.Valid {
-		return nil, ErrVersionConflict
-	}
-	changes := model.PersonEditChanges{}
-	if err := json.Unmarshal(payload, &changes); err != nil {
-		return nil, fmt.Errorf("decode edit changes: %w", err)
-	}
-
-	before, err := lockEditablePerson(ctx, tx, familyID, targetID.String)
-	if err != nil {
-		return nil, err
-	}
-	if before.Version != int(baseVersion.Int64) {
-		return nil, ErrVersionConflict
-	}
 
 	var action, entityType, entityID string
 	var beforeData, afterData []byte
 	if approve {
-		updates, args, nextValues := buildPersonUpdates(changes)
-		if len(updates) == 0 {
-			return nil, ErrNoChanges
+		switch requestType {
+		case "update_person":
+			if !targetID.Valid || !baseVersion.Valid {
+				return nil, ErrVersionConflict
+			}
+			changes := model.PersonEditChanges{}
+			if err := json.Unmarshal(payload, &changes); err != nil {
+				return nil, fmt.Errorf("decode edit changes: %w", err)
+			}
+			before, err := lockEditablePerson(ctx, tx, familyID, targetID.String)
+			if err != nil {
+				return nil, err
+			}
+			if before.Version != int(baseVersion.Int64) {
+				return nil, ErrVersionConflict
+			}
+			updates, args, nextValues := buildPersonUpdates(changes)
+			if len(updates) == 0 {
+				return nil, ErrNoChanges
+			}
+			args = append(args, targetID.String, familyID, before.Version)
+			updates = append(updates, "version = version + 1")
+			query := `UPDATE persons SET ` + strings.Join(updates, ", ") +
+				` WHERE id = ? AND family_id = ? AND version = ? AND status = 'active'`
+			result, err := tx.ExecContext(ctx, query, args...)
+			if err != nil {
+				return nil, fmt.Errorf("apply edit request: %w", err)
+			}
+			affected, err := result.RowsAffected()
+			if err != nil {
+				return nil, fmt.Errorf("edit rows affected: %w", err)
+			}
+			if affected != 1 {
+				return nil, ErrVersionConflict
+			}
+			beforeData, afterData, err = personAuditJSON(before, nextValues)
+			if err != nil {
+				return nil, err
+			}
+			action = "edit_request.approved"
+			entityType = "person"
+			entityID = targetID.String
+
+		case "create_person":
+			var input NewPerson
+			if err := json.Unmarshal(payload, &input); err != nil {
+				return nil, fmt.Errorf("decode person request: %w", err)
+			}
+			personID, after, err := insertPersonTx(ctx, tx, familyID, input)
+			if err != nil {
+				return nil, err
+			}
+			action = "edit_request.approved"
+			entityType = "person"
+			entityID = personID
+			afterData = after
+
+		case "add_parent_child":
+			var input ParentChildInput
+			if err := json.Unmarshal(payload, &input); err != nil {
+				return nil, fmt.Errorf("decode parent-child request: %w", err)
+			}
+			edge, after, err := addParentChildTx(ctx, tx, familyID, input)
+			if err != nil {
+				return nil, err
+			}
+			action = "edit_request.approved"
+			entityType = "parent_child_relationship"
+			entityID = edge.ID
+			afterData = after
+
+		case "add_spouse":
+			var input SpouseInput
+			if err := json.Unmarshal(payload, &input); err != nil {
+				return nil, fmt.Errorf("decode spouse request: %w", err)
+			}
+			edge, after, err := addSpouseTx(ctx, tx, familyID, input)
+			if err != nil {
+				return nil, err
+			}
+			action = "edit_request.approved"
+			entityType = "spouse_relationship"
+			entityID = edge.ID
+			afterData = after
+
+		default:
+			return nil, ErrInvalidRequest
 		}
-		args = append(args, targetID.String, familyID, before.Version)
-		updates = append(updates, "version = version + 1")
-		query := `UPDATE persons SET ` + strings.Join(updates, ", ") +
-			` WHERE id = ? AND family_id = ? AND version = ? AND status = 'active'`
-		result, err := tx.ExecContext(ctx, query, args...)
-		if err != nil {
-			return nil, fmt.Errorf("apply edit request: %w", err)
-		}
-		affected, err := result.RowsAffected()
-		if err != nil {
-			return nil, fmt.Errorf("edit rows affected: %w", err)
-		}
-		if affected != 1 {
-			return nil, ErrVersionConflict
-		}
-		beforeData, afterData, err = personAuditJSON(before, nextValues)
-		if err != nil {
-			return nil, err
-		}
-		action = "edit_request.approved"
-		entityType = "person"
-		entityID = targetID.String
 	} else {
 		beforeData = payload
 		afterData, _ = json.Marshal(map[string]any{

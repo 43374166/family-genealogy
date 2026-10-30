@@ -29,6 +29,7 @@ class _AddPersonPageState extends State<AddPersonPage> {
   bool _loading = true;
   bool _submitting = false;
   bool _started = false;
+  bool _canWrite = false;
   String? _error;
 
   @override
@@ -37,6 +38,7 @@ class _AddPersonPageState extends State<AddPersonPage> {
     if (_started) return;
     _started = true;
     final session = SessionScope.of(context);
+    _canWrite = session.canWrite;
     _surname.text = session.family?.surname ?? '凌';
     final generations = session.tree?.persons
         .map((person) => person.generationNo)
@@ -89,32 +91,68 @@ class _AddPersonPageState extends State<AddPersonPage> {
     }
     setState(() => _submitting = true);
     try {
-      final person = await SessionScope.of(context).createPerson(
-        surname: _surname.text.trim(),
-        givenName: _givenName.text.trim(),
-        gender: _gender,
-        generationNo: _generation,
-        branchId: _branchId!,
-        birthOrder: int.tryParse(_birthOrder.text.trim()),
-        birthYear: int.tryParse(_birthYear.text.trim()),
-        biography: _biography.text.trim(),
-      );
-      if (!mounted) return;
-      await showDialog<void>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('已加入族谱'),
-          content: Text(
-            '${person.fullName} 已写入 ${person.generationLabel}，可以继续添加父母、配偶或子女关系。',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('知道了'),
+      final session = SessionScope.of(context);
+      final surname = _surname.text.trim();
+      final givenName = _givenName.text.trim();
+      final birthOrder = int.tryParse(_birthOrder.text.trim());
+      final birthYear = int.tryParse(_birthYear.text.trim());
+      final biography = _biography.text.trim();
+      if (session.canWrite) {
+        final person = await session.createPerson(
+          surname: surname,
+          givenName: givenName,
+          gender: _gender,
+          generationNo: _generation,
+          branchId: _branchId!,
+          birthOrder: birthOrder,
+          birthYear: birthYear,
+          biography: biography,
+        );
+        if (!mounted) return;
+        await showDialog<void>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('已加入族谱'),
+            content: Text(
+              '${person.fullName} 已写入 ${person.generationLabel}，可以继续添加父母、配偶或子女关系。',
             ),
-          ],
-        ),
-      );
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('知道了'),
+              ),
+            ],
+          ),
+        );
+      } else {
+        await session.createWriteRequest(
+          requestType: 'create_person',
+          payload: {
+            'surname': surname,
+            'givenName': givenName,
+            'gender': _gender,
+            'generationNo': _generation,
+            'branchId': _branchId,
+            'birthOrder': birthOrder,
+            'birthYear': birthYear,
+            'biography': biography,
+          },
+        );
+        if (!mounted) return;
+        await showDialog<void>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('申请已提交'),
+            content: Text('新增 $surname$givenName 的申请已提交，等待族长或管理员审核。'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('知道了'),
+              ),
+            ],
+          ),
+        );
+      }
       if (!mounted) return;
       Navigator.of(context).pop(true);
     } on ApiException catch (error) {
@@ -144,7 +182,10 @@ class _AddPersonPageState extends State<AddPersonPage> {
           key: _formKey,
           child: Column(
             children: [
-              AppPageHeader(title: '新增人物', subtitle: '$familyName · 直接写入族谱'),
+              AppPageHeader(
+                title: '新增人物',
+                subtitle: '$familyName · ${_canWrite ? '直接写入族谱' : '提交族长审核'}',
+              ),
               Expanded(
                 child: _loading
                     ? const Center(
@@ -164,10 +205,10 @@ class _AddPersonPageState extends State<AddPersonPage> {
                                 color: const Color(0xFFD2E8DD),
                               ),
                             ),
-                            child: const Row(
+                            child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Padding(
+                                const Padding(
                                   padding: EdgeInsets.only(top: 1),
                                   child: Icon(
                                     Icons.account_tree_outlined,
@@ -175,11 +216,13 @@ class _AddPersonPageState extends State<AddPersonPage> {
                                     color: AppColors.jade,
                                   ),
                                 ),
-                                SizedBox(width: 8),
+                                const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
-                                    '人物会先作为一个独立节点写入族谱。保存后再添加父母、配偶和子女关系。',
-                                    style: TextStyle(
+                                    _canWrite
+                                        ? '人物会先作为一个独立节点写入族谱。保存后再添加父母、配偶和子女关系。'
+                                        : '申请通过后，人物才会写入族谱。保存后再添加父母、配偶和子女关系。',
+                                    style: const TextStyle(
                                       fontSize: 10.5,
                                       height: 1.65,
                                       color: AppColors.inkSoft,
@@ -367,7 +410,7 @@ class _AddPersonPageState extends State<AddPersonPage> {
                             color: Colors.white,
                           ),
                         )
-                      : const Text('保存到族谱'),
+                      : Text(_canWrite ? '保存到族谱' : '提交审核'),
                 ),
               ),
             ),

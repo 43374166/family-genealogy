@@ -454,6 +454,9 @@ class ApiEditRequest {
     required this.baseVersion,
     required this.changes,
     required this.changedFields,
+    required this.requestType,
+    required this.payload,
+    required this.summary,
     required this.status,
     required this.reviewNote,
     required this.submittedAt,
@@ -467,6 +470,9 @@ class ApiEditRequest {
   final int? baseVersion;
   final ApiEditChanges changes;
   final List<String> changedFields;
+  final String requestType;
+  final Map<String, dynamic> payload;
+  final String summary;
   final String status;
   final String reviewNote;
   final DateTime? submittedAt;
@@ -492,6 +498,9 @@ class ApiEditRequest {
       baseVersion: _nullableInt(json['baseVersion']),
       changes: ApiEditChanges.fromJson(_map(json['changes'])),
       changedFields: _stringList(json['changedFields']),
+      requestType: _string(json['requestType']),
+      payload: _map(json['payload']),
+      summary: _string(json['summary']),
       status: _string(json['status'], fallback: 'pending'),
       reviewNote: _string(json['reviewNote']),
       submittedAt: DateTime.tryParse(_string(json['submittedAt'])),

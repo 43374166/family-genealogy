@@ -146,9 +146,9 @@ class _RequestsPageState extends State<RequestsPage> {
     if (note == null || !mounted) return;
 
     try {
-      await SessionScope.of(
-        context,
-      ).reviewEditRequest(request.id, approve: approve, note: note);
+      final session = SessionScope.of(context);
+      await session.reviewEditRequest(request.id, approve: approve, note: note);
+      await session.refreshTree();
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -402,7 +402,9 @@ class _RequestsPageState extends State<RequestsPage> {
                 children: [
                   Expanded(
                     child: Text(
-                      '${request.targetName} · 资料修改',
+                      request.summary.isNotEmpty
+                          ? request.summary
+                          : '${request.targetName} · 资料修改',
                       style: AppTheme.serif(fontSize: 21),
                     ),
                   ),
@@ -419,11 +421,25 @@ class _RequestsPageState extends State<RequestsPage> {
               ),
               const SizedBox(height: 18),
               const Text(
-                '申请变更',
+                '申请内容',
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
-              if (request.changedFields.isEmpty)
+              if (request.requestType != 'update_person') ...[
+                Text(
+                  request.summary.isEmpty ? '写入申请' : request.summary,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    height: 1.6,
+                    color: AppColors.ink,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  '通过后会由服务端校验并写入正式族谱。',
+                  style: TextStyle(fontSize: 10.5, color: AppColors.inkMuted),
+                ),
+              ] else if (request.changedFields.isEmpty)
                 const Text(
                   '没有字段变更',
                   style: TextStyle(fontSize: 12, color: AppColors.inkMuted),
@@ -626,7 +642,9 @@ class _RequestCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      '${request.targetName} · 资料修改',
+                      request.summary.isNotEmpty
+                          ? request.summary
+                          : '${request.targetName} · 资料修改',
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
