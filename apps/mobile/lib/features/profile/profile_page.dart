@@ -56,7 +56,14 @@ class ProfilePage extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(18, 8, 18, 30),
                 children: [
-                  _ProfileCard(person: person),
+                  _ProfileCard(
+                    person: person,
+                    roleLabel: session.membership?.role == 'owner'
+                        ? '族长'
+                        : session.membership?.role == 'admin'
+                        ? '分支管理员'
+                        : '普通成员',
+                  ),
                   const SizedBox(height: 14),
                   _StatsRow(),
                   const SizedBox(height: 18),
@@ -78,7 +85,7 @@ class ProfilePage extends StatelessWidget {
                           onTap: () => showFamilyProfileSheet(context),
                         ),
                         const Divider(height: 1, indent: 47),
-                        if (session.canWrite) ...[
+                        if (session.isOwner) ...[
                           _MenuRow(
                             icon: Icons.link_rounded,
                             color: AppColors.primary,
@@ -92,6 +99,8 @@ class ProfilePage extends StatelessWidget {
                             ),
                           ),
                           const Divider(height: 1, indent: 47),
+                        ],
+                        if (session.canWrite) ...[
                           _MenuRow(
                             icon: Icons.how_to_reg_outlined,
                             color: AppColors.jade,
@@ -319,7 +328,7 @@ class ProfilePage extends StatelessWidget {
             ),
             const SizedBox(height: 5),
             const Text(
-              '家族族谱 · Flutter + MySQL v0.9.0',
+              '家族族谱 · Flutter + MySQL v0.10.0',
               style: TextStyle(fontSize: 10.5, color: AppColors.inkMuted),
             ),
             const SizedBox(height: 16),
@@ -378,9 +387,10 @@ class ProfilePage extends StatelessWidget {
 }
 
 class _ProfileCard extends StatelessWidget {
-  const _ProfileCard({required this.person});
+  const _ProfileCard({required this.person, required this.roleLabel});
 
   final FamilyMember person;
+  final String roleLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -447,9 +457,7 @@ class _ProfileCard extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
-                                  person.tags.isEmpty
-                                      ? '家族成员'
-                                      : person.tags.first,
+                                  roleLabel,
                                   style: const TextStyle(
                                     fontSize: 9,
                                     color: AppColors.inkSoft,

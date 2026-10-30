@@ -241,6 +241,17 @@ func (a *API) reviewEditRequest(w http.ResponseWriter, r *http.Request, approve 
 		return
 	}
 	requestID := strings.TrimSpace(chi.URLParam(r, "requestID"))
+	branches, err := a.Store.EditRequestBranches(
+		r.Context(), principal.Family.ID, requestID,
+	)
+	if err != nil {
+		a.writeEditRequestError(w, r, err)
+		return
+	}
+	if err := a.ensureBranchScope(r.Context(), principal, branches); err != nil {
+		a.writeEditRequestError(w, r, err)
+		return
+	}
 	request, err := a.Store.ReviewEditRequest(
 		r.Context(), principal.Family.ID, requestID, principal.User.ID,
 		approve, payload.Note,

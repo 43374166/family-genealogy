@@ -102,6 +102,8 @@ class ApiClient {
   }
 
   Future<ApiInvite> createInvite({
+    String role = 'member',
+    String? branchId,
     int maxUses = 1,
     int expiresInDays = 7,
   }) async {
@@ -109,7 +111,8 @@ class ApiClient {
       'POST',
       '/api/v1/invites',
       body: {
-        'role': 'member',
+        'role': role,
+        if (branchId != null && branchId.isNotEmpty) 'branchId': branchId,
         'maxUses': maxUses,
         'expiresInDays': expiresInDays,
       },

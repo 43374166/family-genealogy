@@ -18,7 +18,7 @@
 - `POST /api/v1/auth/login`（Argon2id 密码校验，返回 30 天不透明会话令牌）
 - `POST /api/v1/auth/register`（邀请码注册，手机号字段可选预留）
 - `POST /api/v1/auth/logout`
-- `GET /api/v1/invites`、`POST /api/v1/invites`
+- `GET /api/v1/invites`、`POST /api/v1/invites`（仅 owner；可邀请普通成员或指定家支的分支管理员）
 - `POST /api/v1/bind-requests`（成员申请绑定族谱人物）
 - `GET /api/v1/bind-requests?status=&mine=`
 - `POST /api/v1/bind-requests/{requestId}/approve|reject`
@@ -43,7 +43,9 @@
 服务端校验世代、重复角色、配偶同代和父母子女环路。普通成员的新增人物/关系写入走
 `/edit-requests/write`，审核通过时在同一事务应用。邀请码注册走
 `/auth/register`，绑定人物走 `bind-requests`，通过后写入 `family_memberships.person_id`。
-照片上传、分支管理员任命、二维码邀请、刷新令牌和登录限流尚未实现。
+分支管理员由 owner 通过邀请码指定家支（默认含下级支），只能审核本支范围内的
+写入/绑定申请和直接写入；邀请码创建仍仅限 owner。照片上传、管理员任免页、二维码
+邀请、刷新令牌和登录限流尚未实现。
 契约见 [`packages/api-contracts/openapi.yaml`](../packages/api-contracts/openapi.yaml)，
 数据模型说明见 [`docs/backend/data-model.md`](../docs/backend/data-model.md)。
 

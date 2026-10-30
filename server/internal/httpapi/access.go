@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"regexp"
@@ -99,8 +100,8 @@ func (a *API) createInvite(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "not authenticated")
 		return
 	}
-	if !canReview(principal.Membership.Role) {
-		writeProblem(w, r, http.StatusForbidden, "INVITE_FORBIDDEN", "only an owner or admin can create invites")
+	if principal.Membership.Role != "owner" {
+		writeProblem(w, r, http.StatusForbidden, "INVITE_FORBIDDEN", "only the owner can create invites")
 		return
 	}
 	var payload createInviteRequest
@@ -145,8 +146,8 @@ func (a *API) listInvites(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "not authenticated")
 		return
 	}
-	if !canReview(principal.Membership.Role) {
-		writeProblem(w, r, http.StatusForbidden, "INVITE_FORBIDDEN", "only an owner or admin can view invites")
+	if principal.Membership.Role != "owner" {
+		writeProblem(w, r, http.StatusForbidden, "INVITE_FORBIDDEN", "only the owner can view invites")
 		return
 	}
 	invites, err := a.Store.ListInvites(r.Context(), principal.Family.ID)
@@ -248,6 +249,22 @@ func (a *API) reviewBindingRequest(w http.ResponseWriter, r *http.Request, appro
 		return
 	}
 	requestID := strings.TrimSpace(chi.URLParam(r, "requestID"))
+	binding, err := a.Store.GetBindingRequest(r.Context(), principal.Family.ID, requestID)
+	if err != nil {
+		a.writeAccessError(w, r, err)
+		return
+	}
+	branchID, err := a.Store.PersonBranch(r.Context(), principal.Family.ID, binding.PersonID)
+	if err != nil {
+		a.writeAccessError(w, r, err)
+		return
+	}
+	if err := a.ensureBranchScope(
+		r.Context(), principal, []string{branchID},
+	); err != nil {
+		a.writeAccessError(w, r, err)
+		return
+	}
 	request, err := a.Store.ReviewBindingRequest(
 		r.Context(), principal.Family.ID, requestID, principal.User.ID,
 		approve, payload.Note, auditMeta(r),
@@ -259,6 +276,31 @@ func (a *API) reviewBindingRequest(w http.ResponseWriter, r *http.Request, appro
 	writeJSON(w, http.StatusOK, request)
 }
 
+func (a *API) ensureBranchScope(
+	ctx context.Context,
+	principal *store.Principal,
+	branchIDs []string,
+) error {
+	if principal.Membership.Role == "owner" {
+		return nil
+	}
+	if len(branchIDs) == 0 {
+		return store.ErrForbidden
+	}
+	for _, branchID := range branchIDs {
+		ok, err := a.Store.CanAdminAccessBranch(
+			ctx, principal.Family.ID, principal.User.ID, branchID,
+		)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return store.ErrForbidden
+		}
+	}
+	return nil
+}
+
 func (a *API) writeAccessError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, store.ErrNotFound):
@@ -267,6 +309,8 @@ func (a *API) writeAccessError(w http.ResponseWriter, r *http.Request, err error
 		writeProblem(w, r, http.StatusConflict, "CONFLICT", "resource is already taken")
 	case errors.Is(err, store.ErrInvalidRequest):
 		writeProblem(w, r, http.StatusUnprocessableEntity, "INVALID_REQUEST", "request is not valid")
+	case errors.Is(err, store.ErrForbidden):
+		writeProblem(w, r, http.StatusForbidden, "BRANCH_SCOPE_FORBIDDEN", "this branch is outside your admin scope")
 	default:
 		logError(a.Logger, r, "access operation failed", err)
 		writeProblem(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")

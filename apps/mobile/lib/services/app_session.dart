@@ -18,6 +18,7 @@ class AppSession extends ChangeNotifier {
   ApiUser? get user => _session?.user;
   ApiFamily? get family => _family ?? _session?.family;
   bool get canWrite => _membership?.canReview ?? false;
+  bool get isOwner => _membership?.role == 'owner';
   ApiMembership? get membership => _membership;
   ApiTree? get tree => _tree;
   bool get isAuthenticated => _session != null;
@@ -189,11 +190,21 @@ class AppSession extends ChangeNotifier {
     return page.items;
   }
 
-  Future<ApiInvite> createInvite({int maxUses = 1, int expiresInDays = 7}) {
+  Future<ApiInvite> createInvite({
+    String role = 'member',
+    String? branchId,
+    int maxUses = 1,
+    int expiresInDays = 7,
+  }) {
     if (!isAuthenticated) {
       throw const ApiException('登录状态已失效，请重新登录');
     }
-    return _api.createInvite(maxUses: maxUses, expiresInDays: expiresInDays);
+    return _api.createInvite(
+      role: role,
+      branchId: branchId,
+      maxUses: maxUses,
+      expiresInDays: expiresInDays,
+    );
   }
 
   Future<ApiBindingRequest> createBindingRequest(String personId) {

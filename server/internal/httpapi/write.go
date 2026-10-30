@@ -72,6 +72,12 @@ func (a *API) createPerson(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, r, http.StatusUnprocessableEntity, "INVALID_PERSON", err.Error())
 		return
 	}
+	if err := a.ensureBranchScope(
+		r.Context(), principal, []string{payload.BranchID},
+	); err != nil {
+		a.writeWriteError(w, r, err)
+		return
+	}
 	person, err := a.Store.CreatePerson(
 		r.Context(), principal.Family.ID, principal.User.ID,
 		store.NewPerson{
@@ -116,6 +122,19 @@ func (a *API) addParentChild(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, r, http.StatusUnprocessableEntity, "INVALID_RELATIONSHIP", "parentRole must be father or mother")
 		return
 	}
+	childBranch, err := a.Store.PersonBranch(
+		r.Context(), principal.Family.ID, payload.ChildID,
+	)
+	if err != nil {
+		a.writeWriteError(w, r, err)
+		return
+	}
+	if err := a.ensureBranchScope(
+		r.Context(), principal, []string{childBranch},
+	); err != nil {
+		a.writeWriteError(w, r, err)
+		return
+	}
 	edge, err := a.Store.AddParentChild(
 		r.Context(), principal.Family.ID, principal.User.ID,
 		store.ParentChildInput{
@@ -150,6 +169,21 @@ func (a *API) addSpouse(w http.ResponseWriter, r *http.Request) {
 	payload.PersonBID = strings.TrimSpace(payload.PersonBID)
 	if payload.PersonAID == "" || payload.PersonBID == "" {
 		writeProblem(w, r, http.StatusUnprocessableEntity, "INVALID_RELATIONSHIP", "personAId and personBId are required")
+		return
+	}
+	branches := make([]string, 0, 2)
+	for _, personID := range []string{payload.PersonAID, payload.PersonBID} {
+		branchID, err := a.Store.PersonBranch(
+			r.Context(), principal.Family.ID, personID,
+		)
+		if err != nil {
+			a.writeWriteError(w, r, err)
+			return
+		}
+		branches = append(branches, branchID)
+	}
+	if err := a.ensureBranchScope(r.Context(), principal, branches); err != nil {
+		a.writeWriteError(w, r, err)
 		return
 	}
 	edge, err := a.Store.AddSpouse(
@@ -219,6 +253,8 @@ func (a *API) writeWriteError(w http.ResponseWriter, r *http.Request, err error)
 		writeProblem(w, r, http.StatusUnprocessableEntity, "RELATIONSHIP_CYCLE", "relationship would create a cycle")
 	case errors.Is(err, store.ErrInvalidRelationship):
 		writeProblem(w, r, http.StatusUnprocessableEntity, "INVALID_RELATIONSHIP", "relationship is not valid for this family")
+	case errors.Is(err, store.ErrForbidden):
+		writeProblem(w, r, http.StatusForbidden, "BRANCH_SCOPE_FORBIDDEN", "this branch is outside your admin scope")
 	default:
 		logError(a.Logger, r, "write operation failed", err)
 		writeProblem(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")

@@ -1,7 +1,7 @@
 name: family_tree
 description: "家族族谱 · 多家族 Flutter 移动端原型（iOS / Android）"
 publish_to: "none"
-version: 0.9.0+14
+version: 0.10.0+15
 
 environment:
   sdk: ^3.9.2

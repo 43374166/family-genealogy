@@ -18,6 +18,9 @@ class InvitePage extends StatefulWidget {
 
 class _InvitePageState extends State<InvitePage> {
   List<ApiInvite> _invites = const [];
+  List<ApiBranch> _branches = const [];
+  String _role = 'member';
+  String? _branchId;
   bool _loading = true;
   bool _creating = false;
   String? _error;
@@ -36,10 +39,14 @@ class _InvitePageState extends State<InvitePage> {
       _error = null;
     });
     try {
-      final invites = await SessionScope.of(context).invites();
+      final session = SessionScope.of(context);
+      final invites = await session.invites();
+      final branches = await session.branches();
       if (!mounted) return;
       setState(() {
         _invites = invites;
+        _branches = branches;
+        _branchId ??= branches.isNotEmpty ? branches.first.id : null;
         _loading = false;
       });
     } on ApiException catch (error) {
@@ -52,9 +59,18 @@ class _InvitePageState extends State<InvitePage> {
   }
 
   Future<void> _create() async {
+    if (_role == 'admin' && _branchId == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('请选择分支管理员管辖的家支')));
+      return;
+    }
     setState(() => _creating = true);
     try {
-      final invite = await SessionScope.of(context).createInvite();
+      final invite = await SessionScope.of(context).createInvite(
+        role: _role,
+        branchId: _role == 'admin' ? _branchId : null,
+      );
       if (!mounted) return;
       setState(() {
         _invites = [invite, ..._invites];
@@ -136,6 +152,61 @@ class _InvitePageState extends State<InvitePage> {
                           ),
                         ),
                         const SizedBox(height: 14),
+                        SoftCard(
+                          padding: const EdgeInsets.fromLTRB(15, 14, 15, 14),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                '邀请为',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.inkSoft,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  ChoiceChip(
+                                    label: const Text('普通成员'),
+                                    selected: _role == 'member',
+                                    onSelected: (_) =>
+                                        setState(() => _role = 'member'),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  ChoiceChip(
+                                    label: const Text('分支管理员'),
+                                    selected: _role == 'admin',
+                                    onSelected: (_) =>
+                                        setState(() => _role = 'admin'),
+                                  ),
+                                ],
+                              ),
+                              if (_role == 'admin') ...[
+                                const SizedBox(height: 10),
+                                DropdownButtonFormField<String>(
+                                  initialValue: _branchId,
+                                  decoration: const InputDecoration(
+                                    labelText: '管辖家支（含下级支）',
+                                    isDense: true,
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  items: [
+                                    for (final branch in _branches)
+                                      DropdownMenuItem(
+                                        value: branch.id,
+                                        child: Text(branch.name),
+                                      ),
+                                  ],
+                                  onChanged: (value) =>
+                                      setState(() => _branchId = value),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
                         FilledButton.icon(
                           onPressed: _creating ? null : _create,
                           icon: _creating
@@ -228,7 +299,9 @@ class _InviteCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 5),
                     Text(
-                      '已用 ${invite.usedCount}/${invite.maxUses} · '
+                      '${invite.role == 'admin' ? '分支管理员' : '普通成员'}'
+                      '${invite.branchName.isEmpty ? '' : ' · ${invite.branchName}'}'
+                      ' · 已用 ${invite.usedCount}/${invite.maxUses} · '
                       '${invite.expiresAt == null ? '永久' : _date(invite.expiresAt!)} 到期',
                       style: const TextStyle(
                         fontSize: 10,
