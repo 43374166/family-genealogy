@@ -1,6 +1,19 @@
 import 'package:family_tree/app.dart';
+import 'package:family_tree/services/app_session.dart';
+import 'package:family_tree/services/session_store.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+class _EmptySessionStore extends SessionStore {
+  @override
+  Future<StoredSession?> read() async => null;
+
+  @override
+  Future<void> save(StoredSession session) async {}
+
+  @override
+  Future<void> clear() async {}
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -11,7 +24,9 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    await tester.pumpWidget(const FamilyTreeApp());
+    final session = AppSession(store: _EmptySessionStore());
+    addTearDown(session.dispose);
+    await tester.pumpWidget(FamilyTreeApp(session: session));
     await tester.pumpAndSettle();
 
     expect(find.text('家族族谱'), findsOneWidget);

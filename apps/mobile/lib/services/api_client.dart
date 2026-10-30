@@ -37,6 +37,11 @@ class ApiClient {
   String get baseUrl => _baseUrl;
   String? get token => _token;
 
+  void configureSession({required String serverUrl, required String token}) {
+    _baseUrl = normalizeBaseUrl(serverUrl);
+    _token = token;
+  }
+
   Future<ApiSession> login({
     required String serverUrl,
     required String loginName,
@@ -78,7 +83,12 @@ class ApiClient {
       authenticated: false,
       body: {'phone': phone, 'code': code},
     );
-    return ApiSession.fromJson(body);
+    final session = ApiSession.fromJson(body);
+    if (session.token.isEmpty) {
+      throw const ApiException('登录响应缺少会话令牌');
+    }
+    _token = session.token;
+    return session;
   }
 
   Future<void> sendBindCode(String phone) async {

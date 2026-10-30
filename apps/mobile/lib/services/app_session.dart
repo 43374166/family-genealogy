@@ -3,16 +3,21 @@ import 'package:flutter/widgets.dart';
 import '../models/family_member.dart';
 import 'api_client.dart';
 import 'api_models.dart';
+import 'session_store.dart';
 
 class AppSession extends ChangeNotifier {
-  AppSession({ApiClient? api}) : _api = api ?? ApiClient();
+  AppSession({ApiClient? api, SessionStore? store})
+    : _api = api ?? ApiClient(),
+      _store = store ?? SessionStore();
 
   final ApiClient _api;
+  final SessionStore _store;
   ApiSession? _session;
   ApiMembership? _membership;
   ApiTree? _tree;
   ApiFamily? _family;
   bool _loading = false;
+  bool _restoring = false;
   String? _error;
 
   ApiUser? get user => _session?.user;
@@ -23,6 +28,7 @@ class AppSession extends ChangeNotifier {
   ApiTree? get tree => _tree;
   bool get isAuthenticated => _session != null;
   bool get loading => _loading;
+  bool get restoring => _restoring;
   String? get error => _error;
   String get serverUrl => _api.baseUrl;
 
@@ -55,6 +61,7 @@ class AppSession extends ChangeNotifier {
       } on ApiException catch (error) {
         _error = '登录成功，但族谱加载失败：${error.message}';
       }
+      await _persistSession();
       return true;
     } on ApiException catch (error) {
       _session = null;
@@ -193,6 +200,7 @@ class AppSession extends ChangeNotifier {
       _membership = me.membership;
       _family = me.family;
       await refreshTree();
+      await _persistSession();
       return true;
     } on ApiException catch (error) {
       _error = error.message;
@@ -201,6 +209,56 @@ class AppSession extends ChangeNotifier {
       _loading = false;
       notifyListeners();
     }
+  }
+
+  Future<void> restore() async {
+    if (_restoring) return;
+    _restoring = true;
+    _loading = true;
+    notifyListeners();
+    try {
+      final stored = await _store.read();
+      if (stored == null) return;
+      _api.configureSession(serverUrl: stored.serverUrl, token: stored.token);
+      final me = await _api.me();
+      _session = ApiSession(
+        token: stored.token,
+        expiresAt: stored.expiresAt,
+        user: me.user,
+        family: me.family,
+      );
+      _membership = me.membership;
+      _family = me.family;
+      try {
+        _tree = await _api.tree();
+      } on ApiException catch (error) {
+        _error = '已恢复登录，但族谱加载失败：${error.message}';
+      }
+    } on ApiException catch (error) {
+      if (error.statusCode == 401) {
+        await _store.clear();
+      } else {
+        _error = '自动登录失败：${error.message}';
+      }
+    } catch (_) {
+      _error = '自动登录失败，请重新登录';
+    } finally {
+      _restoring = false;
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _persistSession() async {
+    final session = _session;
+    if (session == null) return;
+    await _store.save(
+      StoredSession(
+        serverUrl: _api.baseUrl,
+        token: session.token,
+        expiresAt: session.expiresAt,
+      ),
+    );
   }
 
   Future<void> sendBindCode(String phone) {
@@ -401,6 +459,7 @@ class AppSession extends ChangeNotifier {
     try {
       await _api.logout();
     } finally {
+      await _store.clear();
       _session = null;
       _membership = null;
       _tree = null;

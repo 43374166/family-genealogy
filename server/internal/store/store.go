@@ -178,7 +178,10 @@ func (s *Store) GetPrincipal(ctx context.Context, tokenHash []byte) (*Principal,
 
 func (s *Store) TouchSession(ctx context.Context, sessionID string) error {
 	_, err := s.db.ExecContext(ctx,
-		`UPDATE user_sessions SET last_used_at = UTC_TIMESTAMP(6) WHERE id = ?`, sessionID)
+		`UPDATE user_sessions
+		 SET last_used_at = UTC_TIMESTAMP(6),
+		     expires_at = DATE_ADD(UTC_TIMESTAMP(6), INTERVAL 30 DAY)
+		 WHERE id = ?`, sessionID)
 	if err != nil {
 		return fmt.Errorf("touch session: %w", err)
 	}

@@ -99,5 +99,6 @@ data/backups/
 *.bak
 scratch/
 tmp/
+backups/
 
 # The app icon sources stay in assets; generated density variants are tracked.
