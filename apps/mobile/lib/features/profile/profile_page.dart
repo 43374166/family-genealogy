@@ -8,6 +8,7 @@ import '../../core/widgets/soft_card.dart';
 import '../../core/widgets/status_pill.dart';
 import '../../data/demo_data.dart';
 import '../../models/family_member.dart';
+import '../../services/app_session.dart';
 import '../person/person_detail_page.dart';
 import '../requests/requests_page.dart';
 import 'family_profile_sheet.dart';
@@ -18,6 +19,8 @@ class ProfilePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const person = DemoData.currentUser;
+    final session = SessionScope.of(context);
+    final familyName = session.family?.name ?? DemoData.family.name;
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -26,7 +29,7 @@ class ProfilePage extends StatelessWidget {
           children: [
             AppPageHeader(
               title: '我的',
-              subtitle: DemoData.family.name,
+              subtitle: familyName,
               showBack: false,
               padding: const EdgeInsets.fromLTRB(22, 8, 16, 8),
               actions: [
@@ -58,7 +61,7 @@ class ProfilePage extends StatelessWidget {
                           color: AppColors.jade,
                           background: AppColors.jadeSoft,
                           label: '家庭资料',
-                          trailing: DemoData.family.name,
+                          trailing: familyName,
                           onTap: () => showFamilyProfileSheet(context),
                         ),
                         const Divider(height: 1, indent: 47),
@@ -166,7 +169,7 @@ class ProfilePage extends StatelessWidget {
                         const SizedBox(width: 9),
                         Expanded(
                           child: Text(
-                            '当前为本地演示版本。账户体系、资料写入与审核流程将在 Go 服务端接入后启用。',
+                            '当前已连接家庭服务器。资料写入、关系维护与审核流程将在下一阶段启用。',
                             style: TextStyle(
                               fontSize: 10,
                               height: 1.65,
@@ -180,7 +183,7 @@ class ProfilePage extends StatelessWidget {
                   const SizedBox(height: 18),
                   Center(
                     child: TextButton(
-                      onPressed: () => _showLogout(context),
+                      onPressed: () => _showLogout(context, session),
                       style: TextButton.styleFrom(
                         foregroundColor: AppColors.inkMuted,
                       ),
@@ -206,6 +209,7 @@ class ProfilePage extends StatelessWidget {
   }
 
   void _showAbout(BuildContext context) {
+    final family = SessionScope.of(context).family;
     showModalBottomSheet<void>(
       context: context,
       builder: (context) => Container(
@@ -231,7 +235,7 @@ class ProfilePage extends StatelessWidget {
               ),
               child: Center(
                 child: Text(
-                  DemoData.family.surname,
+                  family?.surname ?? DemoData.family.surname,
                   style: const TextStyle(
                     fontFamily: AppTheme.serifFamily,
                     fontSize: 30,
@@ -242,17 +246,17 @@ class ProfilePage extends StatelessWidget {
             ),
             const SizedBox(height: 13),
             Text(
-              DemoData.family.name,
+              family?.name ?? DemoData.family.name,
               style: AppTheme.serif(fontSize: 22, letterSpacing: 1),
             ),
             const SizedBox(height: 5),
             const Text(
-              '家族族谱 · Flutter 原型 v0.4.0',
+              '家族族谱 · Flutter + MySQL v0.5.0',
               style: TextStyle(fontSize: 10.5, color: AppColors.inkMuted),
             ),
             const SizedBox(height: 16),
             const Text(
-              '以人物为中心，记录家族世系、生平与共同记忆。\n本版本仅用于 UI 与交互验证，尚未接入后端。',
+              '以人物为中心，记录家族世系、生平与共同记忆。\n当前已接入家庭服务器，写入与审核能力将在下一阶段开放。',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 11.5,
@@ -272,15 +276,15 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  void _showLogout(BuildContext context) {
-    showDialog<void>(
+  Future<void> _showLogout(BuildContext context, AppSession session) async {
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('演示模式', style: TextStyle(fontSize: 17)),
+        title: const Text('退出登录', style: TextStyle(fontSize: 17)),
         content: const Text(
-          '尚未接入账户服务，无法退出登录。',
+          '退出后需要重新输入家庭账户密码。',
           style: TextStyle(
             fontSize: 12.5,
             height: 1.6,
@@ -289,12 +293,19 @@ class ProfilePage extends StatelessWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('知道了'),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('退出'),
           ),
         ],
       ),
     );
+    if (confirmed == true) {
+      await session.logout();
+    }
   }
 }
 

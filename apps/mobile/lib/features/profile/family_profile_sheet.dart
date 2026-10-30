@@ -4,12 +4,9 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/status_pill.dart';
 import '../../data/demo_data.dart';
+import '../../services/app_session.dart';
 
 /// Shows the family space attached to the signed-in account.
-///
-/// This is intentionally read-only for now: the session and persistence layer
-/// are not connected yet, but the identity is no longer hard-coded into the
-/// product UI.
 Future<void> showFamilyProfileSheet(BuildContext context) {
   return showModalBottomSheet<void>(
     context: context,
@@ -23,8 +20,18 @@ class _FamilyProfileSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final family = DemoData.family;
-    final generations = DemoData.treeMembers
+    final session = SessionScope.of(context);
+    final family = session.family;
+    final surname = family?.surname ?? DemoData.family.surname;
+    final familyName = family?.name ?? DemoData.family.name;
+    final region = family?.region ?? DemoData.family.region;
+    final motto = family?.motto ?? DemoData.family.motto;
+    final memberCount = family?.memberCount ?? DemoData.family.memberCount;
+    final branchCount = family?.branchCount ?? DemoData.family.branchCount;
+    final members = session.treeMembers.isEmpty
+        ? DemoData.treeMembers
+        : session.treeMembers;
+    final generations = members
         .map((member) => member.generation)
         .toSet()
         .length;
@@ -73,7 +80,7 @@ class _FamilyProfileSheet extends StatelessWidget {
                   ],
                 ),
                 child: Text(
-                  family.surname,
+                  surname,
                   style: const TextStyle(
                     fontFamily: AppTheme.serifFamily,
                     fontSize: 28,
@@ -90,7 +97,7 @@ class _FamilyProfileSheet extends StatelessWidget {
                       children: [
                         Flexible(
                           child: Text(
-                            family.name,
+                            familyName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: AppTheme.serif(
@@ -109,7 +116,7 @@ class _FamilyProfileSheet extends StatelessWidget {
                     ),
                     const SizedBox(height: 5),
                     Text(
-                      '${family.region} · 由当前账户所属家庭提供',
+                      '$region · 由当前账户所属家庭提供',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -131,9 +138,9 @@ class _FamilyProfileSheet extends StatelessWidget {
             ),
             child: Row(
               children: [
-                _FamilyStat(value: '${family.memberCount}', label: '家族成员'),
+                _FamilyStat(value: '$memberCount', label: '家族成员'),
                 const _StatDivider(),
-                _FamilyStat(value: '${family.branchCount}', label: '家支'),
+                _FamilyStat(value: '$branchCount', label: '家支'),
                 const _StatDivider(),
                 _FamilyStat(value: '$generations', label: '已录入世代'),
               ],
@@ -160,10 +167,7 @@ class _FamilyProfileSheet extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 5),
-                Text(
-                  family.motto,
-                  style: AppTheme.serif(fontSize: 16, height: 1.6),
-                ),
+                Text(motto, style: AppTheme.serif(fontSize: 16, height: 1.6)),
               ],
             ),
           ),

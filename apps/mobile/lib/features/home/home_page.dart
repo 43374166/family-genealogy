@@ -7,6 +7,7 @@ import '../../core/widgets/soft_card.dart';
 import '../../core/widgets/status_pill.dart';
 import '../../data/demo_data.dart';
 import '../../models/family_activity.dart';
+import '../../services/app_session.dart';
 import '../gallery/gallery_page.dart';
 import '../profile/family_profile_sheet.dart';
 import '../requests/profile_edit_page.dart';
@@ -180,7 +181,12 @@ class _HomeTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const user = DemoData.currentUser;
+    final session = SessionScope.of(context);
+    const fallback = DemoData.currentUser;
+    final displayName = session.user?.displayName ?? fallback.name;
+    final role =
+        session.roleLabel ??
+        (fallback.tags.isEmpty ? '普通成员' : fallback.tags.first);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
@@ -191,7 +197,7 @@ class _HomeTopBar extends StatelessWidget {
             child: Row(
               children: [
                 InkPortrait(
-                  person: user,
+                  person: fallback,
                   width: 44,
                   height: 44,
                   circle: true,
@@ -202,7 +208,7 @@ class _HomeTopBar extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      user.name,
+                      displayName,
                       style: const TextStyle(
                         fontSize: 16,
                         height: 1.2,
@@ -214,7 +220,7 @@ class _HomeTopBar extends StatelessWidget {
                     Row(
                       children: [
                         Text(
-                          user.tags.isEmpty ? '普通成员' : user.tags.first,
+                          role,
                           style: const TextStyle(
                             fontSize: 11,
                             height: 1.2,
@@ -268,6 +274,9 @@ class _FamilyIdentity extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final family = SessionScope.of(context).family;
+    final familyName = family?.name ?? DemoData.family.name;
+    final motto = family?.motto ?? DemoData.family.motto;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 22),
       child: GestureDetector(
@@ -281,7 +290,7 @@ class _FamilyIdentity extends StatelessWidget {
               children: [
                 Flexible(
                   child: Text(
-                    DemoData.family.name,
+                    familyName,
                     style: AppTheme.serif(
                       fontSize: 42,
                       height: 1.08,
@@ -315,7 +324,7 @@ class _FamilyIdentity extends StatelessWidget {
                 ),
                 const SizedBox(width: 9),
                 Text(
-                  DemoData.family.motto,
+                  motto,
                   style: const TextStyle(
                     fontSize: 14.5,
                     height: 1.3,
@@ -397,6 +406,7 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final family = SessionScope.of(context).family;
     return SoftCard(
       margin: const EdgeInsets.symmetric(horizontal: 18),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 17),
@@ -410,7 +420,7 @@ class _SummaryCard extends StatelessWidget {
                 color: AppColors.primary,
                 softColor: AppColors.primarySoft,
                 label: '家族成员',
-                value: '${DemoData.family.memberCount}',
+                value: '${family?.memberCount ?? DemoData.family.memberCount}',
                 onTap: onMembersTap,
               ),
             ),
@@ -421,7 +431,7 @@ class _SummaryCard extends StatelessWidget {
                 color: AppColors.jade,
                 softColor: AppColors.jadeSoft,
                 label: '家支',
-                value: '${DemoData.family.branchCount}',
+                value: '${family?.branchCount ?? DemoData.family.branchCount}',
                 onTap: onBranchesTap,
               ),
             ),
@@ -919,6 +929,10 @@ class _HomeFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final family = SessionScope.of(context).family;
+    final subtitle = family != null && family.region.isNotEmpty
+        ? family.region
+        : DemoData.family.subtitle;
     return Column(
       children: [
         Row(
@@ -931,7 +945,7 @@ class _HomeFooter extends StatelessWidget {
             ),
             const SizedBox(width: 9),
             Text(
-              DemoData.family.subtitle,
+              subtitle,
               style: const TextStyle(
                 fontSize: 10,
                 letterSpacing: 1.5,
@@ -963,9 +977,12 @@ class _HomeFooter extends StatelessWidget {
 class _BranchSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final family = SessionScope.of(context).family;
     return _SheetFrame(
       title: '家支概览',
-      subtitle: '全族共 5 个家支 · 128 位成员',
+      subtitle:
+          '全族共 ${family?.branchCount ?? DemoData.family.branchCount} 个家支 · '
+          '${family?.memberCount ?? DemoData.family.memberCount} 位成员',
       child: Column(
         children: [
           for (var i = 0; i < DemoData.branches.length; i++) ...[
@@ -1029,7 +1046,7 @@ class _SettingsSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return _SheetFrame(
       title: '设置',
-      subtitle: '当前为本地演示模式',
+      subtitle: '已连接家庭服务器',
       child: Column(
         children: [
           _SettingsRow(icon: Icons.person_outline_rounded, label: '账户与资料'),
@@ -1038,7 +1055,7 @@ class _SettingsSheet extends StatelessWidget {
           _SettingsRow(icon: Icons.info_outline_rounded, label: '关于家族族谱'),
           const SizedBox(height: 12),
           const Text(
-            'v0.4.0 · Flutter 原型',
+            'v0.5.0 · Flutter + MySQL',
             style: TextStyle(fontSize: 11, color: AppColors.inkMuted),
           ),
         ],

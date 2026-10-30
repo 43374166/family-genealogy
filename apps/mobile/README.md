@@ -1,8 +1,7 @@
 # apps/mobile · Flutter（iOS / Android）
 
-「家族族谱」多家族 Flutter 移动端原型。APP 品牌不绑定任何姓氏；当前登录账户
-所属的家庭空间由 `DemoData.family` 提供，接入后端后由会话决定。目前以 Android
-为日常验证目标；iOS 工程已生成，并通过 GitHub Actions 的 macOS Runner 构建。
+「家族族谱」多家族 Flutter 移动端。登录、首页和族谱树已经接 MySQL + Go 的真实 API；
+其他页面仍使用演示数据。APP 品牌不绑定任何姓氏，当前家庭由登录账户决定。
 
 ## 运行
 
@@ -27,11 +26,28 @@ flutter --no-version-check analyze
 flutter --no-version-check test
 ```
 
+## 连接本地 API
+
+默认 API 地址为当前开发机 `http://192.168.1.201:8080`，登录页可直接修改服务器地址。
+Android 模拟器构建时建议覆盖为宿主机地址：
+
+```powershell
+flutter --no-version-check build apk --debug `
+  --dart-define=API_BASE_URL=http://10.0.2.2:8080
+```
+
+iOS 真机必须与电脑在同一局域网，并允许“本地网络”权限。当前为开发阶段，iOS
+`Info.plist` 和 Android Manifest 都临时允许明文 HTTP；生产环境必须改 HTTPS 并移除。
+
+演示账号：`zhangsan / Demo#2026`。会话令牌只保存在内存中，杀掉 App 后需要重新登录。
+
 ## 数据与后端
 
-`lib/data/demo_data.dart` 是纯静态演示数据。当前没有网络层，也没有真实登录、
-写入或文件上传；页面中相关入口会明确标注为原型能力。接入 Go API 后，应以
-Repository 替换 `DemoData`，并补齐加载态、错误态、空状态与权限数据。
+- `lib/services/api_client.dart`：登录与只读 API 客户端。
+- `lib/services/app_session.dart`：当前账户、家庭、族谱树和登录状态。
+- `lib/data/demo_data.dart`：尚未接 API 的页面仍从这里读取演示数据。
+
+资料申请、审核、写入和人物详情还没有接服务端；对应入口继续标注原型能力。
 
 ## 设计资产
 

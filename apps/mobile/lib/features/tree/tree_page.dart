@@ -9,6 +9,7 @@ import '../../core/widgets/ink_portrait.dart';
 import '../../core/widgets/soft_card.dart';
 import '../../data/demo_data.dart';
 import '../../models/family_member.dart';
+import '../../services/app_session.dart';
 import '../person/person_detail_page.dart';
 import '../search/member_search_page.dart';
 
@@ -241,9 +242,25 @@ class _TreePageState extends State<TreePage>
   int? _focusGeneration;
   Size _viewportSize = Size.zero;
   bool _fitScheduled = false;
+  Map<String, FamilyMember> _membersByPlacement = const {};
 
   FamilyMember? get _selected =>
-      _selectedId == null ? null : DemoData.memberById(_selectedId!);
+      _selectedId == null ? null : _membersByPlacement[_selectedId];
+
+  /// The tree artwork still uses the prototype's fixed geometry. Resolve each
+  /// fixture placement against the live family data by display name until the
+  /// relationship layout engine replaces the static coordinates.
+  Map<String, FamilyMember> _membersFrom(List<FamilyMember> members) {
+    final byName = {for (final member in members) member.name: member};
+    final result = <String, FamilyMember>{};
+    for (final placement in _placements) {
+      final fixture = DemoData.memberById(placement.id);
+      if (fixture == null) continue;
+      final live = byName[fixture.name];
+      if (live != null) result[placement.id] = live;
+    }
+    return result;
+  }
 
   void _clearSelection() {
     if (_selectedId == null) return;
@@ -275,9 +292,14 @@ class _TreePageState extends State<TreePage>
   @override
   Widget build(BuildContext context) {
     final topInset = MediaQuery.paddingOf(context).top;
+    final session = SessionScope.of(context);
+    _membersByPlacement = _membersFrom(session.treeMembers);
     final selected = _selected;
     final activeGeneration =
         selected?.generation ?? DemoData.currentUser.generation;
+    final familyName = session.family?.name ?? DemoData.family.name;
+    final memberCount =
+        session.family?.memberCount ?? DemoData.family.memberCount;
     return Scaffold(
       backgroundColor: AppColors.background,
       body: GestureDetector(
@@ -292,7 +314,7 @@ class _TreePageState extends State<TreePage>
                 children: [
                   _TreeHeader(
                     subtitle:
-                        '${DemoData.family.name} · ${FamilyMember.generationLabelFor(activeGeneration)} · 共 ${DemoData.family.memberCount} 人',
+                        '$familyName · ${FamilyMember.generationLabelFor(activeGeneration)} · 共 $memberCount 人',
                     onBack: widget.onBack,
                     onSearch: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
@@ -459,7 +481,7 @@ class _TreePageState extends State<TreePage>
   }
 
   Widget _buildNode(_TreePlacement placement) {
-    final member = DemoData.memberById(placement.id);
+    final member = _membersByPlacement[placement.id];
     if (member == null) return const SizedBox.shrink();
     final dimmed =
         _focusGeneration != null && member.generation != _focusGeneration;
@@ -610,7 +632,7 @@ class _TreePageState extends State<TreePage>
                 Text('世代目录', style: AppTheme.serif(fontSize: 21)),
                 const Spacer(),
                 Text(
-                  '共 15 位在世系节点',
+                  '共 ${_membersByPlacement.length} 位在世系节点',
                   style: const TextStyle(
                     fontSize: 9.5,
                     color: AppColors.inkMuted,
@@ -627,7 +649,7 @@ class _TreePageState extends State<TreePage>
             for (final generation in generations)
               _DirectoryRow(
                 generation: generation,
-                members: DemoData.treeMembers
+                members: _membersByPlacement.values
                     .where((member) => member.generation == generation)
                     .toList(),
                 selected: _focusGeneration == generation,

@@ -45,5 +45,14 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Development only: the family server is currently plain HTTP on the LAN.
+	     Remove NSAllowsArbitraryLoads when the API is served over HTTPS. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>用于连接家庭服务器并读取族谱数据。</string>
 </dict>
 </plist>
