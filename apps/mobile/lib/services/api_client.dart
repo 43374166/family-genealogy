@@ -71,6 +71,45 @@ class ApiClient {
     return ApiMe.fromJson(body);
   }
 
+  Future<ApiImportPackage> createImportPackage(String rootPersonId) async {
+    final body = await _request(
+      'POST',
+      '/api/v1/import-packages',
+      body: {'rootPersonId': rootPersonId},
+    );
+    return ApiImportPackage.fromJson(body);
+  }
+
+  Future<ApiImportPreview> previewImportPackage(String code) async {
+    final body = await _request(
+      'POST',
+      '/api/v1/import-packages/preview',
+      body: {'code': code},
+    );
+    return ApiImportPreview.fromJson(body);
+  }
+
+  Future<ApiImportResult> importPackage({
+    required String code,
+    required String branchId,
+    required int rootGeneration,
+    String parentId = '',
+    String parentRole = '',
+  }) async {
+    final body = await _request(
+      'POST',
+      '/api/v1/import-packages/import',
+      body: {
+        'code': code,
+        'branchId': branchId,
+        'rootGeneration': rootGeneration,
+        'parentId': parentId,
+        'parentRole': parentRole,
+      },
+    );
+    return ApiImportResult.fromJson(body);
+  }
+
   Future<ApiMe> joinFamily(String inviteCode) async {
     final body = await _request(
       'POST',

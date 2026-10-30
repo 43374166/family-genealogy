@@ -435,6 +435,41 @@ class AppSession extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<ApiImportPackage> createImportPackage(String rootPersonId) {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    return _api.createImportPackage(rootPersonId);
+  }
+
+  Future<ApiImportPreview> previewImportPackage(String code) {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    return _api.previewImportPackage(code);
+  }
+
+  Future<ApiImportResult> importPackage({
+    required String code,
+    required String branchId,
+    required int rootGeneration,
+    String parentId = '',
+    String parentRole = '',
+  }) async {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    final result = await _api.importPackage(
+      code: code,
+      branchId: branchId,
+      rootGeneration: rootGeneration,
+      parentId: parentId,
+      parentRole: parentRole,
+    );
+    await refreshTree();
+    return result;
+  }
+
   Future<ApiMe> joinFamily(String inviteCode) async {
     final me = await _api.joinFamily(inviteCode);
     _applyMe(me);

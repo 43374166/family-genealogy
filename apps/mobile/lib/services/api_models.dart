@@ -302,6 +302,110 @@ class ApiBranchAdminGrantPage {
   }
 }
 
+class ApiImportPackage {
+  const ApiImportPackage({
+    required this.code,
+    required this.sourceFamilyName,
+    required this.rootName,
+    required this.personCount,
+    required this.relationshipCount,
+    required this.expiresAt,
+  });
+
+  final String code;
+  final String sourceFamilyName;
+  final String rootName;
+  final int personCount;
+  final int relationshipCount;
+  final DateTime? expiresAt;
+
+  factory ApiImportPackage.fromJson(Map<String, dynamic> json) {
+    return ApiImportPackage(
+      code: _string(json['code']),
+      sourceFamilyName: _string(json['sourceFamilyName']),
+      rootName: _string(json['rootName']),
+      personCount: _int(json['personCount']),
+      relationshipCount: _int(json['relationshipCount']),
+      expiresAt: DateTime.tryParse(_string(json['expiresAt'])),
+    );
+  }
+}
+
+class ApiImportPersonPreview {
+  const ApiImportPersonPreview({
+    required this.fullName,
+    required this.generationNo,
+    required this.relation,
+  });
+
+  final String fullName;
+  final int generationNo;
+  final String relation;
+
+  factory ApiImportPersonPreview.fromJson(Map<String, dynamic> json) {
+    return ApiImportPersonPreview(
+      fullName: _string(json['fullName']),
+      generationNo: _int(json['generationNo']),
+      relation: _string(json['relation']),
+    );
+  }
+}
+
+class ApiImportPreview {
+  const ApiImportPreview({
+    required this.code,
+    required this.sourceFamilyName,
+    required this.rootName,
+    required this.personCount,
+    required this.relationshipCount,
+    required this.expiresAt,
+    required this.persons,
+  });
+
+  final String code;
+  final String sourceFamilyName;
+  final String rootName;
+  final int personCount;
+  final int relationshipCount;
+  final DateTime? expiresAt;
+  final List<ApiImportPersonPreview> persons;
+
+  factory ApiImportPreview.fromJson(Map<String, dynamic> json) {
+    return ApiImportPreview(
+      code: _string(json['code']),
+      sourceFamilyName: _string(json['sourceFamilyName']),
+      rootName: _string(json['rootName']),
+      personCount: _int(json['personCount']),
+      relationshipCount: _int(json['relationshipCount']),
+      expiresAt: DateTime.tryParse(_string(json['expiresAt'])),
+      persons: _list(json['persons'], ApiImportPersonPreview.fromJson),
+    );
+  }
+}
+
+class ApiImportResult {
+  const ApiImportResult({
+    required this.sourceFamilyName,
+    required this.personCount,
+    required this.rootName,
+    required this.rootGeneration,
+  });
+
+  final String sourceFamilyName;
+  final int personCount;
+  final String rootName;
+  final int rootGeneration;
+
+  factory ApiImportResult.fromJson(Map<String, dynamic> json) {
+    return ApiImportResult(
+      sourceFamilyName: _string(json['sourceFamilyName']),
+      personCount: _int(json['personCount']),
+      rootName: _string(json['rootName']),
+      rootGeneration: _int(json['rootGeneration']),
+    );
+  }
+}
+
 class ApiRegistration {
   const ApiRegistration({required this.user, required this.family});
 

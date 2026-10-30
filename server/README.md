@@ -20,6 +20,9 @@
 - `POST /api/v1/auth/switch-family`（切换当前家族）
 - `GET /api/v1/families`、`POST /api/v1/families`（列出/创建家族）
 - `POST /api/v1/families/join`（登录后用邀请码加入另一个家族）
+- `POST /api/v1/import-packages`（源家族族长生成旁支数据导入码）
+- `POST /api/v1/import-packages/preview`（目标家族族长预览）
+- `POST /api/v1/import-packages/import`（选择分支/世代/挂靠父辈，事务导入）
 - `POST /api/v1/auth/sms/send`、`POST /api/v1/auth/sms/login`（手机号验证码登录）
 - `POST /api/v1/auth/phone/send`、`POST /api/v1/auth/phone/bind`（登录后绑定手机号）
 - `POST /api/v1/auth/logout`

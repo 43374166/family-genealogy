@@ -112,7 +112,7 @@ func (s *Store) GetPreferredMembership(
 		if err == nil {
 			return membership, family, nil
 		}
-		if !errors.Is(err, ErrNoMembership) {
+		if !errors.Is(err, ErrNoMembership) && !errors.Is(err, ErrNotFound) {
 			return nil, nil, err
 		}
 	}
@@ -247,6 +247,9 @@ func (s *Store) ListUserFamilies(
 			return nil, fmt.Errorf("scan user family: %w", err)
 		}
 		family, err := s.GetFamily(ctx, familyID)
+		if errors.Is(err, ErrNotFound) {
+			continue
+		}
 		if err != nil {
 			return nil, err
 		}

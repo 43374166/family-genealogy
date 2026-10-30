@@ -12,7 +12,9 @@ import '../../services/app_session.dart';
 import '../family/bind_person_page.dart';
 import '../family/binding_requests_page.dart';
 import '../family/branch_admins_page.dart';
+import '../family/export_family_page.dart';
 import '../family/family_switch_page.dart';
+import '../family/import_family_page.dart';
 import '../family/invite_page.dart';
 import '../family/phone_bind_page.dart';
 import '../person/api_person_detail_page.dart';
@@ -129,6 +131,32 @@ class ProfilePage extends StatelessWidget {
                             onTap: () => Navigator.of(context).push(
                               MaterialPageRoute<void>(
                                 builder: (_) => const BranchAdminsPage(),
+                              ),
+                            ),
+                          ),
+                          const Divider(height: 1, indent: 47),
+                          _MenuRow(
+                            icon: Icons.ios_share_rounded,
+                            color: AppColors.teal,
+                            background: AppColors.tealSoft,
+                            label: '导出旁支数据',
+                            trailing: '生成导入码',
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => const ExportFamilyPage(),
+                              ),
+                            ),
+                          ),
+                          const Divider(height: 1, indent: 47),
+                          _MenuRow(
+                            icon: Icons.move_to_inbox_outlined,
+                            color: AppColors.primary,
+                            background: AppColors.primarySoft,
+                            label: '导入旁支数据',
+                            trailing: '选择分支/世代',
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => const ImportFamilyPage(),
                               ),
                             ),
                           ),
@@ -377,7 +405,7 @@ class ProfilePage extends StatelessWidget {
             ),
             const SizedBox(height: 5),
             const Text(
-              '家族族谱 · Flutter + MySQL v0.19.0',
+              '家族族谱 · Flutter + MySQL v0.20.0',
               style: TextStyle(fontSize: 10.5, color: AppColors.inkMuted),
             ),
             const SizedBox(height: 16),
