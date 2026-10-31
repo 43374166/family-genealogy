@@ -3,12 +3,100 @@ package store
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 )
+
+func (s *Store) ChangePassword(
+	ctx context.Context, userID, currentSessionID, passwordHash string,
+) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin password change: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE users
+		SET password_hash = ?, failed_login_attempts = 0, locked_until = NULL
+		WHERE id = ? AND status = 'active'`, passwordHash, userID); err != nil {
+		return fmt.Errorf("change password: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE user_sessions SET revoked_at = UTC_TIMESTAMP(6)
+		WHERE user_id = ? AND id <> ? AND revoked_at IS NULL`,
+		userID, currentSessionID); err != nil {
+		return fmt.Errorf("revoke other sessions: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit password change: %w", err)
+	}
+	return nil
+}
+
+func (s *Store) TransferFamilyOwner(
+	ctx context.Context, familyID, currentOwnerID, targetUserID string, meta AuditMeta,
+) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin owner transfer: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	var role string
+	if err := tx.QueryRowContext(ctx, `
+		SELECT role FROM family_memberships
+		WHERE family_id = ? AND user_id = ? AND status = 'active'
+		FOR UPDATE`, familyID, currentOwnerID,
+	).Scan(&role); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrForbidden
+		}
+		return fmt.Errorf("lock current owner: %w", err)
+	}
+	if role != "owner" {
+		return ErrForbidden
+	}
+	var targetRole string
+	if err := tx.QueryRowContext(ctx, `
+		SELECT role FROM family_memberships
+		WHERE family_id = ? AND user_id = ? AND status = 'active'
+		FOR UPDATE`, familyID, targetUserID,
+	).Scan(&targetRole); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound
+		}
+		return fmt.Errorf("lock target owner: %w", err)
+	}
+	if targetUserID == currentOwnerID {
+		return ErrInvalidRequest
+	}
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE family_memberships SET role = 'member'
+		WHERE family_id = ? AND user_id = ? AND status = 'active'`,
+		familyID, currentOwnerID); err != nil {
+		return fmt.Errorf("demote current owner: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE family_memberships SET role = 'owner'
+		WHERE family_id = ? AND user_id = ? AND status = 'active'`,
+		familyID, targetUserID); err != nil {
+		return fmt.Errorf("promote target owner: %w", err)
+	}
+	after, _ := json.Marshal(map[string]any{
+		"fromUserId": currentOwnerID, "toUserId": targetUserID,
+	})
+	if err := insertAudit(ctx, tx, familyID, currentOwnerID, "family.owner_transferred",
+		"family", familyID, "", nil, after, meta); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit owner transfer: %w", err)
+	}
+	return nil
+}
 
 func (s *Store) LoginLockedUntil(ctx context.Context, loginName string) (time.Time, error) {
 	var locked sql.NullTime

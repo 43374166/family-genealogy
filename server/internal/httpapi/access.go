@@ -232,6 +232,84 @@ func (a *API) resetPassword(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+type changePasswordRequest struct {
+	CurrentPassword string `json:"currentPassword"`
+	NewPassword     string `json:"newPassword"`
+}
+
+func (a *API) changePassword(w http.ResponseWriter, r *http.Request) {
+	principal, ok := principalFrom(r.Context())
+	if !ok {
+		writeProblem(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "not authenticated")
+		return
+	}
+	var payload changePasswordRequest
+	if err := decodeJSON(w, r, &payload); err != nil {
+		writeProblem(w, r, http.StatusBadRequest, "INVALID_JSON", err.Error())
+		return
+	}
+	if len(payload.NewPassword) < 8 || len(payload.NewPassword) > 256 {
+		writeProblem(w, r, http.StatusUnprocessableEntity, "INVALID_PASSWORD", "new password must be between 8 and 256 characters")
+		return
+	}
+	user, hash, err := a.Store.GetLoginUser(r.Context(), principal.User.LoginName)
+	if err != nil || user.ID != principal.User.ID {
+		writeProblem(w, r, http.StatusUnauthorized, "INVALID_CREDENTIALS", "current password is incorrect")
+		return
+	}
+	okPassword, err := auth.VerifyPassword(hash, payload.CurrentPassword)
+	if err != nil || !okPassword {
+		writeProblem(w, r, http.StatusUnauthorized, "INVALID_CREDENTIALS", "current password is incorrect")
+		return
+	}
+	newHash, err := auth.HashPassword(payload.NewPassword)
+	if err != nil {
+		writeProblem(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		return
+	}
+	if err := a.Store.ChangePassword(
+		r.Context(), principal.User.ID, principal.SessionID, newHash,
+	); err != nil {
+		a.writeAccessError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+type transferOwnerRequest struct {
+	UserID string `json:"userId"`
+}
+
+func (a *API) transferFamilyOwner(w http.ResponseWriter, r *http.Request) {
+	principal, ok := principalFrom(r.Context())
+	if !ok {
+		writeProblem(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "not authenticated")
+		return
+	}
+	if principal.Membership.Role != "owner" {
+		writeProblem(w, r, http.StatusForbidden, "OWNER_REQUIRED", "only the family owner can transfer ownership")
+		return
+	}
+	var payload transferOwnerRequest
+	if err := decodeJSON(w, r, &payload); err != nil {
+		writeProblem(w, r, http.StatusBadRequest, "INVALID_JSON", err.Error())
+		return
+	}
+	payload.UserID = strings.TrimSpace(payload.UserID)
+	if payload.UserID == "" {
+		writeProblem(w, r, http.StatusUnprocessableEntity, "USER_REQUIRED", "userId is required")
+		return
+	}
+	if err := a.Store.TransferFamilyOwner(
+		r.Context(), principal.Family.ID, principal.User.ID,
+		payload.UserID, auditMeta(r),
+	); err != nil {
+		a.writeAccessError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 type deleteAccountRequest struct {
 	Password string `json:"password"`
 }

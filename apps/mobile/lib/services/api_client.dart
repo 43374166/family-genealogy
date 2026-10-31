@@ -106,6 +106,25 @@ class ApiClient {
     }
   }
 
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    await _request(
+      'POST',
+      '/api/v1/me/password',
+      body: {'currentPassword': currentPassword, 'newPassword': newPassword},
+    );
+  }
+
+  Future<void> transferOwner(String familyId, String userId) async {
+    await _request(
+      'POST',
+      '/api/v1/families/${Uri.encodeComponent(familyId)}/transfer-owner',
+      body: {'userId': userId},
+    );
+  }
+
   Future<String> createRecoveryCode() async {
     final body = await _request('POST', '/api/v1/auth/recovery-code');
     return body['code'] as String? ?? '';

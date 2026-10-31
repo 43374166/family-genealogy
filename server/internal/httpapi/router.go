@@ -109,6 +109,8 @@ func NewRouter(deps Dependencies) http.Handler {
 			r.Post("/bind-requests/{requestID}/reject", api.rejectBindingRequest)
 			r.Get("/me", api.me)
 			r.Delete("/me", api.deleteAccount)
+			r.Post("/me/password", api.changePassword)
+			r.Post("/families/{familyID}/transfer-owner", api.transferFamilyOwner)
 			r.Post("/auth/accept-terms", api.acceptTerms)
 			r.Post("/auth/recovery-code", api.createRecoveryCode)
 			r.Get("/family", api.getFamily)

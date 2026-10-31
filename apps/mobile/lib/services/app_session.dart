@@ -39,6 +39,32 @@ class AppSession extends ChangeNotifier {
   bool get termsAccepted => user?.termsAccepted ?? false;
   int get unreadNotifications => _unreadNotifications;
 
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    return _api.changePassword(
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+    );
+  }
+
+  Future<void> transferOwner(String userId) async {
+    final familyId = family?.id;
+    if (familyId == null) {
+      throw const ApiException('当前没有可管理的家族');
+    }
+    await _api.transferOwner(familyId, userId);
+    final me = await _api.me();
+    _applyMe(me);
+    await refreshTree();
+    await reloadFamilies();
+    notifyListeners();
+  }
+
   Future<String> createRecoveryCode() async {
     if (!isAuthenticated) {
       throw const ApiException('登录状态已失效，请重新登录');

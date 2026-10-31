@@ -9,19 +9,21 @@ import '../../services/app_settings.dart';
 import '../family/bind_person_page.dart';
 import '../family/binding_requests_page.dart';
 import '../family/branch_admins_page.dart';
+import '../family/transfer_owner_page.dart';
 import '../family/export_family_page.dart';
 import '../family/family_switch_page.dart';
 import '../family/import_family_page.dart';
 import '../family/invite_page.dart';
 import '../family/phone_bind_page.dart';
 import '../legal/account_deletion_page.dart';
+import '../legal/change_password_page.dart';
 import '../legal/legal_page.dart';
 import '../person/api_person_detail_page.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
 
-  static const _version = '0.30.0';
+  static const _version = '0.31.0';
 
   Future<void> _pickTextSize(BuildContext context) async {
     final settings = SettingsScope.of(context);
@@ -239,6 +241,17 @@ class SettingsPage extends StatelessWidget {
                         ),
                         const Divider(height: 1, indent: 47),
                         _SettingRow(
+                          icon: Icons.password_rounded,
+                          label: '修改密码',
+                          trailing: '定期更换',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const ChangePasswordPage(),
+                            ),
+                          ),
+                        ),
+                        const Divider(height: 1, indent: 47),
+                        _SettingRow(
                           icon: Icons.person_pin_circle_outlined,
                           label: '绑定族谱人物',
                           trailing: linkedId == null
@@ -388,6 +401,17 @@ class SettingsPage extends StatelessWidget {
                               onTap: () => Navigator.of(context).push(
                                 MaterialPageRoute<void>(
                                   builder: (_) => const InvitePage(),
+                                ),
+                              ),
+                            ),
+                            const Divider(height: 1, indent: 47),
+                            _SettingRow(
+                              icon: Icons.swap_horiz_rounded,
+                              label: '转让族长',
+                              trailing: '交给其他成员',
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const TransferOwnerPage(),
                                 ),
                               ),
                             ),
