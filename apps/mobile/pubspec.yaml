@@ -1,7 +1,7 @@
 name: family_tree
 description: "家族族谱 · 多家族 Flutter 移动端原型（iOS / Android）"
 publish_to: "none"
-version: 0.31.0+36
+version: 0.32.0+37
 
 environment:
   sdk: ^3.9.2
@@ -18,6 +18,8 @@ dependencies:
   mobile_scanner: ^7.4.2
   image_picker: ^1.2.2
   shared_preferences: ^2.5.5
+  share_plus: ^12.0.2
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:

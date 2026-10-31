@@ -111,6 +111,8 @@ func NewRouter(deps Dependencies) http.Handler {
 			r.Delete("/me", api.deleteAccount)
 			r.Post("/me/password", api.changePassword)
 			r.Post("/families/{familyID}/transfer-owner", api.transferFamilyOwner)
+			r.Get("/families/{familyID}/export", api.exportFamily)
+			r.Post("/families/{familyID}/archive", api.archiveFamily)
 			r.Post("/auth/accept-terms", api.acceptTerms)
 			r.Post("/auth/recovery-code", api.createRecoveryCode)
 			r.Get("/family", api.getFamily)

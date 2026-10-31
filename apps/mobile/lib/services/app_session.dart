@@ -52,6 +52,30 @@ class AppSession extends ChangeNotifier {
     );
   }
 
+  Future<Map<String, dynamic>> exportFamily() async {
+    final familyId = family?.id;
+    if (familyId == null) {
+      throw const ApiException('当前没有可导出的家族');
+    }
+    return _api.exportFamily(familyId);
+  }
+
+  Future<void> archiveFamily({
+    required String password,
+    required String confirmName,
+  }) async {
+    final familyId = family?.id;
+    if (familyId == null) {
+      throw const ApiException('当前没有可注销的家族');
+    }
+    await _api.archiveFamily(
+      familyId: familyId,
+      password: password,
+      confirmName: confirmName,
+    );
+    await _stopAccount();
+  }
+
   Future<void> transferOwner(String userId) async {
     final familyId = family?.id;
     if (familyId == null) {

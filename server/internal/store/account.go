@@ -11,6 +11,76 @@ import (
 	"github.com/google/uuid"
 )
 
+func (s *Store) ArchiveFamilyAndDeleteAccount(
+	ctx context.Context, familyID, userID, passwordHash string, meta AuditMeta,
+) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin family archive: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var role string
+	var familyStatus string
+	if err := tx.QueryRowContext(ctx, `
+		SELECT m.role, f.status
+		FROM family_memberships m JOIN families f ON f.id = m.family_id
+		WHERE m.family_id = ? AND m.user_id = ? AND m.status = 'active'
+		FOR UPDATE`, familyID, userID,
+	).Scan(&role, &familyStatus); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrForbidden
+		}
+		return fmt.Errorf("lock archive family: %w", err)
+	}
+	if role != "owner" || familyStatus != "active" {
+		return ErrForbidden
+	}
+	var activeMembers int
+	if err := tx.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM family_memberships
+		WHERE family_id = ? AND status = 'active'`, familyID,
+	).Scan(&activeMembers); err != nil {
+		return fmt.Errorf("count archive members: %w", err)
+	}
+	if activeMembers != 1 {
+		return ErrConflict
+	}
+	after, _ := json.Marshal(map[string]any{"status": "archived"})
+	if err := insertAudit(ctx, tx, familyID, userID, "family.archived",
+		"family", familyID, "", nil, after, meta); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE families SET status = 'archived' WHERE id = ?`, familyID); err != nil {
+		return fmt.Errorf("archive family: %w", err)
+	}
+	statements := []string{
+		`DELETE FROM notifications WHERE user_id = ?`,
+		`DELETE FROM user_sessions WHERE user_id = ?`,
+		`DELETE FROM branch_admin_grants WHERE user_id = ?`,
+		`DELETE FROM family_memberships WHERE user_id = ?`,
+	}
+	for _, statement := range statements {
+		if _, err := tx.ExecContext(ctx, statement, userID); err != nil {
+			return fmt.Errorf("archive account relations: %w", err)
+		}
+	}
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE users
+		SET login_name = ?, display_name = '已注销用户', phone = NULL,
+		    email = NULL, password_hash = ?, status = 'disabled',
+		    phone_verified_at = NULL, terms_accepted_at = NULL, terms_version = ''
+		WHERE id = ? AND status = 'active'`,
+		"deleted_"+uuid.NewString(), passwordHash, userID); err != nil {
+		return fmt.Errorf("archive account anonymize: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit family archive: %w", err)
+	}
+	return nil
+}
+
 func (s *Store) ChangePassword(
 	ctx context.Context, userID, currentSessionID, passwordHash string,
 ) error {

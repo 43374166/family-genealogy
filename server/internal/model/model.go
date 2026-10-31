@@ -148,6 +148,18 @@ type Story struct {
 	UpdatedAt    time.Time `json:"updatedAt"`
 }
 
+type FamilyExport struct {
+	Version     int               `json:"version"`
+	ExportedAt  time.Time         `json:"exportedAt"`
+	Family      Family            `json:"family"`
+	Branches    []Branch          `json:"branches"`
+	Persons     []Person          `json:"persons"`
+	ParentChild []ParentChildEdge `json:"parentChild"`
+	Spouses     []SpouseEdge      `json:"spouses"`
+	Stories     []Story           `json:"stories"`
+	Photos      []Photo           `json:"photos"`
+}
+
 type Activity struct {
 	ID          int64     `json:"id"`
 	Action      string    `json:"action"`

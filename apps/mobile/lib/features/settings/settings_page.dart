@@ -8,7 +8,9 @@ import '../../services/app_session.dart';
 import '../../services/app_settings.dart';
 import '../family/bind_person_page.dart';
 import '../family/binding_requests_page.dart';
+import '../family/archive_family_page.dart';
 import '../family/branch_admins_page.dart';
+import '../family/export_data_page.dart';
 import '../family/transfer_owner_page.dart';
 import '../family/export_family_page.dart';
 import '../family/family_switch_page.dart';
@@ -23,7 +25,7 @@ import '../person/api_person_detail_page.dart';
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
 
-  static const _version = '0.31.0';
+  static const _version = '0.32.0';
 
   Future<void> _pickTextSize(BuildContext context) async {
     final settings = SettingsScope.of(context);
@@ -423,6 +425,28 @@ class SettingsPage extends StatelessWidget {
                               onTap: () => Navigator.of(context).push(
                                 MaterialPageRoute<void>(
                                   builder: (_) => const BranchAdminsPage(),
+                                ),
+                              ),
+                            ),
+                            const Divider(height: 1, indent: 47),
+                            _SettingRow(
+                              icon: Icons.file_download_outlined,
+                              label: '导出家族数据',
+                              trailing: 'JSON 文件',
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const ExportDataPage(),
+                                ),
+                              ),
+                            ),
+                            const Divider(height: 1, indent: 47),
+                            _SettingRow(
+                              icon: Icons.archive_outlined,
+                              label: '注销家族',
+                              trailing: '归档保留审计',
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const ArchiveFamilyPage(),
                                 ),
                               ),
                             ),

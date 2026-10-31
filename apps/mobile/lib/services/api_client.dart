@@ -117,6 +117,25 @@ class ApiClient {
     );
   }
 
+  Future<Map<String, dynamic>> exportFamily(String familyId) async {
+    return _request(
+      'GET',
+      '/api/v1/families/${Uri.encodeComponent(familyId)}/export',
+    );
+  }
+
+  Future<void> archiveFamily({
+    required String familyId,
+    required String password,
+    required String confirmName,
+  }) async {
+    await _request(
+      'POST',
+      '/api/v1/families/${Uri.encodeComponent(familyId)}/archive',
+      body: {'password': password, 'confirmName': confirmName},
+    );
+  }
+
   Future<void> transferOwner(String familyId, String userId) async {
     await _request(
       'POST',
