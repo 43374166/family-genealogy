@@ -102,3 +102,6 @@ tmp/
 backups/
 
 # The app icon sources stay in assets; generated density variants are tracked.
+apps/mobile/android/key.properties
+apps/mobile/android/keystore/
+secrets/
