@@ -8,6 +8,7 @@ import '../../core/widgets/status_pill.dart';
 import '../../services/api_client.dart';
 import '../../services/api_models.dart';
 import '../../services/app_session.dart';
+import '../../core/lunar/lunar_utils.dart';
 import '../gallery/gallery_page.dart';
 import 'edit_person_page.dart';
 
@@ -855,12 +856,8 @@ String _lifespan(ApiPerson person) {
 }
 
 String _dateText(ApiPartialDate? date, String fallback) {
-  if (date == null) return fallback;
-  if (date.text.isNotEmpty) return date.text;
-  if (date.year == null) return fallback;
-  if (date.month == null) return '${date.year} 年';
-  if (date.day == null) return '${date.year}-${date.month}';
-  return '${date.year}-${date.month}-${date.day}';
+  if (date == null || date.year == null) return fallback;
+  return LunarDateUtils.describe(date);
 }
 
 String _orUnknown(String value) => value.isEmpty ? '未记录' : value;

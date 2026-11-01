@@ -8,24 +8,32 @@ import (
 )
 
 type createProfileRequestPayload struct {
-	PersonID     string `json:"personId"`
-	Surname      string `json:"surname"`
-	GivenName    string `json:"givenName"`
-	CourtesyName string `json:"courtesyName"`
-	Alias        string `json:"alias"`
-	Gender       string `json:"gender"`
-	GenerationNo int    `json:"generationNo"`
-	BranchID     string `json:"branchId"`
-	BirthOrder   *int   `json:"birthOrder"`
-	BirthYear    *int   `json:"birthYear"`
-	DeathYear    *int   `json:"deathYear"`
-	LifeStatus   string `json:"lifeStatus"`
-	BirthPlace   string `json:"birthPlace"`
-	Residence    string `json:"residence"`
-	Occupation   string `json:"occupation"`
-	Education    string `json:"education"`
-	Biography    string `json:"biography"`
-	Version      int    `json:"version"`
+	PersonID         string `json:"personId"`
+	Surname          string `json:"surname"`
+	GivenName        string `json:"givenName"`
+	CourtesyName     string `json:"courtesyName"`
+	Alias            string `json:"alias"`
+	Gender           string `json:"gender"`
+	GenerationNo     int    `json:"generationNo"`
+	BranchID         string `json:"branchId"`
+	BirthOrder       *int   `json:"birthOrder"`
+	BirthYear        *int   `json:"birthYear"`
+	BirthMonth       *int   `json:"birthMonth"`
+	BirthDay         *int   `json:"birthDay"`
+	BirthCalendar    string `json:"birthCalendar"`
+	BirthIsLeapMonth bool   `json:"birthIsLeapMonth"`
+	DeathYear        *int   `json:"deathYear"`
+	DeathMonth       *int   `json:"deathMonth"`
+	DeathDay         *int   `json:"deathDay"`
+	DeathCalendar    string `json:"deathCalendar"`
+	DeathIsLeapMonth bool   `json:"deathIsLeapMonth"`
+	LifeStatus       string `json:"lifeStatus"`
+	BirthPlace       string `json:"birthPlace"`
+	Residence        string `json:"residence"`
+	Occupation       string `json:"occupation"`
+	Education        string `json:"education"`
+	Biography        string `json:"biography"`
+	Version          int    `json:"version"`
 }
 
 func (a *API) createProfileRequest(w http.ResponseWriter, r *http.Request) {
@@ -63,7 +71,13 @@ func (a *API) createProfileRequest(w http.ResponseWriter, r *http.Request) {
 		CourtesyName: payload.CourtesyName, Alias: payload.Alias,
 		Gender: payload.Gender, GenerationNo: payload.GenerationNo,
 		BranchID: payload.BranchID, BirthOrder: payload.BirthOrder,
-		BirthYear: payload.BirthYear, Biography: payload.Biography,
+		BirthYear: payload.BirthYear, BirthMonth: payload.BirthMonth,
+		BirthDay: payload.BirthDay, BirthCalendar: payload.BirthCalendar,
+		BirthIsLeapMonth: payload.BirthIsLeapMonth,
+		DeathYear:        payload.DeathYear, DeathMonth: payload.DeathMonth,
+		DeathDay: payload.DeathDay, DeathCalendar: payload.DeathCalendar,
+		DeathIsLeapMonth: payload.DeathIsLeapMonth,
+		LifeStatus:       payload.LifeStatus, Biography: payload.Biography,
 	}); err != nil {
 		writeProblem(w, r, http.StatusUnprocessableEntity, "INVALID_PERSON", err.Error())
 		return
@@ -72,12 +86,10 @@ func (a *API) createProfileRequest(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, r, http.StatusUnprocessableEntity, "INVALID_LIFE_STATUS", "invalid life status")
 		return
 	}
-	if payload.DeathYear != nil && payload.LifeStatus != "deceased" {
+	if payload.LifeStatus != "deceased" {
 		payload.DeathYear = nil
-	}
-	if payload.DeathYear != nil && (*payload.DeathYear < 1 || *payload.DeathYear > 9999) {
-		writeProblem(w, r, http.StatusUnprocessableEntity, "INVALID_DEATH_YEAR", "deathYear must be between 1 and 9999")
-		return
+		payload.DeathMonth, payload.DeathDay = nil, nil
+		payload.DeathCalendar, payload.DeathIsLeapMonth = "", false
 	}
 	request, err := a.Store.CreateProfileRequest(
 		r.Context(), principal.Family.ID, principal.User.ID, payload.PersonID,
@@ -86,8 +98,13 @@ func (a *API) createProfileRequest(w http.ResponseWriter, r *http.Request) {
 			CourtesyName: payload.CourtesyName, Alias: payload.Alias,
 			Gender: payload.Gender, GenerationNo: payload.GenerationNo,
 			BranchID: payload.BranchID, BirthOrder: payload.BirthOrder,
-			BirthYear: payload.BirthYear, DeathYear: payload.DeathYear,
-			LifeStatus: payload.LifeStatus, BirthPlace: payload.BirthPlace,
+			BirthYear: payload.BirthYear, BirthMonth: payload.BirthMonth,
+			BirthDay: payload.BirthDay, BirthCalendar: payload.BirthCalendar,
+			BirthIsLeapMonth: payload.BirthIsLeapMonth,
+			DeathYear:        payload.DeathYear, DeathMonth: payload.DeathMonth,
+			DeathDay: payload.DeathDay, DeathCalendar: payload.DeathCalendar,
+			DeathIsLeapMonth: payload.DeathIsLeapMonth,
+			LifeStatus:       payload.LifeStatus, BirthPlace: payload.BirthPlace,
 			Residence: payload.Residence, Occupation: payload.Occupation,
 			Education: payload.Education, Biography: payload.Biography,
 			Version: payload.Version,

@@ -6,6 +6,7 @@ import '../../core/widgets/soft_card.dart';
 import '../../services/api_client.dart';
 import '../../services/api_models.dart';
 import '../../services/app_session.dart';
+import 'lunar_date_picker.dart';
 
 class EditPersonPage extends StatefulWidget {
   const EditPersonPage({super.key, required this.person});
@@ -23,8 +24,8 @@ class _EditPersonPageState extends State<EditPersonPage> {
   late final TextEditingController _courtesyName;
   late final TextEditingController _alias;
   late final TextEditingController _birthOrder;
-  late final TextEditingController _birthYear;
-  late final TextEditingController _deathYear;
+  ApiPartialDate? _birth;
+  ApiPartialDate? _death;
   late final TextEditingController _birthPlace;
   late final TextEditingController _residence;
   late final TextEditingController _occupation;
@@ -51,8 +52,8 @@ class _EditPersonPageState extends State<EditPersonPage> {
     _courtesyName = TextEditingController(text: person.courtesyName);
     _alias = TextEditingController(text: person.alias);
     _birthOrder = TextEditingController(text: person.birthOrder?.toString());
-    _birthYear = TextEditingController(text: person.birth?.year?.toString());
-    _deathYear = TextEditingController(text: person.death?.year?.toString());
+    _birth = person.birth;
+    _death = person.death;
     _birthPlace = TextEditingController(text: person.birthPlace);
     _residence = TextEditingController(text: person.residence);
     _occupation = TextEditingController(text: person.occupation);
@@ -81,8 +82,6 @@ class _EditPersonPageState extends State<EditPersonPage> {
       _courtesyName,
       _alias,
       _birthOrder,
-      _birthYear,
-      _deathYear,
       _birthPlace,
       _residence,
       _occupation,
@@ -132,10 +131,8 @@ class _EditPersonPageState extends State<EditPersonPage> {
       final courtesyName = _courtesyName.text.trim();
       final alias = _alias.text.trim();
       final birthOrder = int.tryParse(_birthOrder.text.trim());
-      final birthYear = int.tryParse(_birthYear.text.trim());
-      final deathYear = _lifeStatus == 'deceased'
-          ? int.tryParse(_deathYear.text.trim())
-          : null;
+      final birth = _birth;
+      final death = _lifeStatus == 'deceased' ? _death : null;
       final birthPlace = _birthPlace.text.trim();
       final residence = _residence.text.trim();
       final occupation = _occupation.text.trim();
@@ -152,8 +149,8 @@ class _EditPersonPageState extends State<EditPersonPage> {
           generationNo: _generation,
           branchId: _branchId!,
           birthOrder: birthOrder,
-          birthYear: birthYear,
-          deathYear: deathYear,
+          birth: birth,
+          death: death,
           lifeStatus: _lifeStatus,
           birthPlace: birthPlace,
           residence: residence,
@@ -173,8 +170,8 @@ class _EditPersonPageState extends State<EditPersonPage> {
           generationNo: _generation,
           branchId: _branchId!,
           birthOrder: birthOrder,
-          birthYear: birthYear,
-          deathYear: deathYear,
+          birth: birth,
+          death: death,
           lifeStatus: _lifeStatus,
           birthPlace: birthPlace,
           residence: residence,
@@ -354,17 +351,21 @@ class _EditPersonPageState extends State<EditPersonPage> {
                         children: [
                           const SectionTitle(title: '生卒与生平'),
                           const SizedBox(height: 12),
-                          _field(
-                            _birthYear,
-                            '出生年',
-                            keyboardType: TextInputType.number,
+                          LunarDatePickerField(
+                            label: '出生日期',
+                            value: _birth,
+                            hint: '选择公历或农历生日',
+                            onChanged: (value) =>
+                                setState(() => _birth = value),
                           ),
                           const SizedBox(height: 10),
                           if (_lifeStatus == 'deceased')
-                            _field(
-                              _deathYear,
-                              '逝世年',
-                              keyboardType: TextInputType.number,
+                            LunarDatePickerField(
+                              label: '逝世日期',
+                              value: _death,
+                              hint: '选择公历或农历祭日',
+                              onChanged: (value) =>
+                                  setState(() => _death = value),
                             ),
                           if (_lifeStatus == 'deceased')
                             const SizedBox(height: 10),

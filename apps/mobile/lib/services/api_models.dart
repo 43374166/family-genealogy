@@ -223,6 +223,46 @@ class ApiBindingRequestPage {
   }
 }
 
+class ApiAnniversary {
+  const ApiAnniversary({
+    required this.personId,
+    required this.fullName,
+    required this.kind,
+    required this.date,
+    required this.daysUntil,
+    required this.solarText,
+    required this.lunarText,
+    this.age,
+    this.isLunar = false,
+  });
+
+  final String personId;
+  final String fullName;
+  final String kind;
+  final String date;
+  final int daysUntil;
+  final String solarText;
+  final String lunarText;
+  final int? age;
+  final bool isLunar;
+
+  bool get isBirthday => kind == 'birthday';
+
+  factory ApiAnniversary.fromJson(Map<String, dynamic> json) {
+    return ApiAnniversary(
+      personId: _string(json['personId']),
+      fullName: _string(json['fullName']),
+      kind: _string(json['kind'], fallback: 'birthday'),
+      date: _string(json['date']),
+      daysUntil: _int(json['daysUntil']),
+      solarText: _string(json['solarText']),
+      lunarText: _string(json['lunarText']),
+      age: _nullableInt(json['age']),
+      isLunar: json['isLunar'] == true,
+    );
+  }
+}
+
 class ApiFamilyAccount {
   const ApiFamilyAccount({
     required this.userId,
@@ -639,6 +679,14 @@ class ApiPartialDate {
   final String? calendar;
   final bool isLeapMonth;
   final String text;
+
+  Map<String, dynamic> toJson({String prefix = ''}) => {
+    if (year != null) '${prefix}Year': year,
+    if (month != null) '${prefix}Month': month,
+    if (day != null) '${prefix}Day': day,
+    '${prefix}Calendar': calendar ?? 'gregorian',
+    '${prefix}IsLeapMonth': isLeapMonth,
+  };
 
   factory ApiPartialDate.fromJson(Map<String, dynamic> json) {
     return ApiPartialDate(

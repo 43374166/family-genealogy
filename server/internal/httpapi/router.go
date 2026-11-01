@@ -81,6 +81,7 @@ func NewRouter(deps Dependencies) http.Handler {
 			r.Post("/import-packages/preview", api.previewImportPackage)
 			r.Post("/import-packages/import", api.importPackage)
 			r.Get("/activity", api.listActivity)
+			r.Get("/anniversaries", api.listAnniversaries)
 			r.Get("/notifications", api.listNotifications)
 			r.Get("/notifications/unread-count", api.unreadNotificationCount)
 			r.Post("/notifications/read", api.readNotifications)

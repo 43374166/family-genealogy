@@ -13,6 +13,7 @@ require (
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
+	github.com/6tail/lunar-go v1.4.6 // indirect
 	github.com/fatih/color v1.10.0 // indirect
 	github.com/goccy/go-yaml v1.9.8 // indirect
 	github.com/huaweicloud/huaweicloud-sdk-go-obs v3.26.6+incompatible // indirect

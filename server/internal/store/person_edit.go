@@ -11,23 +11,31 @@ import (
 )
 
 type UpdatePersonInput struct {
-	Surname      string `json:"surname"`
-	GivenName    string `json:"givenName"`
-	CourtesyName string `json:"courtesyName"`
-	Alias        string `json:"alias"`
-	Gender       string `json:"gender"`
-	GenerationNo int    `json:"generationNo"`
-	BranchID     string `json:"branchId"`
-	BirthOrder   *int   `json:"birthOrder"`
-	BirthYear    *int   `json:"birthYear"`
-	DeathYear    *int   `json:"deathYear"`
-	LifeStatus   string `json:"lifeStatus"`
-	BirthPlace   string `json:"birthPlace"`
-	Residence    string `json:"residence"`
-	Occupation   string `json:"occupation"`
-	Education    string `json:"education"`
-	Biography    string `json:"biography"`
-	Version      int    `json:"version"`
+	Surname          string `json:"surname"`
+	GivenName        string `json:"givenName"`
+	CourtesyName     string `json:"courtesyName"`
+	Alias            string `json:"alias"`
+	Gender           string `json:"gender"`
+	GenerationNo     int    `json:"generationNo"`
+	BranchID         string `json:"branchId"`
+	BirthOrder       *int   `json:"birthOrder"`
+	BirthYear        *int   `json:"birthYear"`
+	BirthMonth       *int   `json:"birthMonth"`
+	BirthDay         *int   `json:"birthDay"`
+	BirthCalendar    string `json:"birthCalendar"`
+	BirthIsLeapMonth bool   `json:"birthIsLeapMonth"`
+	DeathYear        *int   `json:"deathYear"`
+	DeathMonth       *int   `json:"deathMonth"`
+	DeathDay         *int   `json:"deathDay"`
+	DeathCalendar    string `json:"deathCalendar"`
+	DeathIsLeapMonth bool   `json:"deathIsLeapMonth"`
+	LifeStatus       string `json:"lifeStatus"`
+	BirthPlace       string `json:"birthPlace"`
+	Residence        string `json:"residence"`
+	Occupation       string `json:"occupation"`
+	Education        string `json:"education"`
+	Biography        string `json:"biography"`
+	Version          int    `json:"version"`
 }
 
 func (s *Store) UpdatePerson(
@@ -114,58 +122,70 @@ func (s *Store) UpdatePerson(
 		return nil, ErrInvalidRelationship
 	}
 
-	var birthMonth, birthDay, deathMonth, deathDay sql.NullInt64
-	if input.BirthYear != nil {
-		_ = tx.QueryRowContext(ctx, `
-			SELECT birth_month, birth_day FROM persons WHERE id = ?`, personID,
-		).Scan(&birthMonth, &birthDay)
-	}
-	if input.DeathYear != nil {
-		_ = tx.QueryRowContext(ctx, `
-			SELECT death_month, death_day FROM persons WHERE id = ?`, personID,
-		).Scan(&deathMonth, &deathDay)
+	// Older clients only send a birth/death year. Preserve an existing
+	// month/day in that case; new clients always send the full date.
+	if input.BirthYear != nil && input.BirthMonth == nil && input.BirthDay == nil && input.BirthCalendar == "" {
+		_, month, day, calendar, leap, loadErr := loadExistingDate(tx, personID, "birth")
+		if loadErr == nil {
+			input.BirthMonth, input.BirthDay = month, day
+			input.BirthCalendar, input.BirthIsLeapMonth = calendar, leap
+		}
 	}
 	if input.LifeStatus != "deceased" {
 		input.DeathYear = nil
-		deathMonth, deathDay = sql.NullInt64{}, sql.NullInt64{}
+		input.DeathMonth, input.DeathDay = nil, nil
+		input.DeathCalendar, input.DeathIsLeapMonth = "", false
+	} else if input.DeathYear != nil && input.DeathMonth == nil && input.DeathDay == nil && input.DeathCalendar == "" {
+		_, month, day, calendar, leap, loadErr := loadExistingDate(tx, personID, "death")
+		if loadErr == nil {
+			input.DeathMonth, input.DeathDay = month, day
+			input.DeathCalendar, input.DeathIsLeapMonth = calendar, leap
+		}
+	}
+	birthDate, err := normalizeEventDate(
+		input.BirthYear, input.BirthMonth, input.BirthDay,
+		input.BirthCalendar, input.BirthIsLeapMonth,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("%w: birth date: %v", ErrInvalidDate, err)
+	}
+	deathDate := normalizedDate{calendar: "unknown"}
+	if input.LifeStatus == "deceased" {
+		deathDate, err = normalizeEventDate(
+			input.DeathYear, input.DeathMonth, input.DeathDay,
+			input.DeathCalendar, input.DeathIsLeapMonth,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("%w: death date: %v", ErrInvalidDate, err)
+		}
+	}
+	if input.LifeStatus != "living" && input.LifeStatus != "deceased" && input.LifeStatus != "unknown" {
+		return nil, fmt.Errorf("%w: invalid life status", ErrInvalidDate)
 	}
 	var birthOrder any
 	if input.BirthOrder != nil {
 		birthOrder = *input.BirthOrder
 	}
-	var birthYear, deathYear any
-	if input.BirthYear != nil {
-		birthYear = *input.BirthYear
-	}
-	if input.DeathYear != nil {
-		deathYear = *input.DeathYear
-	}
-	birthCalendar := "unknown"
-	birthText := ""
-	if input.BirthYear != nil {
-		birthCalendar = "gregorian"
-	}
-	deathCalendar := "unknown"
-	deathText := ""
-	if input.DeathYear != nil {
-		deathCalendar = "gregorian"
-	}
+	birthYear, birthMonth, birthDay := birthDate.nullable()
+	deathYear, deathMonth, deathDay := deathDate.nullable()
 
 	if _, err := tx.ExecContext(ctx, `
 		UPDATE persons
 		SET surname = ?, given_name = ?, courtesy_name = ?, alias = ?,
 		    gender = ?, generation_no = ?, branch_id = ?, birth_order = ?,
 		    birth_year = ?, birth_month = ?, birth_day = ?,
-		    birth_calendar = ?, birth_date_text = ?,
+		    birth_calendar = ?, birth_is_leap_month = ?, birth_date_text = ?,
 		    death_year = ?, death_month = ?, death_day = ?,
-		    death_calendar = ?, death_date_text = ?,
+		    death_calendar = ?, death_is_leap_month = ?, death_date_text = ?,
 		    life_status = ?, birth_place = ?, residence = ?, occupation = ?,
 		    education = ?, biography = ?, version = version + 1
 		WHERE id = ? AND family_id = ? AND version = ?`,
 		input.Surname, input.GivenName, input.CourtesyName, input.Alias,
 		input.Gender, input.GenerationNo, input.BranchID, birthOrder,
-		birthYear, birthMonth, birthDay, birthCalendar, birthText,
-		deathYear, deathMonth, deathDay, deathCalendar, deathText,
+		birthYear, birthMonth, birthDay,
+		birthDate.calendar, birthDate.leap, birthDate.text,
+		deathYear, deathMonth, deathDay,
+		deathDate.calendar, deathDate.leap, deathDate.text,
 		input.LifeStatus, input.BirthPlace, input.Residence, input.Occupation,
 		input.Education, input.Biography, personID, familyID, input.Version,
 	); err != nil {

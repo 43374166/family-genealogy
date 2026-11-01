@@ -88,54 +88,67 @@ func (s *Store) updatePersonTx(
 		return nil, nil, ErrInvalidRelationship
 	}
 
-	var birthMonth, birthDay, deathMonth, deathDay sql.NullInt64
-	if input.BirthYear != nil {
-		_ = tx.QueryRowContext(ctx, `
-			SELECT birth_month, birth_day FROM persons WHERE id = ?`, personID,
-		).Scan(&birthMonth, &birthDay)
-	}
-	if input.DeathYear != nil {
-		_ = tx.QueryRowContext(ctx, `
-			SELECT death_month, death_day FROM persons WHERE id = ?`, personID,
-		).Scan(&deathMonth, &deathDay)
+	if input.BirthYear != nil && input.BirthMonth == nil && input.BirthDay == nil && input.BirthCalendar == "" {
+		_, month, day, calendar, leap, loadErr := loadExistingDate(tx, personID, "birth")
+		if loadErr == nil {
+			input.BirthMonth, input.BirthDay = month, day
+			input.BirthCalendar, input.BirthIsLeapMonth = calendar, leap
+		}
 	}
 	if input.LifeStatus != "deceased" {
 		input.DeathYear = nil
-		deathMonth, deathDay = sql.NullInt64{}, sql.NullInt64{}
+		input.DeathMonth, input.DeathDay = nil, nil
+		input.DeathCalendar, input.DeathIsLeapMonth = "", false
+	} else if input.DeathYear != nil && input.DeathMonth == nil && input.DeathDay == nil && input.DeathCalendar == "" {
+		_, month, day, calendar, leap, loadErr := loadExistingDate(tx, personID, "death")
+		if loadErr == nil {
+			input.DeathMonth, input.DeathDay = month, day
+			input.DeathCalendar, input.DeathIsLeapMonth = calendar, leap
+		}
 	}
-	var birthOrder, birthYear, deathYear any
+	birthDate, err := normalizeEventDate(
+		input.BirthYear, input.BirthMonth, input.BirthDay,
+		input.BirthCalendar, input.BirthIsLeapMonth,
+	)
+	if err != nil {
+		return nil, nil, fmt.Errorf("%w: birth date: %v", ErrInvalidDate, err)
+	}
+	deathDate := normalizedDate{calendar: "unknown"}
+	if input.LifeStatus == "deceased" {
+		deathDate, err = normalizeEventDate(
+			input.DeathYear, input.DeathMonth, input.DeathDay,
+			input.DeathCalendar, input.DeathIsLeapMonth,
+		)
+		if err != nil {
+			return nil, nil, fmt.Errorf("%w: death date: %v", ErrInvalidDate, err)
+		}
+	}
+	if input.LifeStatus != "living" && input.LifeStatus != "deceased" && input.LifeStatus != "unknown" {
+		return nil, nil, fmt.Errorf("%w: invalid life status", ErrInvalidDate)
+	}
+	var birthOrder any
 	if input.BirthOrder != nil {
 		birthOrder = *input.BirthOrder
 	}
-	if input.BirthYear != nil {
-		birthYear = *input.BirthYear
-	}
-	if input.DeathYear != nil {
-		deathYear = *input.DeathYear
-	}
-	birthCalendar := "unknown"
-	deathCalendar := "unknown"
-	if input.BirthYear != nil {
-		birthCalendar = "gregorian"
-	}
-	if input.DeathYear != nil {
-		deathCalendar = "gregorian"
-	}
+	birthYear, birthMonth, birthDay := birthDate.nullable()
+	deathYear, deathMonth, deathDay := deathDate.nullable()
 	if _, err := tx.ExecContext(ctx, `
 		UPDATE persons
 		SET surname = ?, given_name = ?, courtesy_name = ?, alias = ?,
 		    gender = ?, generation_no = ?, branch_id = ?, birth_order = ?,
 		    birth_year = ?, birth_month = ?, birth_day = ?,
-		    birth_calendar = ?, birth_date_text = '',
+		    birth_calendar = ?, birth_is_leap_month = ?, birth_date_text = ?,
 		    death_year = ?, death_month = ?, death_day = ?,
-		    death_calendar = ?, death_date_text = '',
+		    death_calendar = ?, death_is_leap_month = ?, death_date_text = ?,
 		    life_status = ?, birth_place = ?, residence = ?, occupation = ?,
 		    education = ?, biography = ?, version = version + 1
 		WHERE id = ? AND family_id = ? AND version = ?`,
 		input.Surname, input.GivenName, input.CourtesyName, input.Alias,
 		input.Gender, input.GenerationNo, input.BranchID, birthOrder,
-		birthYear, birthMonth, birthDay, birthCalendar,
-		deathYear, deathMonth, deathDay, deathCalendar,
+		birthYear, birthMonth, birthDay,
+		birthDate.calendar, birthDate.leap, birthDate.text,
+		deathYear, deathMonth, deathDay,
+		deathDate.calendar, deathDate.leap, deathDate.text,
 		input.LifeStatus, input.BirthPlace, input.Residence, input.Occupation,
 		input.Education, input.Biography, personID, familyID, input.Version,
 	); err != nil {

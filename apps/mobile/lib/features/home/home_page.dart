@@ -11,6 +11,7 @@ import '../../services/api_models.dart';
 import '../../services/app_session.dart';
 import '../family/bind_person_page.dart';
 import '../gallery/gallery_page.dart';
+import 'anniversary_widgets.dart';
 import '../person/api_person_detail_page.dart';
 import '../profile/family_profile_sheet.dart';
 import '../requests/edit_request_page.dart';
@@ -39,6 +40,8 @@ class _HomePageState extends State<HomePage> {
   bool _activityLoading = true;
   String? _activityError;
   String? _activityFamilyId;
+  List<ApiAnniversary> _anniversaries = const [];
+  bool _anniversaryLoading = true;
 
   @override
   void didChangeDependencies() {
@@ -47,6 +50,22 @@ class _HomePageState extends State<HomePage> {
     if (familyId == null || familyId == _activityFamilyId) return;
     _activityFamilyId = familyId;
     _loadActivity();
+    _loadAnniversaries();
+  }
+
+  Future<void> _loadAnniversaries() async {
+    setState(() => _anniversaryLoading = true);
+    try {
+      final items = await SessionScope.of(context).anniversaries(days: 60);
+      if (!mounted) return;
+      setState(() {
+        _anniversaries = items;
+        _anniversaryLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _anniversaryLoading = false);
+    }
   }
 
   Future<void> _loadActivity() async {
@@ -145,6 +164,15 @@ class _HomePageState extends State<HomePage> {
                       onRequests: () => _open(context, const RequestsPage()),
                       onGallery: () => _open(context, const GalleryPage()),
                       onStories: () => _open(context, const StoriesPage()),
+                    ),
+                    const SizedBox(height: 14),
+                    AnniversarySection(
+                      items: _anniversaries,
+                      loading: _anniversaryLoading,
+                      onMore: () => _open(
+                        context,
+                        AnniversariesPage(items: _anniversaries),
+                      ),
                     ),
                     const SizedBox(height: 14),
                     _LatestActivity(
@@ -1300,7 +1328,7 @@ class _SettingsSheet extends StatelessWidget {
           _SettingsRow(icon: Icons.info_outline_rounded, label: '关于家族族谱'),
           const SizedBox(height: 12),
           const Text(
-            'v0.33.0 · Flutter + MySQL',
+            'v0.34.0 · Flutter + MySQL',
             style: TextStyle(fontSize: 11, color: AppColors.inkMuted),
           ),
         ],

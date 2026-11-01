@@ -10,16 +10,26 @@ import (
 )
 
 type createPersonPayload struct {
-	Surname      string `json:"surname"`
-	GivenName    string `json:"givenName"`
-	CourtesyName string `json:"courtesyName"`
-	Alias        string `json:"alias"`
-	Gender       string `json:"gender"`
-	GenerationNo int    `json:"generationNo"`
-	BranchID     string `json:"branchId"`
-	BirthOrder   *int   `json:"birthOrder"`
-	BirthYear    *int   `json:"birthYear"`
-	Biography    string `json:"biography"`
+	Surname          string `json:"surname"`
+	GivenName        string `json:"givenName"`
+	CourtesyName     string `json:"courtesyName"`
+	Alias            string `json:"alias"`
+	Gender           string `json:"gender"`
+	GenerationNo     int    `json:"generationNo"`
+	BranchID         string `json:"branchId"`
+	BirthOrder       *int   `json:"birthOrder"`
+	BirthYear        *int   `json:"birthYear"`
+	BirthMonth       *int   `json:"birthMonth"`
+	BirthDay         *int   `json:"birthDay"`
+	BirthCalendar    string `json:"birthCalendar"`
+	BirthIsLeapMonth bool   `json:"birthIsLeapMonth"`
+	DeathYear        *int   `json:"deathYear"`
+	DeathMonth       *int   `json:"deathMonth"`
+	DeathDay         *int   `json:"deathDay"`
+	DeathCalendar    string `json:"deathCalendar"`
+	DeathIsLeapMonth bool   `json:"deathIsLeapMonth"`
+	LifeStatus       string `json:"lifeStatus"`
+	Biography        string `json:"biography"`
 }
 
 type parentChildPayload struct {
@@ -85,7 +95,13 @@ func (a *API) createPerson(w http.ResponseWriter, r *http.Request) {
 			CourtesyName: payload.CourtesyName, Alias: payload.Alias,
 			Gender: payload.Gender, GenerationNo: payload.GenerationNo,
 			BranchID: payload.BranchID, BirthOrder: payload.BirthOrder,
-			BirthYear: payload.BirthYear, Biography: payload.Biography,
+			BirthYear: payload.BirthYear, BirthMonth: payload.BirthMonth,
+			BirthDay: payload.BirthDay, BirthCalendar: payload.BirthCalendar,
+			BirthIsLeapMonth: payload.BirthIsLeapMonth,
+			DeathYear:        payload.DeathYear, DeathMonth: payload.DeathMonth,
+			DeathDay: payload.DeathDay, DeathCalendar: payload.DeathCalendar,
+			DeathIsLeapMonth: payload.DeathIsLeapMonth,
+			LifeStatus:       payload.LifeStatus, Biography: payload.Biography,
 		},
 		auditMeta(r),
 	)
@@ -228,6 +244,48 @@ func validateNewPerson(payload createPersonPayload) error {
 	}
 	if payload.BirthYear != nil && (*payload.BirthYear < 1 || *payload.BirthYear > 9999) {
 		return errors.New("birthYear must be between 1 and 9999")
+	}
+	if payload.BirthMonth != nil && (*payload.BirthMonth < 1 || *payload.BirthMonth > 12) {
+		return errors.New("birthMonth must be between 1 and 12")
+	}
+	if payload.BirthDay != nil && (*payload.BirthDay < 1 || *payload.BirthDay > 31) {
+		return errors.New("birthDay must be between 1 and 31")
+	}
+	if payload.BirthMonth != nil && payload.BirthYear == nil {
+		return errors.New("birthMonth requires birthYear")
+	}
+	if payload.BirthDay != nil && payload.BirthMonth == nil {
+		return errors.New("birthDay requires birthMonth")
+	}
+	if payload.BirthCalendar != "" && payload.BirthCalendar != "gregorian" && payload.BirthCalendar != "lunar" {
+		return errors.New("birthCalendar must be gregorian or lunar")
+	}
+	if payload.BirthIsLeapMonth && payload.BirthCalendar != "lunar" {
+		return errors.New("birthIsLeapMonth requires lunar calendar")
+	}
+	if payload.LifeStatus != "" && payload.LifeStatus != "living" && payload.LifeStatus != "deceased" && payload.LifeStatus != "unknown" {
+		return errors.New("invalid lifeStatus")
+	}
+	if payload.DeathYear != nil && (*payload.DeathYear < 1 || *payload.DeathYear > 9999) {
+		return errors.New("deathYear must be between 1 and 9999")
+	}
+	if payload.DeathMonth != nil && (*payload.DeathMonth < 1 || *payload.DeathMonth > 12) {
+		return errors.New("deathMonth must be between 1 and 12")
+	}
+	if payload.DeathDay != nil && (*payload.DeathDay < 1 || *payload.DeathDay > 31) {
+		return errors.New("deathDay must be between 1 and 31")
+	}
+	if payload.DeathMonth != nil && payload.DeathYear == nil {
+		return errors.New("deathMonth requires deathYear")
+	}
+	if payload.DeathDay != nil && payload.DeathMonth == nil {
+		return errors.New("deathDay requires deathMonth")
+	}
+	if payload.DeathCalendar != "" && payload.DeathCalendar != "gregorian" && payload.DeathCalendar != "lunar" {
+		return errors.New("deathCalendar must be gregorian or lunar")
+	}
+	if payload.DeathIsLeapMonth && payload.DeathCalendar != "lunar" {
+		return errors.New("deathIsLeapMonth requires lunar calendar")
 	}
 	if len([]rune(payload.Biography)) > 20000 {
 		return errors.New("biography is too long")

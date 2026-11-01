@@ -148,6 +148,18 @@ type Story struct {
 	UpdatedAt    time.Time `json:"updatedAt"`
 }
 
+type Anniversary struct {
+	PersonID  string `json:"personId"`
+	FullName  string `json:"fullName"`
+	Kind      string `json:"kind"`
+	Date      string `json:"date"`
+	DaysUntil int    `json:"daysUntil"`
+	SolarText string `json:"solarText"`
+	LunarText string `json:"lunarText"`
+	Age       *int   `json:"age,omitempty"`
+	IsLunar   bool   `json:"isLunar"`
+}
+
 type FamilyExport struct {
 	Version     int               `json:"version"`
 	ExportedAt  time.Time         `json:"exportedAt"`

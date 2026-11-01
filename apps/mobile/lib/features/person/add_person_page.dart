@@ -6,6 +6,7 @@ import '../../core/widgets/soft_card.dart';
 import '../../services/api_client.dart';
 import '../../services/api_models.dart';
 import '../../services/app_session.dart';
+import 'lunar_date_picker.dart';
 
 class AddPersonPage extends StatefulWidget {
   const AddPersonPage({super.key});
@@ -19,8 +20,10 @@ class _AddPersonPageState extends State<AddPersonPage> {
   final _surname = TextEditingController();
   final _givenName = TextEditingController();
   final _birthOrder = TextEditingController();
-  final _birthYear = TextEditingController();
   final _biography = TextEditingController();
+  ApiPartialDate? _birth;
+  ApiPartialDate? _death;
+  String _lifeStatus = 'living';
 
   List<ApiBranch> _branches = const [];
   String? _branchId;
@@ -54,7 +57,6 @@ class _AddPersonPageState extends State<AddPersonPage> {
     _surname.dispose();
     _givenName.dispose();
     _birthOrder.dispose();
-    _birthYear.dispose();
     _biography.dispose();
     super.dispose();
   }
@@ -95,7 +97,8 @@ class _AddPersonPageState extends State<AddPersonPage> {
       final surname = _surname.text.trim();
       final givenName = _givenName.text.trim();
       final birthOrder = int.tryParse(_birthOrder.text.trim());
-      final birthYear = int.tryParse(_birthYear.text.trim());
+      final birth = _birth;
+      final death = _lifeStatus == 'deceased' ? _death : null;
       final biography = _biography.text.trim();
       if (session.canWrite) {
         final person = await session.createPerson(
@@ -105,7 +108,9 @@ class _AddPersonPageState extends State<AddPersonPage> {
           generationNo: _generation,
           branchId: _branchId!,
           birthOrder: birthOrder,
-          birthYear: birthYear,
+          birth: birth,
+          death: death,
+          lifeStatus: _lifeStatus,
           biography: biography,
         );
         if (!mounted) return;
@@ -134,7 +139,9 @@ class _AddPersonPageState extends State<AddPersonPage> {
             'generationNo': _generation,
             'branchId': _branchId,
             'birthOrder': birthOrder,
-            'birthYear': birthYear,
+            ...?birth?.toJson(prefix: 'birth'),
+            ...?death?.toJson(prefix: 'death'),
+            'lifeStatus': _lifeStatus,
             'biography': biography,
           },
         );
@@ -358,12 +365,48 @@ class _AddPersonPageState extends State<AddPersonPage> {
                                       setState(() => _branchId = value),
                                 ),
                                 const SizedBox(height: 13),
-                                const _FieldLabel('出生年份'),
-                                _TextField(
-                                  controller: _birthYear,
-                                  hint: '可选，例如 1998',
-                                  keyboardType: TextInputType.number,
+                                const _FieldLabel('生卒状态'),
+                                DropdownButtonFormField<String>(
+                                  initialValue: _lifeStatus,
+                                  decoration: _inputDecoration(),
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: 'living',
+                                      child: Text('在世'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'deceased',
+                                      child: Text('已故'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'unknown',
+                                      child: Text('未详'),
+                                    ),
+                                  ],
+                                  onChanged: (value) {
+                                    if (value != null) {
+                                      setState(() => _lifeStatus = value);
+                                    }
+                                  },
                                 ),
+                                const SizedBox(height: 13),
+                                LunarDatePickerField(
+                                  label: '出生日期',
+                                  value: _birth,
+                                  hint: '选择公历或农历生日',
+                                  onChanged: (value) =>
+                                      setState(() => _birth = value),
+                                ),
+                                if (_lifeStatus == 'deceased') ...[
+                                  const SizedBox(height: 13),
+                                  LunarDatePickerField(
+                                    label: '逝世日期',
+                                    value: _death,
+                                    hint: '选择公历或农历祭日',
+                                    onChanged: (value) =>
+                                        setState(() => _death = value),
+                                  ),
+                                ],
                                 const SizedBox(height: 13),
                                 const _FieldLabel('生平简介'),
                                 _TextField(

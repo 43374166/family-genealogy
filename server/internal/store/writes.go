@@ -16,19 +16,30 @@ import (
 var (
 	ErrInvalidRelationship = errors.New("invalid relationship")
 	ErrCycle               = errors.New("relationship cycle")
+	ErrInvalidDate         = errors.New("invalid date")
 )
 
 type NewPerson struct {
-	Surname      string `json:"surname"`
-	GivenName    string `json:"givenName"`
-	CourtesyName string `json:"courtesyName,omitempty"`
-	Alias        string `json:"alias,omitempty"`
-	Gender       string `json:"gender"`
-	GenerationNo int    `json:"generationNo"`
-	BranchID     string `json:"branchId"`
-	BirthOrder   *int   `json:"birthOrder,omitempty"`
-	BirthYear    *int   `json:"birthYear,omitempty"`
-	Biography    string `json:"biography,omitempty"`
+	Surname          string `json:"surname"`
+	GivenName        string `json:"givenName"`
+	CourtesyName     string `json:"courtesyName,omitempty"`
+	Alias            string `json:"alias,omitempty"`
+	Gender           string `json:"gender"`
+	GenerationNo     int    `json:"generationNo"`
+	BranchID         string `json:"branchId"`
+	BirthOrder       *int   `json:"birthOrder,omitempty"`
+	BirthYear        *int   `json:"birthYear,omitempty"`
+	BirthMonth       *int   `json:"birthMonth,omitempty"`
+	BirthDay         *int   `json:"birthDay,omitempty"`
+	BirthCalendar    string `json:"birthCalendar,omitempty"`
+	BirthIsLeapMonth bool   `json:"birthIsLeapMonth,omitempty"`
+	DeathYear        *int   `json:"deathYear,omitempty"`
+	DeathMonth       *int   `json:"deathMonth,omitempty"`
+	DeathDay         *int   `json:"deathDay,omitempty"`
+	DeathCalendar    string `json:"deathCalendar,omitempty"`
+	DeathIsLeapMonth bool   `json:"deathIsLeapMonth,omitempty"`
+	LifeStatus       string `json:"lifeStatus,omitempty"`
+	Biography        string `json:"biography,omitempty"`
 }
 
 type ParentChildInput struct {
@@ -65,28 +76,63 @@ func (s *Store) CreatePerson(
 		return nil, ErrNotFound
 	}
 
+	birthDate, err := normalizeEventDate(
+		input.BirthYear, input.BirthMonth, input.BirthDay,
+		input.BirthCalendar, input.BirthIsLeapMonth,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("%w: birth date: %v", ErrInvalidDate, err)
+	}
+	lifeStatus := input.LifeStatus
+	if lifeStatus == "" {
+		lifeStatus = "living"
+	}
+	if lifeStatus != "living" && lifeStatus != "deceased" && lifeStatus != "unknown" {
+		return nil, fmt.Errorf("%w: invalid life status", ErrInvalidDate)
+	}
+	deathDate := normalizedDate{calendar: "unknown"}
+	if lifeStatus == "deceased" {
+		deathDate, err = normalizeEventDate(
+			input.DeathYear, input.DeathMonth, input.DeathDay,
+			input.DeathCalendar, input.DeathIsLeapMonth,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("%w: death date: %v", ErrInvalidDate, err)
+		}
+	}
+	birthYear, birthMonth, birthDay := birthDate.nullable()
+	deathYear, deathMonth, deathDay := deathDate.nullable()
 	personID := uuid.NewString()
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO persons
 			(id, family_id, branch_id, surname, given_name, courtesy_name, alias,
-			 gender, generation_no, birth_order, birth_year, birth_calendar,
-			 life_status, biography)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'gregorian', 'living', ?)`,
+			 gender, generation_no, birth_order, birth_year, birth_month, birth_day,
+			 birth_calendar, birth_is_leap_month, birth_date_text,
+			 death_year, death_month, death_day, death_calendar, death_is_leap_month,
+			 death_date_text, life_status, biography)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		personID, familyID, input.BranchID, input.Surname, input.GivenName,
 		input.CourtesyName, input.Alias, input.Gender, input.GenerationNo,
-		input.BirthOrder, input.BirthYear, input.Biography,
+		input.BirthOrder, birthYear, birthMonth, birthDay,
+		birthDate.calendar, birthDate.leap, birthDate.text,
+		deathYear, deathMonth, deathDay, deathDate.calendar, deathDate.leap,
+		deathDate.text, lifeStatus, input.Biography,
 	); err != nil {
 		return nil, fmt.Errorf("insert person: %w", err)
 	}
 
 	after, err := json.Marshal(map[string]any{
-		"id":           personID,
-		"branchId":     input.BranchID,
-		"fullName":     input.Surname + input.GivenName,
-		"gender":       input.Gender,
-		"generationNo": input.GenerationNo,
-		"birthOrder":   input.BirthOrder,
-		"birthYear":    input.BirthYear,
+		"id":            personID,
+		"branchId":      input.BranchID,
+		"fullName":      input.Surname + input.GivenName,
+		"gender":        input.Gender,
+		"generationNo":  input.GenerationNo,
+		"birthOrder":    input.BirthOrder,
+		"birthYear":     input.BirthYear,
+		"birthMonth":    input.BirthMonth,
+		"birthDay":      input.BirthDay,
+		"birthCalendar": birthDate.calendar,
+		"lifeStatus":    lifeStatus,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("encode person audit: %w", err)

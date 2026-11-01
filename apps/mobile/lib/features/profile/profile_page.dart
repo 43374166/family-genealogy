@@ -300,7 +300,7 @@ class ProfilePage extends StatelessWidget {
                           color: AppColors.inkMuted,
                           background: AppColors.slateSoft,
                           label: '关于家族族谱',
-                          trailing: 'v0.33.0',
+                          trailing: 'v0.34.0',
                           onTap: () => _showAbout(context),
                         ),
                       ],
@@ -401,7 +401,7 @@ class ProfilePage extends StatelessWidget {
             ),
             const SizedBox(height: 5),
             const Text(
-              '家族族谱 · Flutter + MySQL v0.33.0',
+              '家族族谱 · Flutter + MySQL v0.34.0',
               style: TextStyle(fontSize: 10.5, color: AppColors.inkMuted),
             ),
             const SizedBox(height: 16),

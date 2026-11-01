@@ -614,7 +614,9 @@ class ApiClient {
     required int generationNo,
     required String branchId,
     int? birthOrder,
-    int? birthYear,
+    ApiPartialDate? birth,
+    ApiPartialDate? death,
+    String lifeStatus = 'living',
     String biography = '',
   }) async {
     final body = await _request(
@@ -627,7 +629,9 @@ class ApiClient {
         'generationNo': generationNo,
         'branchId': branchId,
         'birthOrder': birthOrder,
-        'birthYear': birthYear,
+        ...?birth?.toJson(prefix: 'birth'),
+        ...?death?.toJson(prefix: 'death'),
+        'lifeStatus': lifeStatus,
         'biography': biography,
       },
     );
@@ -671,8 +675,8 @@ class ApiClient {
     required int generationNo,
     required String branchId,
     int? birthOrder,
-    int? birthYear,
-    int? deathYear,
+    ApiPartialDate? birth,
+    ApiPartialDate? death,
     required String lifeStatus,
     required String birthPlace,
     required String residence,
@@ -693,8 +697,8 @@ class ApiClient {
         'generationNo': generationNo,
         'branchId': branchId,
         'birthOrder': birthOrder,
-        'birthYear': birthYear,
-        'deathYear': deathYear,
+        ...?birth?.toJson(prefix: 'birth'),
+        ...?death?.toJson(prefix: 'death'),
         'lifeStatus': lifeStatus,
         'birthPlace': birthPlace,
         'residence': residence,
@@ -719,6 +723,14 @@ class ApiClient {
       'DELETE',
       '/api/v1/relationships/spouse/${Uri.encodeComponent(edgeId)}',
     );
+  }
+
+  Future<List<ApiAnniversary>> anniversaries({int days = 60}) async {
+    final body = await _request('GET', '/api/v1/anniversaries?days=$days');
+    return (body['items'] as List<dynamic>? ?? [])
+        .whereType<Map<String, dynamic>>()
+        .map(ApiAnniversary.fromJson)
+        .toList();
   }
 
   Future<ApiPerson> person(String personId) async {
@@ -773,8 +785,8 @@ class ApiClient {
     required int generationNo,
     required String branchId,
     int? birthOrder,
-    int? birthYear,
-    int? deathYear,
+    ApiPartialDate? birth,
+    ApiPartialDate? death,
     required String lifeStatus,
     required String birthPlace,
     required String residence,
@@ -796,8 +808,8 @@ class ApiClient {
         'generationNo': generationNo,
         'branchId': branchId,
         'birthOrder': birthOrder,
-        'birthYear': birthYear,
-        'deathYear': deathYear,
+        ...?birth?.toJson(prefix: 'birth'),
+        ...?death?.toJson(prefix: 'death'),
         'lifeStatus': lifeStatus,
         'birthPlace': birthPlace,
         'residence': residence,

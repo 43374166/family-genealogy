@@ -215,8 +215,8 @@ class AppSession extends ChangeNotifier {
     required int generationNo,
     required String branchId,
     int? birthOrder,
-    int? birthYear,
-    int? deathYear,
+    ApiPartialDate? birth,
+    ApiPartialDate? death,
     required String lifeStatus,
     required String birthPlace,
     required String residence,
@@ -238,8 +238,8 @@ class AppSession extends ChangeNotifier {
       generationNo: generationNo,
       branchId: branchId,
       birthOrder: birthOrder,
-      birthYear: birthYear,
-      deathYear: deathYear,
+      birth: birth,
+      death: death,
       lifeStatus: lifeStatus,
       birthPlace: birthPlace,
       residence: residence,
@@ -311,8 +311,8 @@ class AppSession extends ChangeNotifier {
     required int generationNo,
     required String branchId,
     int? birthOrder,
-    int? birthYear,
-    int? deathYear,
+    ApiPartialDate? birth,
+    ApiPartialDate? death,
     required String lifeStatus,
     required String birthPlace,
     required String residence,
@@ -334,8 +334,8 @@ class AppSession extends ChangeNotifier {
       generationNo: generationNo,
       branchId: branchId,
       birthOrder: birthOrder,
-      birthYear: birthYear,
-      deathYear: deathYear,
+      birth: birth,
+      death: death,
       lifeStatus: lifeStatus,
       birthPlace: birthPlace,
       residence: residence,
@@ -577,6 +577,13 @@ class AppSession extends ChangeNotifier {
     );
     await refreshTree();
     notifyListeners();
+  }
+
+  Future<List<ApiAnniversary>> anniversaries({int days = 60}) async {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    return _api.anniversaries(days: days);
   }
 
   Future<ApiNotificationPage> notifications() async {
@@ -902,7 +909,9 @@ class AppSession extends ChangeNotifier {
     required int generationNo,
     required String branchId,
     int? birthOrder,
-    int? birthYear,
+    ApiPartialDate? birth,
+    ApiPartialDate? death,
+    String lifeStatus = 'living',
     String biography = '',
   }) async {
     if (!isAuthenticated) {
@@ -915,7 +924,9 @@ class AppSession extends ChangeNotifier {
       generationNo: generationNo,
       branchId: branchId,
       birthOrder: birthOrder,
-      birthYear: birthYear,
+      birth: birth,
+      death: death,
+      lifeStatus: lifeStatus,
       biography: biography,
     );
     await refreshTree();

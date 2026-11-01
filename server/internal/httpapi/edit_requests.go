@@ -116,7 +116,13 @@ func normalizeWritePayload(requestType string, raw json.RawMessage) ([]byte, err
 			CourtesyName: payload.CourtesyName, Alias: payload.Alias,
 			Gender: payload.Gender, GenerationNo: payload.GenerationNo,
 			BranchID: payload.BranchID, BirthOrder: payload.BirthOrder,
-			BirthYear: payload.BirthYear, Biography: payload.Biography,
+			BirthYear: payload.BirthYear, BirthMonth: payload.BirthMonth,
+			BirthDay: payload.BirthDay, BirthCalendar: payload.BirthCalendar,
+			BirthIsLeapMonth: payload.BirthIsLeapMonth,
+			DeathYear:        payload.DeathYear, DeathMonth: payload.DeathMonth,
+			DeathDay: payload.DeathDay, DeathCalendar: payload.DeathCalendar,
+			DeathIsLeapMonth: payload.DeathIsLeapMonth,
+			LifeStatus:       payload.LifeStatus, Biography: payload.Biography,
 		})
 	case "add_parent_child":
 		var payload parentChildPayload
