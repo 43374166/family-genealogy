@@ -36,7 +36,7 @@ class AnniversarySection extends StatelessWidget {
               const SizedBox(width: 7),
               const Expanded(
                 child: Text(
-                  '近期生日与祭日',
+                  '我这支的近期生日与祭日',
                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                 ),
               ),
@@ -56,7 +56,7 @@ class AnniversarySection extends StatelessWidget {
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 12),
               child: Text(
-                '未来 60 天没有已记录的生日或祭日',
+                '未来 60 天我这支没有已记录的生日或祭日',
                 style: TextStyle(fontSize: 11, color: AppColors.inkMuted),
               ),
             )
@@ -215,14 +215,14 @@ class AnniversariesPage extends StatelessWidget {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text(
-          '生日与祭日',
+          '我这支的生日与祭日',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
         ),
       ),
       body: items.isEmpty
           ? const Center(
               child: Text(
-                '未来 60 天没有已记录的生日或祭日',
+                '未来 60 天我这支没有已记录的生日或祭日',
                 style: TextStyle(fontSize: 12, color: AppColors.inkMuted),
               ),
             )

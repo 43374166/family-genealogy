@@ -26,8 +26,19 @@ func (a *API) listAnniversaries(w http.ResponseWriter, r *http.Request) {
 			days = value
 		}
 	}
+	allowed := map[string]bool{}
+	if principal.Membership.PersonID != nil {
+		related, relatedErr := a.Store.RelatedAnniversaryPersonIDs(
+			r.Context(), principal.Family.ID, *principal.Membership.PersonID,
+		)
+		if relatedErr != nil {
+			a.writeAccessError(w, r, relatedErr)
+			return
+		}
+		allowed = related
+	}
 	items, err := a.Store.UpcomingAnniversaries(
-		r.Context(), principal.Family.ID, days, shanghaiNow(),
+		r.Context(), principal.Family.ID, days, shanghaiNow(), allowed,
 	)
 	if err != nil {
 		a.writeAccessError(w, r, err)

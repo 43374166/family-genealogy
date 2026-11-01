@@ -17,8 +17,102 @@ type anniversaryDate struct {
 	leap             bool
 }
 
+// RelatedAnniversaryPersonIDs returns the people whose birthdays and memorial
+// days should be shown to the signed-in person: self, two generations of
+// ancestors, two generations of descendants and siblings. Cousins, uncles,
+// aunts and other branches are deliberately excluded.
+func (s *Store) RelatedAnniversaryPersonIDs(
+	ctx context.Context, familyID, personID string,
+) (map[string]bool, error) {
+	allowed := map[string]bool{personID: true}
+	addParents := func(childID string) ([]string, error) {
+		rows, err := s.db.QueryContext(ctx, `
+			SELECT parent_id FROM parent_child_relationships
+			WHERE family_id = ? AND child_id = ? AND status = 'active'`,
+			familyID, childID)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		var ids []string
+		for rows.Next() {
+			var id string
+			if err := rows.Scan(&id); err != nil {
+				return nil, err
+			}
+			allowed[id] = true
+			ids = append(ids, id)
+		}
+		return ids, rows.Err()
+	}
+	parents, err := addParents(personID)
+	if err != nil {
+		return nil, fmt.Errorf("list anniversary parents: %w", err)
+	}
+	for _, parentID := range parents {
+		if _, err := addParents(parentID); err != nil {
+			return nil, fmt.Errorf("list anniversary grandparents: %w", err)
+		}
+	}
+	addChildren := func(parentID string) ([]string, error) {
+		rows, err := s.db.QueryContext(ctx, `
+			SELECT child_id FROM parent_child_relationships
+			WHERE family_id = ? AND parent_id = ? AND status = 'active'`,
+			familyID, parentID)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		var ids []string
+		for rows.Next() {
+			var id string
+			if err := rows.Scan(&id); err != nil {
+				return nil, err
+			}
+			allowed[id] = true
+			ids = append(ids, id)
+		}
+		return ids, rows.Err()
+	}
+	children, err := addChildren(personID)
+	if err != nil {
+		return nil, fmt.Errorf("list anniversary children: %w", err)
+	}
+	for _, childID := range children {
+		if _, err := addChildren(childID); err != nil {
+			return nil, fmt.Errorf("list anniversary grandchildren: %w", err)
+		}
+	}
+	siblingRows, err := s.db.QueryContext(ctx, `
+		SELECT DISTINCT sibling.child_id
+		FROM parent_child_relationships mine
+		JOIN parent_child_relationships sibling
+		  ON sibling.family_id = mine.family_id
+		 AND sibling.parent_id = mine.parent_id
+		 AND sibling.status = 'active'
+		 AND sibling.child_id <> mine.child_id
+		WHERE mine.family_id = ? AND mine.child_id = ? AND mine.status = 'active'`,
+		familyID, personID)
+	if err != nil {
+		return nil, fmt.Errorf("list anniversary siblings: %w", err)
+	}
+	defer siblingRows.Close()
+	for siblingRows.Next() {
+		var id string
+		if err := siblingRows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan anniversary sibling: %w", err)
+		}
+		allowed[id] = true
+	}
+	if err := siblingRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate anniversary siblings: %w", err)
+	}
+	return allowed, nil
+}
+
 func (s *Store) UpcomingAnniversaries(
 	ctx context.Context, familyID string, days int, now time.Time,
+	allowed map[string]bool,
 ) ([]model.Anniversary, error) {
 	if days < 1 || days > 366 {
 		days = 60
@@ -46,6 +140,9 @@ func (s *Store) UpcomingAnniversaries(
 			&dy, &dm, &dd, &dc, &dl,
 		); err != nil {
 			return nil, fmt.Errorf("scan anniversary person: %w", err)
+		}
+		if allowed != nil && !allowed[personID] {
+			continue
 		}
 		if by.Valid && bm.Valid && bd.Valid {
 			item, ok := makeAnniversary(personID, fullName, "birthday",
