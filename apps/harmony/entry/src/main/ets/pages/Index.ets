@@ -68,6 +68,17 @@ struct Index {
   @State private myGeneration: string = '';
 
   @State private tree: ApiTree | null = null;
+  @State private treeSelectedId: string = '';
+  @State private treeGenerationFilter: number = 0;
+  @State private treeScale: number = 1;
+  @State private treeOffsetX: number = 0;
+  @State private treeOffsetY: number = 0;
+  @State private treePanBaseX: number = 0;
+  @State private treePanBaseY: number = 0;
+  @State private treePinchBase: number = 1;
+  @State private treeViewportWidth: number = 0;
+  @State private treeViewportHeight: number = 0;
+  @State private treeFitted: boolean = false;
   @State private layout: TreeLayoutResult | null = null;
   @State private activities: ApiActivity[] = [];
   @State private anniversaries: ApiAnniversary[] = [];
@@ -211,6 +222,9 @@ struct Index {
     const tree = await this.api.tree();
     this.tree = tree;
     this.layout = TreeLayoutBuilder.build(tree);
+    this.treeFitted = false;
+    this.treeSelectedId = '';
+    this.resetTreeFit();
     const linked = this.linkedPersonId;
     if (linked.length > 0) {
       const self = tree.persons.find((person: ApiPerson) => person.id === linked);
@@ -2196,6 +2210,37 @@ struct Index {
       .width('100%')
       .padding({ left: 16, right: 16, top: 14, bottom: 8 })
 
+      Scroll() {
+        Row({ space: 7 }) {
+          Text('全部')
+            .fontSize(10)
+            .fontColor(this.treeGenerationFilter === 0 ? '#4E7DF4' : '#89969C')
+            .backgroundColor(this.treeGenerationFilter === 0 ? '#EAF0FF' : '#FFFFFF')
+            .padding({ left: 10, right: 10, top: 5, bottom: 5 })
+            .borderRadius(13)
+            .onClick(() => {
+              this.treeGenerationFilter = 0;
+            })
+          ForEach(this.treeGenerations(), (generation: number) => {
+            Text('第 ' + String(generation) + ' 世')
+              .fontSize(10)
+              .fontColor(this.treeGenerationFilter === generation ? '#4E7DF4' : '#89969C')
+              .backgroundColor(this.treeGenerationFilter === generation
+                ? '#EAF0FF' : '#FFFFFF')
+              .padding({ left: 10, right: 10, top: 5, bottom: 5 })
+              .borderRadius(13)
+              .onClick(() => {
+                this.treeGenerationFilter = generation;
+              })
+          }, (generation: number) => String(generation))
+        }
+        .padding({ left: 16, right: 16 })
+      }
+      .scrollable(ScrollDirection.Horizontal)
+      .scrollBar(BarState.Off)
+      .width('100%')
+      .padding({ bottom: 7 })
+
       if (this.layout === null) {
         Column({ space: 10 }) {
           LoadingProgress().width(28).height(28).color('#4E7DF4')
@@ -2204,30 +2249,135 @@ struct Index {
         .layoutWeight(1)
         .justifyContent(FlexAlign.Center)
       } else {
-        Scroll() {
-          Scroll() {
-            Stack() {
-              Canvas(this.canvasCtx)
-                .width(this.layout!.width)
-                .height(this.layout!.height)
-                .onReady(() => {
-                  this.drawTree();
-                })
-              ForEach(this.layout!.boxes, (box: PersonBox) => {
-                this.PersonCard(box)
-              }, (box: PersonBox) => box.person.id)
-            }
-            .width(this.layout!.width)
-            .height(this.layout!.height)
+        Stack({ alignContent: Alignment.BottomEnd }) {
+          Stack() {
+            Image($r('app.media.tree_paper'))
+              .width('100%')
+              .height('100%')
+              .objectFit(ImageFit.Cover)
+            Canvas(this.canvasCtx)
+              .width(this.layout!.width)
+              .height(this.layout!.height)
+              .onReady(() => {
+                this.drawTree();
+              })
+            ForEach(this.layout!.boxes, (box: PersonBox) => {
+              this.PersonCard(box)
+            }, (box: PersonBox) => box.person.id)
           }
-          .scrollable(ScrollDirection.Horizontal)
-          .scrollBar(BarState.Off)
+          .width(this.layout!.width)
+          .height(this.layout!.height)
+          .scale({ x: this.treeScale, y: this.treeScale })
+          .translate({ x: this.treeOffsetX, y: this.treeOffsetY })
+          .gesture(
+            GestureGroup(
+              GestureMode.Parallel,
+              PanGesture({ fingers: 1 })
+                .onActionStart(() => {
+                  this.treePanBaseX = this.treeOffsetX;
+                  this.treePanBaseY = this.treeOffsetY;
+                })
+                .onActionUpdate((event: GestureEvent) => {
+                  this.treeOffsetX = this.treePanBaseX + event.offsetX;
+                  this.treeOffsetY = this.treePanBaseY + event.offsetY;
+                }),
+              PinchGesture({ fingers: 2 })
+                .onActionStart(() => {
+                  this.treePinchBase = this.treeScale;
+                })
+                .onActionUpdate((event: GestureEvent) => {
+                  this.treeScale = Math.max(
+                    0.16,
+                    Math.min(2, this.treePinchBase * event.scale)
+                  );
+                })
+            )
+          )
+
+          Column({ space: 8 }) {
+            Button('＋')
+              .width(36)
+              .height(36)
+              .fontSize(18)
+              .backgroundColor('#F2FFFFFF')
+              .fontColor('#1C2A32')
+              .borderRadius(18)
+              .onClick(() => {
+                this.zoomTree(1.22);
+              })
+            Button('－')
+              .width(36)
+              .height(36)
+              .fontSize(18)
+              .backgroundColor('#F2FFFFFF')
+              .fontColor('#1C2A32')
+              .borderRadius(18)
+              .onClick(() => {
+                this.zoomTree(1 / 1.22);
+              })
+            Button('⤢')
+              .width(36)
+              .height(36)
+              .fontSize(15)
+              .backgroundColor('#F2FFFFFF')
+              .fontColor('#1C2A32')
+              .borderRadius(18)
+              .onClick(() => {
+                this.resetTreeFit();
+              })
+          }
+          .margin({ right: 12, bottom: 14 })
         }
-        .scrollable(ScrollDirection.Vertical)
         .layoutWeight(1)
-        .scrollBar(BarState.Off)
+        .width('100%')
+        .clip(true)
+        .onAreaChange((oldArea: Area, newArea: Area) => {
+          this.treeViewportWidth = Number(newArea.width);
+          this.treeViewportHeight = Number(newArea.height);
+          if (!this.treeFitted) {
+            this.resetTreeFit();
+          }
+        })
       }
-      Text('左右/上下拖动查看 · 点击人物查看档案')
+      if (this.selectedTreePerson() !== null) {
+        Row({ space: 10 }) {
+          this.TreePortrait(this.selectedTreePerson()!, 46, 52, 9)
+          Column({ space: 3 }) {
+            Text(this.selectedTreePerson()!.fullName)
+              .fontSize(15)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#1C2A32')
+            Text(this.selectedTreePerson()!.generationLabel + ' · ' +
+              this.personLifespan(this.selectedTreePerson()!))
+              .fontSize(10)
+              .fontColor('#89969C')
+          }
+          .alignItems(HorizontalAlign.Start)
+          .layoutWeight(1)
+          Button('查看档案')
+            .fontSize(11)
+            .height(32)
+            .backgroundColor('#4E7DF4')
+            .fontColor(Color.White)
+            .onClick(() => {
+              this.openPerson(this.selectedTreePerson()!.id);
+            })
+          Text('×')
+            .fontSize(18)
+            .fontColor('#89969C')
+            .padding({ left: 4, right: 4 })
+            .onClick(() => {
+              this.treeSelectedId = '';
+            })
+        }
+        .width('92%')
+        .padding(10)
+        .backgroundColor(Color.White)
+        .borderRadius(14)
+        .border({ width: 1, color: '#FFFFFFCC' })
+        .shadow({ radius: 18, color: '#0A20323B', offsetY: 6 })
+      }
+      Text('双指缩放 · 单指拖动 · 点击人物选中')
         .fontSize(10)
         .fontColor('#89969C')
         .padding({ top: 6, bottom: 8 })
@@ -2238,34 +2388,181 @@ struct Index {
 
   @Builder
   private PersonCard(box: PersonBox) {
-    Column({ space: 3 }) {
-      Text(box.person.fullName)
-        .fontSize(13)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(box.person.id === this.linkedPersonId ? '#4E7DF4' : '#1C2A32')
-        .maxLines(1)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
-      Text(box.person.generationLabel)
-        .fontSize(9)
-        .fontColor('#89969C')
-        .maxLines(1)
-      Text(box.person.gender === 'female' ? '女' : box.person.gender === 'male' ? '男' : '—')
-        .fontSize(9)
-        .fontColor(box.person.lifeStatus === 'living' ? '#3DA77C' : '#89969C')
+    Stack({ alignContent: Alignment.TopStart }) {
+      if (box.compact) {
+        Column({ space: 3 }) {
+          this.TreePortrait(box.person, 50, 55, 8)
+          Text(box.person.fullName)
+            .fontSize(12)
+            .fontWeight(FontWeight.Medium)
+            .fontColor('#1C2A32')
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+          Text('(' + this.personLifespan(box.person) + ')')
+            .fontSize(8)
+            .fontColor('#89969C')
+            .maxLines(1)
+          Blank()
+          Text(box.person.generationLabel)
+            .fontSize(8)
+            .fontColor(box.person.id === this.treeSelectedId ? '#4E7DF4' : '#89969C')
+            .backgroundColor(box.person.id === this.treeSelectedId
+              ? '#EAF0FF' : '#F4F5F4')
+            .padding({ left: 4, right: 4, top: 2, bottom: 2 })
+            .borderRadius(4)
+        }
+        .width('100%')
+        .height('100%')
+        .padding(5)
+        .justifyContent(FlexAlign.Center)
+        .alignItems(HorizontalAlign.Center)
+      } else {
+        Row({ space: 7 }) {
+          this.TreePortrait(box.person, 42, 60, 9)
+          Column({ space: 3 }) {
+            Text(box.person.fullName)
+              .fontSize(15)
+              .fontWeight(FontWeight.Medium)
+              .fontColor('#1C2A32')
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+            Text('(' + this.personLifespan(box.person) + ')')
+              .fontSize(9)
+              .fontColor('#89969C')
+              .maxLines(1)
+            Text(box.person.generationLabel)
+              .fontSize(8)
+              .fontColor('#89969C')
+              .backgroundColor('#F3F5F5')
+              .padding({ left: 5, right: 5, top: 2, bottom: 2 })
+              .borderRadius(4)
+          }
+          .alignItems(HorizontalAlign.Start)
+          .layoutWeight(1)
+        }
+        .width('100%')
+        .height('100%')
+        .padding(7)
+      }
+      if (box.person.id === this.linkedPersonId) {
+        Text('我')
+          .fontSize(8)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(Color.White)
+          .backgroundColor('#4E7DF4')
+          .padding({ left: 6, right: 6, top: 2, bottom: 2 })
+          .borderRadius(6)
+          .margin({ left: 2, top: -7 })
+      }
     }
     .width(box.width)
     .height(box.height)
-    .justifyContent(FlexAlign.Center)
-    .backgroundColor(Color.White)
-    .borderRadius(12)
+    .backgroundColor('#FFFEFA')
+    .borderRadius(box.compact ? 12 : 14)
     .border({
-      width: box.person.id === this.linkedPersonId ? 1.6 : 1,
-      color: box.person.id === this.linkedPersonId ? '#4E7DF4' : '#E4EAEC'
+      width: box.person.id === this.treeSelectedId ? 1.5 : 0.8,
+      color: box.person.id === this.treeSelectedId ? '#4E7DF4' : '#E7ECEC'
     })
+    .shadow({
+      radius: box.person.id === this.treeSelectedId ? 16 : 8,
+      color: box.person.id === this.treeSelectedId ? '#4E7DF433' : '#39545C12',
+      offsetY: 4
+    })
+    .opacity(this.treeGenerationFilter === 0 ||
+      box.person.generationNo === this.treeGenerationFilter ? 1 : 0.28)
     .position({ x: box.x, y: box.y })
     .onClick(() => {
-      this.openPerson(box.person.id);
+      this.treeSelectedId = box.person.id;
     })
+  }
+
+  @Builder
+  private TreePortrait(person: ApiPerson, width: number, height: number, radius: number) {
+    Stack() {
+      if (person.hasAvatar === true) {
+        AuthImage({
+          path: '/api/v1/persons/' + person.id + '/avatar?v=' +
+            String(this.avatarRevision),
+          radius: radius
+        })
+      } else {
+        Text(person.fullName.substring(0, 1))
+          .width('100%')
+          .height('100%')
+          .textAlign(TextAlign.Center)
+          .fontSize(width > 45 ? 18 : 15)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(person.gender === 'female' ? '#B45D5A' : '#3F6E9E')
+          .backgroundColor(person.gender === 'female' ? '#FBEEEA' : '#EAF0F5')
+      }
+    }
+    .width(width)
+    .height(height)
+    .borderRadius(radius)
+    .clip(true)
+  }
+
+  private personLifespan(person: ApiPerson): string {
+    const birth = person.birth !== undefined ? person.birth!.year : undefined;
+    const death = person.death !== undefined ? person.death!.year : undefined;
+    if (birth !== undefined && death !== undefined) {
+      return String(birth) + '–' + String(death);
+    }
+    if (birth !== undefined) {
+      return String(birth) + '–';
+    }
+    return '—';
+  }
+
+  private selectedTreePerson(): ApiPerson | null {
+    if (this.tree === null || this.treeSelectedId.length === 0) return null;
+    const person = this.tree.persons.find(
+      (item: ApiPerson) => item.id === this.treeSelectedId
+    );
+    return person === undefined ? null : person;
+  }
+
+  private treeGenerations(): number[] {
+    const values: number[] = [];
+    if (this.tree !== null) {
+      this.tree.persons.forEach((person: ApiPerson) => {
+        if (values.indexOf(person.generationNo) < 0) {
+          values.push(person.generationNo);
+        }
+      });
+    }
+    values.sort((a: number, b: number) => a - b);
+    return values;
+  }
+
+  private resetTreeFit(): void {
+    const layout = this.layout;
+    if (layout === null || layout.width <= 0 ||
+      this.treeViewportWidth <= 0 || this.treeViewportHeight <= 0) {
+      return;
+    }
+    const scale = Math.min(
+      (this.treeViewportWidth - 24) / layout.width,
+      (this.treeViewportHeight - 24) / layout.height,
+      1
+    );
+    this.treeScale = Math.max(0.16, scale);
+    this.treeOffsetX = (this.treeViewportWidth - layout.width * this.treeScale) / 2;
+    this.treeOffsetY = Math.max(
+      12,
+      (this.treeViewportHeight - layout.height * this.treeScale) / 2
+    );
+    this.treeFitted = true;
+  }
+
+  private zoomTree(factor: number): void {
+    const next = Math.max(0.16, Math.min(2, this.treeScale * factor));
+    const centerX = this.treeViewportWidth / 2;
+    const centerY = this.treeViewportHeight / 2;
+    const ratio = next / this.treeScale;
+    this.treeOffsetX = centerX - (centerX - this.treeOffsetX) * ratio;
+    this.treeOffsetY = centerY - (centerY - this.treeOffsetY) * ratio;
+    this.treeScale = next;
   }
 
   @Builder

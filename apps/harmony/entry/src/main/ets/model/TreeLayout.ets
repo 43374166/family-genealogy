@@ -1,12 +1,17 @@
 import { ApiPerson, ApiTree } from './Types';
 
-const CARD_W: number = 104;
-const CARD_H: number = 86;
-const MEMBER_GAP: number = 8;
-const UNIT_GAP: number = 26;
-const GEN_GAP: number = 76;
-const LEFT: number = 24;
-const TOP: number = 24;
+const WIDE_W: number = 150;
+const WIDE_H: number = 82;
+const COMPACT_W: number = 96;
+const COMPACT_H: number = 128;
+const MEMBER_GAP: number = 14;
+const CHILD_GAP: number = 30;
+const FAMILY_GAP: number = 92;
+const GEN_GAP: number = 78;
+const LEFT: number = 80;
+const RIGHT: number = 28;
+const TOP: number = 28;
+const BOTTOM: number = 30;
 
 export interface PersonBox {
   person: ApiPerson;
@@ -14,6 +19,7 @@ export interface PersonBox {
   y: number;
   width: number;
   height: number;
+  compact: boolean;
 }
 
 export interface TreeLine {
@@ -31,8 +37,12 @@ export interface TreeDot {
 
 class LayoutUnit {
   members: ApiPerson[] = [];
+  generation: number = 0;
   x: number = 0;
+  left: number = 0;
   width: number = 0;
+  parents: Set<LayoutUnit> = new Set<LayoutUnit>();
+  children: Set<LayoutUnit> = new Set<LayoutUnit>();
 }
 
 class ConnectionGroup {
@@ -84,7 +94,17 @@ export class TreeLayoutBuilder {
     });
     generations.sort((a: number, b: number) => a - b);
 
-    generations.forEach((generation: number, generationIndex: number) => {
+    const compactByGeneration = new Map<number, boolean>();
+    generations.forEach((generation: number) => {
+      const count = tree.persons.filter(
+        (person: ApiPerson) => person.generationNo === generation
+      ).length;
+      compactByGeneration.set(generation, count > 3 || tree.persons.length > 22);
+    });
+
+    const unitsByGeneration = new Map<number, LayoutUnit[]>();
+    const unitByPerson = new Map<string, LayoutUnit>();
+    generations.forEach((generation: number) => {
       const units: LayoutUnit[] = [];
       const used = new Set<string>();
       const people: ApiPerson[] = tree.persons
@@ -104,6 +124,7 @@ export class TreeLayoutBuilder {
         });
         if (wives.length === 0) return;
         const unit = new LayoutUnit();
+        unit.generation = generation;
         unit.members.push(person);
         wives.forEach((wife: ApiPerson) => unit.members.push(wife));
         unit.members.forEach((member: ApiPerson) => used.add(member.id));
@@ -114,6 +135,7 @@ export class TreeLayoutBuilder {
         if (used.has(person.id)) return;
         used.add(person.id);
         const unit = new LayoutUnit();
+        unit.generation = generation;
         unit.members.push(person);
         const spouseIds = spouses.get(person.id);
         if (spouseIds !== undefined) {
@@ -132,34 +154,147 @@ export class TreeLayoutBuilder {
       units.sort((a: LayoutUnit, b: LayoutUnit) =>
         TreeLayoutBuilder.comparePeople(a.members[0], b.members[0])
       );
-
-      const y = TOP + generationIndex * (CARD_H + GEN_GAP);
-      let x = LEFT;
       units.forEach((unit: LayoutUnit) => {
-        unit.x = x;
+        const cardWidth = TreeLayoutBuilder.cardWidth(unit.generation, compactByGeneration);
+        unit.width = unit.members.length * cardWidth +
+          (unit.members.length - 1) * MEMBER_GAP;
+        unit.members.forEach((member: ApiPerson) => unitByPerson.set(member.id, unit));
+      });
+      unitsByGeneration.set(generation, units);
+    });
+
+    tree.parentChild.forEach((edge) => {
+      if (edge.status !== 'active') return;
+      const parentUnit = unitByPerson.get(edge.parentId);
+      const childUnit = unitByPerson.get(edge.childId);
+      if (parentUnit === undefined || childUnit === undefined) return;
+      if (parentUnit.generation >= childUnit.generation) return;
+      parentUnit.children.add(childUnit);
+      childUnit.parents.add(parentUnit);
+    });
+
+    unitsByGeneration.forEach((units: LayoutUnit[]) => {
+      units.forEach((unit: LayoutUnit) => {
+        if (unit.parents.size < 2) return;
+        const parents = Array.from(unit.parents).sort((a: LayoutUnit, b: LayoutUnit) =>
+          TreeLayoutBuilder.comparePeople(a.members[0], b.members[0])
+        );
+        const keep = parents[0];
+        parents.forEach((parent: LayoutUnit) => {
+          if (parent !== keep) parent.children.delete(unit);
+        });
+        unit.parents.clear();
+        unit.parents.add(keep);
+      });
+    });
+
+    const topByGeneration = new Map<number, number>();
+    let top = TOP;
+    generations.forEach((generation: number) => {
+      topByGeneration.set(generation, top);
+      const height = TreeLayoutBuilder.cardHeight(generation, compactByGeneration);
+      top += height + GEN_GAP;
+    });
+
+    const roots: LayoutUnit[] = [];
+    unitsByGeneration.forEach((units: LayoutUnit[]) => {
+      units.forEach((unit: LayoutUnit) => {
+        if (unit.parents.size === 0) roots.push(unit);
+      });
+    });
+    roots.sort((a: LayoutUnit, b: LayoutUnit) => {
+      if (a.generation !== b.generation) return a.generation - b.generation;
+      return TreeLayoutBuilder.comparePeople(a.members[0], b.members[0]);
+    });
+
+    const widthCache = new Map<LayoutUnit, number>();
+    let left = LEFT;
+    roots.forEach((root: LayoutUnit, index: number) => {
+      const width = TreeLayoutBuilder.subtreeWidth(root, widthCache);
+      TreeLayoutBuilder.placeUnit(root, left, widthCache);
+      left += width;
+      if (index !== roots.length - 1) left += FAMILY_GAP;
+    });
+
+    result.width = Math.max(360, left + RIGHT);
+    result.height = Math.max(220, top - GEN_GAP + BOTTOM);
+
+    unitsByGeneration.forEach((units: LayoutUnit[]) => {
+      const generation = units.length > 0 ? units[0].generation : 0;
+      const cardWidth = TreeLayoutBuilder.cardWidth(generation, compactByGeneration);
+      const cardHeight = TreeLayoutBuilder.cardHeight(generation, compactByGeneration);
+      const compact = compactByGeneration.get(generation) === true;
+      const y = topByGeneration.get(generation);
+      if (y === undefined) return;
+      units.forEach((unit: LayoutUnit) => {
+        let x = unit.left;
         unit.members.forEach((member: ApiPerson) => {
           const box: PersonBox = {
             person: member,
             x: x,
             y: y,
-            width: CARD_W,
-            height: CARD_H
+            width: cardWidth,
+            height: cardHeight,
+            compact: compact
           };
           result.boxes.push(box);
           result.boxById.set(member.id, box);
-          x += CARD_W + MEMBER_GAP;
+          x += cardWidth + MEMBER_GAP;
         });
-        unit.width = unit.members.length * CARD_W + (unit.members.length - 1) * MEMBER_GAP;
-        x = unit.x + unit.width + UNIT_GAP;
       });
-      result.width = Math.max(result.width, x);
     });
-
-    result.width = Math.max(result.width, 360);
-    result.height = TOP + generations.length * (CARD_H + GEN_GAP) + 20;
 
     TreeLayoutBuilder.buildConnections(tree, result);
     return result;
+  }
+
+  private static cardWidth(generation: number, compact: Map<number, boolean>): number {
+    return compact.get(generation) === true ? COMPACT_W : WIDE_W;
+  }
+
+  private static cardHeight(generation: number, compact: Map<number, boolean>): number {
+    return compact.get(generation) === true ? COMPACT_H : WIDE_H;
+  }
+
+  private static subtreeWidth(unit: LayoutUnit, cache: Map<LayoutUnit, number>): number {
+    const cached = cache.get(unit);
+    if (cached !== undefined) return cached;
+    const children = TreeLayoutBuilder.sortedChildren(unit);
+    let childrenWidth = 0;
+    children.forEach((child: LayoutUnit, index: number) => {
+      childrenWidth += TreeLayoutBuilder.subtreeWidth(child, cache);
+      if (index !== children.length - 1) childrenWidth += CHILD_GAP;
+    });
+    const width = Math.max(unit.width, childrenWidth);
+    cache.set(unit, width);
+    return width;
+  }
+
+  private static placeUnit(
+    unit: LayoutUnit,
+    left: number,
+    cache: Map<LayoutUnit, number>
+  ): void {
+    const width = TreeLayoutBuilder.subtreeWidth(unit, cache);
+    unit.left = left + (width - unit.width) / 2;
+    const children = TreeLayoutBuilder.sortedChildren(unit);
+    if (children.length === 0) return;
+    let childrenWidth = 0;
+    children.forEach((child: LayoutUnit, index: number) => {
+      childrenWidth += TreeLayoutBuilder.subtreeWidth(child, cache);
+      if (index !== children.length - 1) childrenWidth += CHILD_GAP;
+    });
+    let childLeft = left + (width - childrenWidth) / 2;
+    children.forEach((child: LayoutUnit) => {
+      TreeLayoutBuilder.placeUnit(child, childLeft, cache);
+      childLeft += TreeLayoutBuilder.subtreeWidth(child, cache) + CHILD_GAP;
+    });
+  }
+
+  private static sortedChildren(unit: LayoutUnit): LayoutUnit[] {
+    return Array.from(unit.children).sort((a: LayoutUnit, b: LayoutUnit) =>
+      TreeLayoutBuilder.comparePeople(a.members[0], b.members[0])
+    );
   }
 
   private static addSpouse(map: Map<string, string[]>, personId: string, spouseId: string): void {
