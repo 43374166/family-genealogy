@@ -825,7 +825,7 @@ class _GenerationFilters extends StatelessWidget {
     final filters = <(String, int?)>[
       ('全部', null),
       for (final generation in generations)
-        (FamilyMember.generationLabelFor(generation), generation),
+        (SessionScope.of(context).generationLabelFor(generation), generation),
     ];
     return SizedBox(
       height: 50,
@@ -1053,7 +1053,7 @@ class _GenerationLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = FamilyMember.generationLabelFor(generation);
+    final label = SessionScope.of(context).generationLabelFor(generation);
     final color = active
         ? AppColors.primary
         : dimmed
@@ -1556,7 +1556,7 @@ class _DirectoryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = FamilyMember.generationLabelFor(generation);
+    final label = SessionScope.of(context).generationLabelFor(generation);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),

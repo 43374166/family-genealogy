@@ -223,6 +223,22 @@ class ApiBindingRequestPage {
   }
 }
 
+class ApiGenerationName {
+  const ApiGenerationName({required this.generationNo, required this.name});
+
+  final int generationNo;
+  final String name;
+
+  factory ApiGenerationName.fromJson(Map<String, dynamic> json) {
+    return ApiGenerationName(
+      generationNo: _int(json['generationNo']),
+      name: _string(json['name']),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {'generationNo': generationNo, 'name': name};
+}
+
 class ApiAnniversary {
   const ApiAnniversary({
     required this.personId,
@@ -788,7 +804,7 @@ class ApiPerson {
     );
   }
 
-  FamilyMember toFamilyMember(String familyId) {
+  FamilyMember toFamilyMember(String familyId, {String generationName = ''}) {
     final aliases = <String>[
       if (courtesyName.isNotEmpty) courtesyName,
       if (alias.isNotEmpty) alias,
@@ -800,6 +816,7 @@ class ApiPerson {
       name: fullName,
       gender: gender == 'female' ? Gender.female : Gender.male,
       generation: generationNo,
+      generationName: generationName,
       aliases: aliases,
       birthYear: birth?.year,
       deathYear: death?.year,

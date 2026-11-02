@@ -18,6 +18,7 @@ class AppSession extends ChangeNotifier {
   ApiMembership? _membership;
   ApiTree? _tree;
   ApiFamily? _family;
+  List<ApiGenerationName> _generationNames = const [];
   List<ApiFamilyMembership> _families = const [];
   bool _loading = false;
   bool _restoring = false;
@@ -179,6 +180,7 @@ class AppSession extends ChangeNotifier {
       }
       try {
         _tree = await _api.tree();
+        await _loadGenerationNames();
       } on ApiException catch (error) {
         _error = '登录成功，但族谱加载失败：${error.message}';
       }
@@ -479,6 +481,7 @@ class AppSession extends ChangeNotifier {
       _applyMe(me);
       try {
         _tree = await _api.tree();
+        await _loadGenerationNames();
       } on ApiException catch (error) {
         _error = '已恢复登录，但族谱加载失败：${error.message}';
       }
@@ -895,10 +898,43 @@ class AppSession extends ChangeNotifier {
     try {
       _tree = await _api.tree();
       _family = await _api.family();
+      await _loadGenerationNames();
       _error = null;
     } on ApiException catch (error) {
       _error = error.message;
     }
+    notifyListeners();
+  }
+
+  Future<void> _loadGenerationNames() async {
+    try {
+      _generationNames = await _api.generationNames();
+    } on ApiException {
+      _generationNames = const [];
+    }
+  }
+
+  List<ApiGenerationName> get generationNames => _generationNames;
+
+  String generationNameFor(int generationNo) {
+    for (final item in _generationNames) {
+      if (item.generationNo == generationNo) return item.name;
+    }
+    return '';
+  }
+
+  String generationLabelFor(int generationNo) =>
+      FamilyMember.generationLabelFor(
+        generationNo,
+        name: generationNameFor(generationNo),
+      );
+
+  Future<void> saveGenerationNames(List<ApiGenerationName> items) async {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    _generationNames = await _api.saveGenerationNames(items);
+    await refreshTree();
     notifyListeners();
   }
 
@@ -978,6 +1014,7 @@ class AppSession extends ChangeNotifier {
       _membership = null;
       _tree = null;
       _family = null;
+      _generationNames = const [];
       _error = null;
       notifyListeners();
     }
@@ -987,7 +1024,12 @@ class AppSession extends ChangeNotifier {
     final currentTree = _tree;
     if (currentTree == null) return const [];
     return currentTree.persons
-        .map((person) => person.toFamilyMember(currentTree.familyId))
+        .map(
+          (person) => person.toFamilyMember(
+            currentTree.familyId,
+            generationName: generationNameFor(person.generationNo),
+          ),
+        )
         .toList(growable: false);
   }
 

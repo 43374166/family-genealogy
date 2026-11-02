@@ -725,6 +725,28 @@ class ApiClient {
     );
   }
 
+  Future<List<ApiGenerationName>> generationNames() async {
+    final body = await _request('GET', '/api/v1/generation-names');
+    return (body['items'] as List<dynamic>? ?? [])
+        .whereType<Map<String, dynamic>>()
+        .map(ApiGenerationName.fromJson)
+        .toList();
+  }
+
+  Future<List<ApiGenerationName>> saveGenerationNames(
+    List<ApiGenerationName> items,
+  ) async {
+    final body = await _request(
+      'PUT',
+      '/api/v1/generation-names',
+      body: {'items': items.map((item) => item.toJson()).toList()},
+    );
+    return (body['items'] as List<dynamic>? ?? [])
+        .whereType<Map<String, dynamic>>()
+        .map(ApiGenerationName.fromJson)
+        .toList();
+  }
+
   Future<List<ApiAnniversary>> anniversaries({int days = 60}) async {
     final body = await _request('GET', '/api/v1/anniversaries?days=$days');
     return (body['items'] as List<dynamic>? ?? [])

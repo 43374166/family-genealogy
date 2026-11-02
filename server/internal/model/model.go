@@ -36,6 +36,11 @@ type Membership struct {
 	JoinedAt time.Time `json:"joinedAt"`
 }
 
+type GenerationName struct {
+	GenerationNo int    `json:"generationNo"`
+	Name         string `json:"name"`
+}
+
 type PartialDate struct {
 	Year        *int   `json:"year,omitempty"`
 	Month       *int   `json:"month,omitempty"`

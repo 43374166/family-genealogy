@@ -6,6 +6,7 @@ import '../../core/widgets/soft_card.dart';
 import '../../services/api_client.dart';
 import '../../services/api_models.dart';
 import '../../services/app_session.dart';
+import 'generation_name_picker.dart';
 import 'lunar_date_picker.dart';
 import 'parent_picker_field.dart';
 
@@ -349,6 +350,13 @@ class _AddPersonPageState extends State<AddPersonPage> {
                                             onChanged: (value) => setState(
                                               () => _generation =
                                                   value ?? _generation,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 10),
+                                          GenerationNamePicker(
+                                            currentGeneration: _generation,
+                                            onChanged: (value) => setState(
+                                              () => _generation = value,
                                             ),
                                           ),
                                         ],

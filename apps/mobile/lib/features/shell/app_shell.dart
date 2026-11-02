@@ -159,7 +159,7 @@ class _BottomBar extends StatelessWidget {
                     activeIcon: Icons.chat_bubble_rounded,
                     label: '消息',
                     selected: currentIndex == 2,
-                    badge: true,
+                    badge: SessionScope.of(context).unreadNotifications > 0,
                     onTap: () => onSelect(2),
                   ),
                   _NavItem(

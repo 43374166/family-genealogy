@@ -363,22 +363,8 @@ class _HomeTopBar extends StatelessWidget {
             tooltip: '消息通知',
             backgroundColor: Colors.white.withValues(alpha: 0.68),
           ),
-          const SizedBox(width: 4),
-          RoundIconButton(
-            icon: Icons.settings_outlined,
-            onTap: () => _showSettings(context),
-            tooltip: '设置',
-            backgroundColor: Colors.white.withValues(alpha: 0.5),
-          ),
         ],
       ),
-    );
-  }
-
-  void _showSettings(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (context) => const _SettingsSheet(),
     );
   }
 }
@@ -1312,31 +1298,6 @@ class _BranchSheetState extends State<_BranchSheet> {
   }
 }
 
-class _SettingsSheet extends StatelessWidget {
-  const _SettingsSheet();
-
-  @override
-  Widget build(BuildContext context) {
-    return _SheetFrame(
-      title: '设置',
-      subtitle: '已连接家庭服务器',
-      child: Column(
-        children: [
-          _SettingsRow(icon: Icons.person_outline_rounded, label: '账户与资料'),
-          _SettingsRow(icon: Icons.privacy_tip_outlined, label: '隐私与展示范围'),
-          _SettingsRow(icon: Icons.contrast_rounded, label: '外观与字号'),
-          _SettingsRow(icon: Icons.info_outline_rounded, label: '关于家族族谱'),
-          const SizedBox(height: 12),
-          const Text(
-            'v0.36.0 · Flutter + MySQL',
-            style: TextStyle(fontSize: 11, color: AppColors.inkMuted),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _SheetFrame extends StatelessWidget {
   const _SheetFrame({
     required this.title,
@@ -1385,45 +1346,6 @@ class _SheetFrame extends StatelessWidget {
           const SizedBox(height: 12),
           child,
         ],
-      ),
-    );
-  }
-}
-
-class _SettingsRow extends StatelessWidget {
-  const _SettingsRow({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () {
-        final messenger = ScaffoldMessenger.of(context);
-        Navigator.pop(context);
-        messenger.showSnackBar(const SnackBar(content: Text('该设置项将在后续版本开放')));
-      },
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        child: Row(
-          children: [
-            Icon(icon, size: 20, color: AppColors.inkSoft),
-            const SizedBox(width: 13),
-            Expanded(
-              child: Text(
-                label,
-                style: const TextStyle(fontSize: 14, color: AppColors.ink),
-              ),
-            ),
-            const Icon(
-              Icons.chevron_right_rounded,
-              size: 19,
-              color: AppColors.inkMuted,
-            ),
-          ],
-        ),
       ),
     );
   }

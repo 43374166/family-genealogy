@@ -12,6 +12,7 @@ import '../family/archive_family_page.dart';
 import '../family/branch_admins_page.dart';
 import '../family/export_data_page.dart';
 import '../family/transfer_owner_page.dart';
+import 'generation_names_page.dart';
 import '../family/export_family_page.dart';
 import '../family/family_switch_page.dart';
 import '../family/import_family_page.dart';
@@ -25,7 +26,7 @@ import '../person/api_person_detail_page.dart';
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
 
-  static const _version = '0.36.0';
+  static const _version = '0.37.0';
 
   Future<void> _pickTextSize(BuildContext context) async {
     final settings = SettingsScope.of(context);
@@ -403,6 +404,17 @@ class SettingsPage extends StatelessWidget {
                               onTap: () => Navigator.of(context).push(
                                 MaterialPageRoute<void>(
                                   builder: (_) => const InvitePage(),
+                                ),
+                              ),
+                            ),
+                            const Divider(height: 1, indent: 47),
+                            _SettingRow(
+                              icon: Icons.sort_by_alpha_rounded,
+                              label: '字辈',
+                              trailing: '按世代设置',
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const GenerationNamesPage(),
                                 ),
                               ),
                             ),

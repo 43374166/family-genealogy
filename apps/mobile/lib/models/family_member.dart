@@ -16,6 +16,7 @@ class FamilyMember {
     required this.name,
     required this.gender,
     required this.generation,
+    this.generationName = '',
     this.aliases = const [],
     this.birthYear,
     this.deathYear,
@@ -37,6 +38,7 @@ class FamilyMember {
   final List<String> aliases;
   final Gender gender;
   final int generation;
+  final String generationName;
   final int? birthYear;
   final int? deathYear;
   final String? birthPlace;
@@ -63,10 +65,13 @@ class FamilyMember {
     return (deathYear ?? DateTime.now().year) - year;
   }
 
-  String get generationLabel => generationLabelFor(generation);
+  String get generationLabel =>
+      generationLabelFor(generation, name: generationName);
 
-  static String generationLabelFor(int generation) =>
-      '第${_chineseNumber(generation)}世';
+  static String generationLabelFor(int generation, {String name = ''}) {
+    final label = '第${_chineseNumber(generation)}世';
+    return name.isEmpty ? label : '$label（$name）';
+  }
 
   String get lifespan {
     final birth = birthYear?.toString();

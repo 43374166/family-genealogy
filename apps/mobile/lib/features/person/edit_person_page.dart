@@ -7,6 +7,7 @@ import '../../services/api_client.dart';
 import '../../services/api_models.dart';
 import '../../services/app_session.dart';
 import 'lunar_date_picker.dart';
+import 'generation_name_picker.dart';
 import 'parent_picker_field.dart';
 
 class EditPersonPage extends StatefulWidget {
@@ -345,6 +346,13 @@ class _EditPersonPageState extends State<EditPersonPage> {
                               if (value != null) {
                                 setState(() => _generation = value);
                               }
+                            },
+                          ),
+                          const SizedBox(height: 10),
+                          GenerationNamePicker(
+                            currentGeneration: _generation,
+                            onChanged: (value) {
+                              setState(() => _generation = value);
                             },
                           ),
                           const SizedBox(height: 12),
