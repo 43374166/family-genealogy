@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 
+import '../../core/images/image_pick_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/app_page_header.dart';
 import '../../services/api_client.dart';
@@ -20,8 +20,17 @@ class GalleryPage extends StatefulWidget {
 
 class _GalleryPageState extends State<GalleryPage> {
   List<ApiPhoto> _photos = const [];
+  late List<ApiPerson> _filterPeople = [
+    if (widget.personId != null && widget.personId!.isNotEmpty)
+      ApiPerson.brief(
+        id: widget.personId!,
+        fullName: widget.personName ?? '已选人物',
+      ),
+  ];
   bool _loading = true;
   bool _uploading = false;
+  int _uploadDone = 0;
+  int _uploadTotal = 0;
   String? _error;
   bool _started = false;
 
@@ -41,7 +50,7 @@ class _GalleryPageState extends State<GalleryPage> {
     try {
       final photos = await SessionScope.of(
         context,
-      ).photos(personId: widget.personId);
+      ).photos(personIds: _filterPeople.map((person) => person.id).toList());
       if (!mounted) return;
       setState(() {
         _photos = photos;
@@ -56,59 +65,96 @@ class _GalleryPageState extends State<GalleryPage> {
     }
   }
 
+  Future<void> _pickFilter() async {
+    final result = await Navigator.of(context).push<List<ApiPerson>>(
+      MaterialPageRoute<List<ApiPerson>>(
+        builder: (_) => MemberSearchPage(
+          selectMode: true,
+          multiSelect: true,
+          initialSelected: _filterPeople,
+        ),
+      ),
+    );
+    if (result == null || !mounted) return;
+    setState(() => _filterPeople = result);
+    await _load();
+  }
+
   Future<void> _upload() async {
-    final session = SessionScope.of(context);
-    final picked = await ImagePicker().pickImage(
-      source: ImageSource.gallery,
+    final picked = await pickMultipleImages(
       maxWidth: 2000,
-      imageQuality: 82,
+      imageQuality: 78,
+      limit: 20,
     );
-    if (picked == null || !mounted) return;
-    final meta = await _askMeta(
-      initialPersonId: widget.personId,
-      initialPersonName: widget.personName,
-    );
+    if (picked.isEmpty || !mounted) return;
+    final meta = await _askMeta(initialPeople: _filterPeople);
     if (meta == null || !mounted) return;
-    setState(() => _uploading = true);
-    try {
-      final bytes = await picked.readAsBytes();
-      final photo = await session.uploadPhoto(
-        bytes: bytes,
-        filename: picked.name,
-        personId: meta.personId,
-        caption: meta.caption,
-        takenAt: meta.takenAt,
-      );
+    setState(() {
+      _uploading = true;
+      _uploadDone = 0;
+      _uploadTotal = picked.length;
+    });
+    final session = SessionScope.of(context);
+    final uploaded = <ApiPhoto>[];
+    String? failure;
+    for (final file in picked) {
       if (!mounted) return;
-      setState(() {
-        _photos = [photo, ..._photos];
-        _uploading = false;
-      });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('照片已上传')));
-    } on ApiException catch (error) {
+      try {
+        final photo = await session.uploadPhoto(
+          bytes: file.bytes,
+          filename: file.filename,
+          personIds: meta.people.map((person) => person.id).toList(),
+          caption: meta.caption,
+          takenAt: meta.takenAt,
+        );
+        uploaded.add(photo);
+      } on ApiException catch (error) {
+        failure = error.message;
+        break;
+      } catch (_) {
+        failure = '照片上传失败，请稍后重试';
+        break;
+      }
       if (!mounted) return;
-      setState(() => _uploading = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.message)));
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _uploading = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('照片上传失败，请稍后重试')));
+      setState(() => _uploadDone++);
     }
+    if (!mounted) return;
+    setState(() => _uploading = false);
+    if (_filterPeople.isEmpty) {
+      setState(() => _photos = [...uploaded.reversed, ..._photos]);
+    } else {
+      await _load();
+      if (!mounted) return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          failure == null
+              ? '已上传 ${uploaded.length} 张照片'
+              : '已上传 ${uploaded.length} 张，其余未完成：$failure',
+        ),
+      ),
+    );
   }
 
   Future<_PhotoMeta?> _askMeta({
-    String? initialPersonId,
-    String? initialPersonName,
+    List<ApiPerson> initialPeople = const [],
     ApiPhoto? photo,
   }) async {
-    var personId = initialPersonId ?? photo?.personId ?? '';
-    var personName = initialPersonName ?? photo?.personName ?? '';
+    var people = photo == null
+        ? [...initialPeople]
+        : photo.persons.isNotEmpty
+        ? photo.persons
+              .map(
+                (person) => ApiPerson.brief(
+                  id: person.personId,
+                  fullName: person.fullName,
+                ),
+              )
+              .toList()
+        : photo.personId == null
+        ? <ApiPerson>[]
+        : [ApiPerson.brief(id: photo.personId!, fullName: photo.personName)];
     var takenAt = photo?.takenAt;
     final caption = TextEditingController(text: photo?.caption ?? '');
     final result = await showDialog<_PhotoMeta>(
@@ -123,36 +169,47 @@ class _GalleryPageState extends State<GalleryPage> {
               children: [
                 OutlinedButton.icon(
                   onPressed: () async {
-                    final person = await Navigator.of(context).push<ApiPerson>(
-                      MaterialPageRoute<ApiPerson>(
-                        builder: (_) =>
-                            const MemberSearchPage(selectMode: true),
-                      ),
-                    );
-                    if (person != null) {
-                      setDialogState(() {
-                        personId = person.id;
-                        personName = person.fullName;
-                      });
+                    final selected = await Navigator.of(context)
+                        .push<List<ApiPerson>>(
+                          MaterialPageRoute<List<ApiPerson>>(
+                            builder: (_) => MemberSearchPage(
+                              selectMode: true,
+                              multiSelect: true,
+                              initialSelected: people,
+                            ),
+                          ),
+                        );
+                    if (selected != null) {
+                      setDialogState(() => people = selected);
                     }
                   },
-                  icon: const Icon(Icons.person_pin_circle_outlined, size: 18),
+                  icon: const Icon(Icons.people_outline_rounded, size: 18),
                   label: Text(
-                    personId.isEmpty ? '关联人物（可选）' : personName,
+                    people.isEmpty ? '关联人物（可多选）' : '关联 ${people.length} 人',
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                if (personId.isNotEmpty)
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () => setDialogState(() {
-                        personId = '';
-                        personName = '';
-                      }),
-                      child: const Text('清除人物'),
-                    ),
+                if (people.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final person in people)
+                        InputChip(
+                          label: Text(
+                            person.fullName,
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                          onDeleted: () => setDialogState(
+                            () => people = people
+                                .where((item) => item.id != person.id)
+                                .toList(),
+                          ),
+                        ),
+                    ],
                   ),
+                ],
                 const SizedBox(height: 8),
                 TextField(
                   controller: caption,
@@ -203,8 +260,7 @@ class _GalleryPageState extends State<GalleryPage> {
             FilledButton(
               onPressed: () => Navigator.of(dialogContext).pop(
                 _PhotoMeta(
-                  personId: personId,
-                  personName: personName,
+                  people: people,
                   caption: caption.text.trim(),
                   takenAt: takenAt,
                 ),
@@ -252,9 +308,9 @@ class _GalleryPageState extends State<GalleryPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (photo.personName.isNotEmpty)
+                  if (photo.displayPersonNames.isNotEmpty)
                     Text(
-                      photo.personName,
+                      photo.displayPersonNames,
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 13,
@@ -306,7 +362,9 @@ class _GalleryPageState extends State<GalleryPage> {
                       try {
                         final updated = await session.updatePhoto(
                           photoId: photo.id,
-                          personId: meta.personId,
+                          personIds: meta.people
+                              .map((person) => person.id)
+                              .toList(),
                           caption: meta.caption,
                           takenAt: meta.takenAt,
                         );
@@ -393,14 +451,38 @@ class _GalleryPageState extends State<GalleryPage> {
           children: [
             AppPageHeader(
               title: title,
-              subtitle: _loading ? '正在加载照片' : '${_photos.length} 张照片',
+              subtitle: _uploading
+                  ? '正在上传 $_uploadDone/$_uploadTotal'
+                  : _loading
+                  ? '正在加载照片'
+                  : '${_photos.length} 张照片',
               actions: [
+                HeaderIconButton(
+                  icon: Icons.filter_alt_outlined,
+                  onTap: _uploading ? () {} : _pickFilter,
+                ),
                 HeaderIconButton(
                   icon: Icons.add_photo_alternate_outlined,
                   onTap: _uploading ? () {} : _upload,
                 ),
               ],
             ),
+            _FilterBar(
+              people: _filterPeople,
+              onTap: _uploading ? null : _pickFilter,
+              onClear: () {
+                setState(() => _filterPeople = const []);
+                _load();
+              },
+            ),
+            if (_uploading)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                child: LinearProgressIndicator(
+                  value: _uploadTotal == 0 ? null : _uploadDone / _uploadTotal,
+                  minHeight: 3,
+                ),
+              ),
             Expanded(
               child: _loading
                   ? const Center(
@@ -430,27 +512,29 @@ class _GalleryPageState extends State<GalleryPage> {
                       onRefresh: _load,
                       child: _photos.isEmpty
                           ? ListView(
-                              children: const [
-                                SizedBox(height: 120),
-                                Icon(
+                              children: [
+                                const SizedBox(height: 110),
+                                const Icon(
                                   Icons.photo_library_outlined,
                                   size: 44,
                                   color: AppColors.inkMuted,
                                 ),
-                                SizedBox(height: 12),
+                                const SizedBox(height: 12),
                                 Center(
                                   child: Text(
-                                    '还没有照片',
-                                    style: TextStyle(
+                                    _filterPeople.isEmpty
+                                        ? '还没有照片'
+                                        : '这些人还没有关联照片',
+                                    style: const TextStyle(
                                       fontSize: 13,
                                       color: AppColors.inkMuted,
                                     ),
                                   ),
                                 ),
-                                SizedBox(height: 6),
-                                Center(
+                                const SizedBox(height: 6),
+                                const Center(
                                   child: Text(
-                                    '点右上角上传第一张家族照片',
+                                    '点右上角可以一次选择多张照片上传',
                                     style: TextStyle(
                                       fontSize: 10.5,
                                       color: AppColors.inkMuted,
@@ -494,7 +578,7 @@ class _GalleryPageState extends State<GalleryPage> {
                                             ),
                                           ),
                                         ),
-                                        if (photo.personName.isNotEmpty)
+                                        if (photo.displayPersonNames.isNotEmpty)
                                           Positioned(
                                             left: 4,
                                             right: 4,
@@ -511,7 +595,7 @@ class _GalleryPageState extends State<GalleryPage> {
                                                     BorderRadius.circular(4),
                                               ),
                                               child: Text(
-                                                photo.personName,
+                                                photo.displayPersonNames,
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
                                                 style: const TextStyle(
@@ -529,7 +613,6 @@ class _GalleryPageState extends State<GalleryPage> {
                             ),
                     ),
             ),
-            if (_uploading) const LinearProgressIndicator(minHeight: 2),
           ],
         ),
       ),
@@ -537,16 +620,65 @@ class _GalleryPageState extends State<GalleryPage> {
   }
 }
 
+class _FilterBar extends StatelessWidget {
+  const _FilterBar({
+    required this.people,
+    required this.onTap,
+    required this.onClear,
+  });
+
+  final List<ApiPerson> people;
+  final VoidCallback? onTap;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 42,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(18, 2, 18, 4),
+        children: [
+          if (people.isEmpty)
+            ActionChip(
+              avatar: const Icon(Icons.people_outline_rounded, size: 15),
+              label: const Text('筛选人物', style: TextStyle(fontSize: 11)),
+              onPressed: onTap,
+            )
+          else ...[
+            ActionChip(
+              avatar: const Icon(Icons.person_pin_circle_outlined, size: 15),
+              label: const Text('全部人物', style: TextStyle(fontSize: 11)),
+              onPressed: onClear,
+            ),
+            const SizedBox(width: 6),
+            for (final person in people)
+              Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: InputChip(
+                  label: Text(
+                    person.fullName,
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                  onDeleted: onTap,
+                  onPressed: onTap,
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _PhotoMeta {
   const _PhotoMeta({
-    required this.personId,
-    required this.personName,
+    required this.people,
     required this.caption,
     required this.takenAt,
   });
 
-  final String personId;
-  final String personName;
+  final List<ApiPerson> people;
   final String caption;
   final DateTime? takenAt;
 }

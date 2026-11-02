@@ -15,11 +15,20 @@ import '../../services/app_session.dart';
 import '../person/api_person_detail_page.dart';
 
 class MemberSearchPage extends StatefulWidget {
-  const MemberSearchPage({super.key, this.selectMode = false});
+  const MemberSearchPage({
+    super.key,
+    this.selectMode = false,
+    this.multiSelect = false,
+    this.initialSelected = const [],
+  });
 
   /// When true, tapping a member returns that person to the caller instead of
   /// opening their profile. Used by the edit-request entry points.
   final bool selectMode;
+
+  /// When true the page collects multiple members and returns a list.
+  final bool multiSelect;
+  final List<ApiPerson> initialSelected;
 
   @override
   State<MemberSearchPage> createState() => _MemberSearchPageState();
@@ -35,6 +44,9 @@ class _MemberSearchPageState extends State<MemberSearchPage> {
   bool _loading = true;
   bool _started = false;
   int _serial = 0;
+  late final Map<String, ApiPerson> _selected = {
+    for (final person in widget.initialSelected) person.id: person,
+  };
 
   @override
   void didChangeDependencies() {
@@ -107,7 +119,7 @@ class _MemberSearchPageState extends State<MemberSearchPage> {
         child: Column(
           children: [
             AppPageHeader(
-              title: '成员查询',
+              title: widget.multiSelect ? '选择成员' : '成员查询',
               subtitle: '$familyName · 共 $memberCount 人',
               actions: [
                 HeaderIconButton(
@@ -245,10 +257,23 @@ class _MemberSearchPageState extends State<MemberSearchPage> {
                       separatorBuilder: (_, _) => const SizedBox(height: 9),
                       itemBuilder: (context, index) {
                         final person = _results[index];
+                        final selected = _selected.containsKey(person.id);
                         return _MemberRow(
                           person: person,
                           currentPersonId: session.membership?.personId,
+                          multiSelect: widget.multiSelect,
+                          selected: selected,
                           onTap: () {
+                            if (widget.multiSelect) {
+                              setState(() {
+                                if (selected) {
+                                  _selected.remove(person.id);
+                                } else {
+                                  _selected[person.id] = person;
+                                }
+                              });
+                              return;
+                            }
                             if (widget.selectMode) {
                               Navigator.of(context).pop(person);
                               return;
@@ -269,6 +294,56 @@ class _MemberSearchPageState extends State<MemberSearchPage> {
           ],
         ),
       ),
+      bottomNavigationBar: widget.multiSelect
+          ? SafeArea(
+              top: false,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(18, 10, 18, 12),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  border: Border(top: BorderSide(color: AppColors.line)),
+                ),
+                child: Row(
+                  children: [
+                    Text(
+                      '已选 ${_selected.length} 人',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.inkSoft,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton(
+                      onPressed: _results.isEmpty
+                          ? null
+                          : () => setState(() {
+                              for (final person in _results) {
+                                _selected[person.id] = person;
+                              }
+                            }),
+                      child: const Text(
+                        '全选当前结果',
+                        style: TextStyle(fontSize: 11),
+                      ),
+                    ),
+                    const Spacer(),
+                    FilledButton(
+                      onPressed: () => Navigator.of(
+                        context,
+                      ).pop(_selected.values.toList(growable: false)),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text('确定'),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : null,
     );
   }
 
@@ -405,18 +480,22 @@ class _MemberRow extends StatelessWidget {
     required this.person,
     required this.currentPersonId,
     required this.onTap,
+    this.multiSelect = false,
+    this.selected = false,
   });
 
   final ApiPerson person;
   final String? currentPersonId;
   final VoidCallback onTap;
+  final bool multiSelect;
+  final bool selected;
 
   @override
   Widget build(BuildContext context) {
     final member = person.toFamilyMember('');
     final isCurrent = currentPersonId == person.id;
     return Material(
-      color: Colors.white,
+      color: selected ? AppColors.primarySoft : Colors.white,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
@@ -499,10 +578,16 @@ class _MemberRow extends StatelessWidget {
                         : AppColors.slateSoft,
                   ),
                   const SizedBox(height: 9),
-                  const Icon(
-                    Icons.chevron_right_rounded,
+                  Icon(
+                    multiSelect
+                        ? (selected
+                              ? Icons.check_circle_rounded
+                              : Icons.radio_button_unchecked_rounded)
+                        : Icons.chevron_right_rounded,
                     size: 19,
-                    color: AppColors.inkMuted,
+                    color: multiSelect && selected
+                        ? AppColors.primary
+                        : AppColors.inkMuted,
                   ),
                 ],
               ),

@@ -222,78 +222,78 @@ func canWrite(role string) bool {
 
 func validateNewPerson(payload createPersonPayload) error {
 	if len([]rune(payload.Surname)) < 1 || len([]rune(payload.Surname)) > 20 {
-		return errors.New("surname must be between 1 and 20 characters")
+		return errors.New("姓氏长度需为 1 到 20 个字")
 	}
 	if len([]rune(payload.GivenName)) < 1 || len([]rune(payload.GivenName)) > 60 {
-		return errors.New("givenName must be between 1 and 60 characters")
+		return errors.New("名字长度需为 1 到 60 个字")
 	}
 	if len([]rune(payload.CourtesyName)) > 60 || len([]rune(payload.Alias)) > 120 {
-		return errors.New("courtesyName or alias is too long")
+		return errors.New("字号或别名过长")
 	}
 	switch payload.Gender {
 	case "male", "female", "other", "unknown":
 	default:
-		return errors.New("invalid gender")
+		return errors.New("性别不正确")
 	}
 	if payload.GenerationNo < 1 || payload.GenerationNo > 99 {
-		return errors.New("generationNo must be between 1 and 99")
+		return errors.New("世代编号必须在 1 到 99 之间")
 	}
 	if len([]rune(payload.GenerationName)) > 20 {
-		return errors.New("generationName is too long")
+		return errors.New("字辈名称过长")
 	}
 	if payload.BranchID == "" {
-		return errors.New("branchId is required")
+		return errors.New("请选择所属家支")
 	}
 	if payload.BirthOrder != nil && *payload.BirthOrder < 1 {
-		return errors.New("birthOrder must be positive")
+		return errors.New("出生顺序必须大于 0")
 	}
 	if payload.BirthYear != nil && (*payload.BirthYear < 1 || *payload.BirthYear > 9999) {
-		return errors.New("birthYear must be between 1 and 9999")
+		return errors.New("出生年份必须在 1 到 9999 之间")
 	}
 	if payload.BirthMonth != nil && (*payload.BirthMonth < 1 || *payload.BirthMonth > 12) {
-		return errors.New("birthMonth must be between 1 and 12")
+		return errors.New("出生月份必须在 1 到 12 之间")
 	}
 	if payload.BirthDay != nil && (*payload.BirthDay < 1 || *payload.BirthDay > 31) {
-		return errors.New("birthDay must be between 1 and 31")
+		return errors.New("出生日期必须在 1 到 31 之间")
 	}
 	if payload.BirthMonth != nil && payload.BirthYear == nil {
-		return errors.New("birthMonth requires birthYear")
+		return errors.New("填写出生月份前请先填写出生年份")
 	}
 	if payload.BirthDay != nil && payload.BirthMonth == nil {
-		return errors.New("birthDay requires birthMonth")
+		return errors.New("填写出生日期前请先填写出生月份")
 	}
 	if payload.BirthCalendar != "" && payload.BirthCalendar != "gregorian" && payload.BirthCalendar != "lunar" {
-		return errors.New("birthCalendar must be gregorian or lunar")
+		return errors.New("出生日期类型必须是公历或农历")
 	}
 	if payload.BirthIsLeapMonth && payload.BirthCalendar != "lunar" {
-		return errors.New("birthIsLeapMonth requires lunar calendar")
+		return errors.New("只有农历生日才能设置闰月")
 	}
 	if payload.LifeStatus != "" && payload.LifeStatus != "living" && payload.LifeStatus != "deceased" && payload.LifeStatus != "unknown" {
-		return errors.New("invalid lifeStatus")
+		return errors.New("生卒状态不正确")
 	}
 	if payload.DeathYear != nil && (*payload.DeathYear < 1 || *payload.DeathYear > 9999) {
-		return errors.New("deathYear must be between 1 and 9999")
+		return errors.New("逝世年份必须在 1 到 9999 之间")
 	}
 	if payload.DeathMonth != nil && (*payload.DeathMonth < 1 || *payload.DeathMonth > 12) {
-		return errors.New("deathMonth must be between 1 and 12")
+		return errors.New("逝世月份必须在 1 到 12 之间")
 	}
 	if payload.DeathDay != nil && (*payload.DeathDay < 1 || *payload.DeathDay > 31) {
-		return errors.New("deathDay must be between 1 and 31")
+		return errors.New("逝世日期必须在 1 到 31 之间")
 	}
 	if payload.DeathMonth != nil && payload.DeathYear == nil {
-		return errors.New("deathMonth requires deathYear")
+		return errors.New("填写逝世月份前请先填写逝世年份")
 	}
 	if payload.DeathDay != nil && payload.DeathMonth == nil {
-		return errors.New("deathDay requires deathMonth")
+		return errors.New("填写逝世日期前请先填写逝世月份")
 	}
 	if payload.DeathCalendar != "" && payload.DeathCalendar != "gregorian" && payload.DeathCalendar != "lunar" {
-		return errors.New("deathCalendar must be gregorian or lunar")
+		return errors.New("逝世日期类型必须是公历或农历")
 	}
 	if payload.DeathIsLeapMonth && payload.DeathCalendar != "lunar" {
-		return errors.New("deathIsLeapMonth requires lunar calendar")
+		return errors.New("只有农历祭日才能设置闰月")
 	}
 	if len([]rune(payload.Biography)) > 20000 {
-		return errors.New("biography is too long")
+		return errors.New("生平内容不能超过 20000 个字")
 	}
 	return nil
 }

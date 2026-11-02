@@ -8,12 +8,26 @@ import 'api_models.dart';
 class ApiConfig {
   const ApiConfig._();
 
-  /// Override at build time:
-  /// flutter build ipa --dart-define=API_BASE_URL=http://192.168.1.201:8080
+  /// 线上家庭服务器。开发时可覆盖：
+  /// flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8080
   static const String defaultBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://192.168.1.201:8080',
+    defaultValue: 'https://family.fishdream.xyz:10443',
   );
+
+  /// Older builds stored this LAN address in secure storage. When an app is
+  /// updated over an old install we move that stale default to the cloud URL
+  /// so iOS no longer silently reconnects to the developer machine.
+  static const String defaultLegacyBaseUrl = 'http://192.168.1.201:8080';
+
+  static String normalizeStoredBaseUrl(String value) {
+    final normalized = value.trim().replaceFirst(RegExp(r'/+$'), '');
+    if (normalized == defaultLegacyBaseUrl &&
+        defaultBaseUrl != defaultLegacyBaseUrl) {
+      return defaultBaseUrl;
+    }
+    return value;
+  }
 }
 
 class ApiException implements Exception {
@@ -217,11 +231,17 @@ class ApiClient {
     required String title,
     required String body,
     String personId = '',
+    List<String> photoIds = const [],
   }) async {
     final response = await _request(
       'POST',
       '/api/v1/stories',
-      body: {'title': title, 'body': body, 'personId': personId},
+      body: {
+        'title': title,
+        'body': body,
+        'personId': personId,
+        'photoIds': photoIds,
+      },
     );
     return ApiStory.fromJson(response);
   }
@@ -231,11 +251,17 @@ class ApiClient {
     required String title,
     required String body,
     String personId = '',
+    List<String> photoIds = const [],
   }) async {
     final response = await _request(
       'PATCH',
       '/api/v1/stories/${Uri.encodeComponent(storyId)}',
-      body: {'title': title, 'body': body, 'personId': personId},
+      body: {
+        'title': title,
+        'body': body,
+        'personId': personId,
+        'photoIds': photoIds,
+      },
     );
     return ApiStory.fromJson(response);
   }
@@ -249,9 +275,9 @@ class ApiClient {
     return ApiActivityPage.fromJson(body);
   }
 
-  Future<ApiPhotoPage> photos({String? personId}) async {
+  Future<ApiPhotoPage> photos({List<String> personIds = const []}) async {
     final params = <String, String>{
-      if (personId != null && personId.isNotEmpty) 'personId': personId,
+      if (personIds.isNotEmpty) 'personIds': personIds.join(','),
     };
     final query = params.isEmpty
         ? ''
@@ -264,7 +290,7 @@ class ApiClient {
     required List<int> bytes,
     required String filename,
     required String contentType,
-    String personId = '',
+    List<String> personIds = const [],
     String caption = '',
     DateTime? takenAt,
   }) async {
@@ -273,7 +299,10 @@ class ApiClient {
     if (_token != null) {
       request.headers['Authorization'] = 'Bearer $_token';
     }
-    request.fields['personId'] = personId;
+    if (personIds.isNotEmpty) {
+      request.fields['personIds'] = personIds.join(',');
+      request.fields['personId'] = personIds.first;
+    }
     request.fields['caption'] = caption;
     if (takenAt != null) {
       request.fields['takenAt'] = _dateOnly(takenAt);
@@ -307,7 +336,7 @@ class ApiClient {
 
   Future<ApiPhoto> updatePhoto({
     required String photoId,
-    String personId = '',
+    List<String> personIds = const [],
     String caption = '',
     DateTime? takenAt,
   }) async {
@@ -315,7 +344,8 @@ class ApiClient {
       'PATCH',
       '/api/v1/photos/${Uri.encodeComponent(photoId)}',
       body: {
-        'personId': personId,
+        'personId': personIds.isEmpty ? '' : personIds.first,
+        'personIds': personIds,
         'caption': caption,
         'takenAt': takenAt == null ? '' : _dateOnly(takenAt),
       },
@@ -378,13 +408,13 @@ class ApiClient {
     return ApiImportResult.fromJson(body);
   }
 
-  Future<ApiMe> joinFamily(String inviteCode) async {
+  Future<ApiJoinResult> joinFamily(String inviteCode) async {
     final body = await _request(
       'POST',
       '/api/v1/families/join',
       body: {'inviteCode': inviteCode},
     );
-    return ApiMe.fromJson(body);
+    return ApiJoinResult.fromJson(body);
   }
 
   Future<ApiMe> createFamily({
@@ -502,6 +532,70 @@ class ApiClient {
   Future<ApiFamily> family() async {
     final body = await _request('GET', '/api/v1/family');
     return ApiFamily.fromJson(body);
+  }
+
+  Future<ApiFamilyMergeRequestPage> mergeRequests({String? status}) async {
+    final params = <String, String>{
+      if (status != null && status.isNotEmpty) 'status': status,
+    };
+    final query = params.isEmpty
+        ? ''
+        : '?${Uri(queryParameters: params).query}';
+    final body = await _request('GET', '/api/v1/merge-requests$query');
+    return ApiFamilyMergeRequestPage.fromJson(body);
+  }
+
+  Future<ApiFamilyMergeDetail> mergeDetail(String requestId) async {
+    final body = await _request(
+      'GET',
+      '/api/v1/merge-requests/${Uri.encodeComponent(requestId)}',
+    );
+    return ApiFamilyMergeDetail.fromJson(body);
+  }
+
+  Future<ApiFamilyMergeResult> approveMerge({
+    required String requestId,
+    required List<String> personIds,
+    required List<String> storyIds,
+    required List<String> photoIds,
+    required String targetBranchId,
+    required int startGeneration,
+    String attachParentId = '',
+    String note = '',
+  }) async {
+    final body = await _request(
+      'POST',
+      '/api/v1/merge-requests/${Uri.encodeComponent(requestId)}/approve',
+      body: {
+        'personIds': personIds,
+        'storyIds': storyIds,
+        'photoIds': photoIds,
+        'targetBranchId': targetBranchId,
+        'startGeneration': startGeneration,
+        'attachParentId': attachParentId,
+        'note': note,
+      },
+    );
+    return ApiFamilyMergeResult.fromJson(body);
+  }
+
+  Future<ApiFamilyMergeResult> rejectMerge({
+    required String requestId,
+    String note = '',
+  }) async {
+    final body = await _request(
+      'POST',
+      '/api/v1/merge-requests/${Uri.encodeComponent(requestId)}/reject',
+      body: {'note': note},
+    );
+    return ApiFamilyMergeResult.fromJson(body);
+  }
+
+  Future<void> deleteAvatar(String personId) async {
+    await _request(
+      'DELETE',
+      '/api/v1/persons/${Uri.encodeComponent(personId)}/avatar',
+    );
   }
 
   Future<ApiInvitePage> invites() async {
@@ -936,7 +1030,7 @@ class ApiClient {
     } on TimeoutException {
       throw const ApiException('连接服务器超时，请确认地址和网络');
     } on http.ClientException {
-      throw const ApiException('无法连接服务器，请确认 API 已启动');
+      throw const ApiException('无法连接服务器，请检查网络或服务器地址');
     } on FormatException {
       throw const ApiException('服务器地址格式不正确');
     }

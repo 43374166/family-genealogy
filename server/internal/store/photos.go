@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/43374166/family-genealogy/server/internal/model"
@@ -12,40 +13,54 @@ import (
 )
 
 type PhotoFilter struct {
-	PersonID string
-	Limit    int
+	// PersonIDs matches photos tagged with any of the people.
+	PersonIDs []string
+	Limit     int
 }
+
+const photoColumns = `
+	ph.id, ph.family_id, ph.person_id, COALESCE(p.full_name, ''),
+	ph.uploaded_by_user_id, u.display_name, ph.content_type,
+	ph.size_bytes, ph.caption, ph.taken_at, ph.created_at`
 
 func (s *Store) CreatePhoto(
 	ctx context.Context,
-	familyID, uploadedByUserID, personID, objectKey, contentType string,
+	familyID, uploadedByUserID string,
+	personIDs []string,
+	objectKey, contentType string,
 	size int64,
 	caption string,
 	takenAt *time.Time,
 ) (*model.Photo, error) {
-	if personID != "" {
-		var exists int
-		if err := s.db.QueryRowContext(ctx, `
-			SELECT COUNT(*) FROM persons
-			WHERE family_id = ? AND id = ? AND status = 'active'`,
-			familyID, personID,
-		).Scan(&exists); err != nil {
-			return nil, fmt.Errorf("check photo person: %w", err)
-		}
-		if exists == 0 {
-			return nil, ErrNotFound
-		}
+	personIDs, err := s.validatePhotoPeople(ctx, familyID, personIDs)
+	if err != nil {
+		return nil, err
 	}
 	photoID := uuid.NewString()
-	if _, err := s.db.ExecContext(ctx, `
+	primaryPersonID := ""
+	if len(personIDs) > 0 {
+		primaryPersonID = personIDs[0]
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin photo create: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO family_photos
 			(id, family_id, person_id, uploaded_by_user_id, object_key,
 			 content_type, size_bytes, caption, taken_at)
 		VALUES (?, ?, NULLIF(?, ''), ?, ?, ?, ?, ?, ?)`,
-		photoID, familyID, personID, uploadedByUserID, objectKey,
+		photoID, familyID, primaryPersonID, uploadedByUserID, objectKey,
 		contentType, size, caption, takenAt,
 	); err != nil {
 		return nil, fmt.Errorf("insert photo: %w", err)
+	}
+	if err := insertPhotoPeople(ctx, tx, familyID, photoID, personIDs); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit photo create: %w", err)
 	}
 	return s.GetPhoto(ctx, familyID, photoID)
 }
@@ -54,18 +69,23 @@ func (s *Store) ListPhotos(ctx context.Context, familyID string, filter PhotoFil
 	if filter.Limit < 1 || filter.Limit > 100 {
 		filter.Limit = 50
 	}
+	personIDs := uniqueStrings(filter.PersonIDs)
 	query := `
-		SELECT ph.id, ph.family_id, ph.person_id, COALESCE(p.full_name, ''),
-		       ph.uploaded_by_user_id, u.display_name, ph.content_type,
-		       ph.size_bytes, ph.caption, ph.taken_at, ph.created_at
+		SELECT ` + photoColumns + `
 		FROM family_photos ph
 		JOIN users u ON u.id = ph.uploaded_by_user_id
 		LEFT JOIN persons p ON p.id = ph.person_id AND p.family_id = ph.family_id
 		WHERE ph.family_id = ? AND ph.status = 'active'`
 	args := []any{familyID}
-	if filter.PersonID != "" {
-		query += ` AND ph.person_id = ?`
-		args = append(args, filter.PersonID)
+	if len(personIDs) > 0 {
+		placeholders := strings.TrimRight(strings.Repeat("?,", len(personIDs)), ",")
+		query += ` AND EXISTS (
+			SELECT 1 FROM family_photo_people fpp
+			WHERE fpp.photo_id = ph.id AND fpp.family_id = ph.family_id
+			  AND fpp.person_id IN (` + placeholders + `))`
+		for _, personID := range personIDs {
+			args = append(args, personID)
+		}
 	}
 	query += ` ORDER BY ph.created_at DESC, ph.id DESC LIMIT ?`
 	args = append(args, filter.Limit)
@@ -85,20 +105,29 @@ func (s *Store) ListPhotos(ctx context.Context, familyID string, filter PhotoFil
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate photos: %w", err)
 	}
+	if err := s.attachPhotoPeople(ctx, familyID, items); err != nil {
+		return nil, err
+	}
 	return items, nil
 }
 
 func (s *Store) GetPhoto(ctx context.Context, familyID, photoID string) (*model.Photo, error) {
 	row := s.db.QueryRowContext(ctx, `
-		SELECT ph.id, ph.family_id, ph.person_id, COALESCE(p.full_name, ''),
-		       ph.uploaded_by_user_id, u.display_name, ph.content_type,
-		       ph.size_bytes, ph.caption, ph.taken_at, ph.created_at
+		SELECT `+photoColumns+`
 		FROM family_photos ph
 		JOIN users u ON u.id = ph.uploaded_by_user_id
 		LEFT JOIN persons p ON p.id = ph.person_id AND p.family_id = ph.family_id
 		WHERE ph.family_id = ? AND ph.id = ? AND ph.status = 'active'`,
 		familyID, photoID)
-	return scanPhoto(row)
+	item, err := scanPhoto(row)
+	if err != nil {
+		return nil, err
+	}
+	items := []model.Photo{*item}
+	if err := s.attachPhotoPeople(ctx, familyID, items); err != nil {
+		return nil, err
+	}
+	return &items[0], nil
 }
 
 func scanPhoto(scanner rowScanner) (*model.Photo, error) {
@@ -126,25 +155,93 @@ func scanPhoto(scanner rowScanner) (*model.Photo, error) {
 	return &item, nil
 }
 
+// attachPhotoPeople fills the multi-person tag list. The legacy person_id is
+// kept as a fallback for rows created before the join table existed.
+func (s *Store) attachPhotoPeople(ctx context.Context, familyID string, items []model.Photo) error {
+	if len(items) == 0 {
+		return nil
+	}
+	photoIDs := make([]string, 0, len(items))
+	byID := make(map[string]*model.Photo, len(items))
+	for index := range items {
+		photoIDs = append(photoIDs, items[index].ID)
+		byID[items[index].ID] = &items[index]
+	}
+	placeholders := strings.TrimRight(strings.Repeat("?,", len(photoIDs)), ",")
+	args := make([]any, 0, len(photoIDs)+1)
+	args = append(args, familyID)
+	for _, photoID := range photoIDs {
+		args = append(args, photoID)
+	}
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT fpp.photo_id, fpp.person_id, p.full_name
+		FROM family_photo_people fpp
+		JOIN persons p ON p.id = fpp.person_id AND p.family_id = fpp.family_id
+		WHERE fpp.family_id = ? AND fpp.photo_id IN (`+placeholders+`)
+		ORDER BY fpp.created_at ASC, p.full_name ASC`, args...)
+	if err != nil {
+		return fmt.Errorf("list photo people: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var photoID string
+		var person model.PhotoPerson
+		if err := rows.Scan(&photoID, &person.PersonID, &person.FullName); err != nil {
+			return fmt.Errorf("scan photo person: %w", err)
+		}
+		if photo := byID[photoID]; photo != nil {
+			photo.Persons = append(photo.Persons, person)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate photo people: %w", err)
+	}
+	for index := range items {
+		item := &items[index]
+		if len(item.Persons) == 0 && item.PersonID != nil {
+			item.Persons = []model.PhotoPerson{{
+				PersonID: *item.PersonID, FullName: item.PersonName,
+			}}
+		}
+	}
+	return nil
+}
+
 func (s *Store) UpdatePhotoMetadata(
 	ctx context.Context,
-	familyID, photoID, actorUserID, personID, caption string,
+	familyID, photoID, actorUserID string,
+	personIDs []string,
+	caption string,
 	takenAt *time.Time,
 ) (*model.Photo, error) {
+	personIDs, err := s.validatePhotoPeople(ctx, familyID, personIDs)
+	if err != nil {
+		return nil, err
+	}
+	primaryPersonID := ""
+	if len(personIDs) > 0 {
+		primaryPersonID = personIDs[0]
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin photo update: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
 	var uploaderID string
-	if err := s.db.QueryRowContext(ctx, `
+	if err := tx.QueryRowContext(ctx, `
 		SELECT uploaded_by_user_id FROM family_photos
-		WHERE family_id = ? AND id = ? AND status = 'active'`,
+		WHERE family_id = ? AND id = ? AND status = 'active'
+		FOR UPDATE`,
 		familyID, photoID,
 	).Scan(&uploaderID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
 		}
-		return nil, fmt.Errorf("lookup photo editor: %w", err)
+		return nil, fmt.Errorf("lock photo editor: %w", err)
 	}
 	if uploaderID != actorUserID {
 		var role string
-		if err := s.db.QueryRowContext(ctx, `
+		if err := tx.QueryRowContext(ctx, `
 			SELECT role FROM family_memberships
 			WHERE family_id = ? AND user_id = ? AND status = 'active'`,
 			familyID, actorUserID,
@@ -155,28 +252,90 @@ func (s *Store) UpdatePhotoMetadata(
 			return nil, ErrForbidden
 		}
 	}
-	if personID != "" {
-		var exists int
-		if err := s.db.QueryRowContext(ctx, `
-			SELECT COUNT(*) FROM persons
-			WHERE family_id = ? AND id = ? AND status = 'active'`,
-			familyID, personID,
-		).Scan(&exists); err != nil {
-			return nil, fmt.Errorf("check photo metadata person: %w", err)
-		}
-		if exists == 0 {
-			return nil, ErrNotFound
-		}
-	}
-	if _, err := s.db.ExecContext(ctx, `
+	if _, err := tx.ExecContext(ctx, `
 		UPDATE family_photos
 		SET person_id = NULLIF(?, ''), caption = ?, taken_at = ?
 		WHERE family_id = ? AND id = ? AND status = 'active'`,
-		personID, caption, takenAt, familyID, photoID,
+		primaryPersonID, caption, takenAt, familyID, photoID,
 	); err != nil {
 		return nil, fmt.Errorf("update photo metadata: %w", err)
 	}
+	if _, err := tx.ExecContext(ctx, `
+		DELETE FROM family_photo_people
+		WHERE family_id = ? AND photo_id = ?`, familyID, photoID,
+	); err != nil {
+		return nil, fmt.Errorf("clear photo people: %w", err)
+	}
+	if err := insertPhotoPeople(ctx, tx, familyID, photoID, personIDs); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit photo update: %w", err)
+	}
 	return s.GetPhoto(ctx, familyID, photoID)
+}
+
+func (s *Store) validatePhotoPeople(
+	ctx context.Context,
+	familyID string,
+	personIDs []string,
+) ([]string, error) {
+	personIDs = uniqueStrings(personIDs)
+	if len(personIDs) == 0 {
+		return nil, nil
+	}
+	placeholders := strings.TrimRight(strings.Repeat("?,", len(personIDs)), ",")
+	args := make([]any, 0, len(personIDs)+1)
+	args = append(args, familyID)
+	for _, personID := range personIDs {
+		args = append(args, personID)
+	}
+	var count int
+	if err := s.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM persons
+		WHERE family_id = ? AND status = 'active' AND id IN (`+placeholders+`)`,
+		args...,
+	).Scan(&count); err != nil {
+		return nil, fmt.Errorf("check photo people: %w", err)
+	}
+	if count != len(personIDs) {
+		return nil, ErrNotFound
+	}
+	return personIDs, nil
+}
+
+func insertPhotoPeople(
+	ctx context.Context,
+	exec notificationExecer,
+	familyID, photoID string,
+	personIDs []string,
+) error {
+	for _, personID := range personIDs {
+		if _, err := exec.ExecContext(ctx, `
+			INSERT INTO family_photo_people (photo_id, person_id, family_id)
+			VALUES (?, ?, ?)`, photoID, personID, familyID,
+		); err != nil {
+			return fmt.Errorf("insert photo person: %w", err)
+		}
+	}
+	return nil
+}
+
+func uniqueStrings(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+	return result
 }
 
 func (s *Store) PhotoObjectKey(ctx context.Context, familyID, photoID string) (string, error) {

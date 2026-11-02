@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/lunar/lunar_utils.dart';
 import '../../core/widgets/app_page_header.dart';
 import '../../core/widgets/soft_card.dart';
 import '../../services/api_client.dart';
@@ -436,6 +437,21 @@ class _AddPersonPageState extends State<AddPersonPage> {
                                   onChanged: (value) =>
                                       setState(() => _birth = value),
                                 ),
+                                if (LunarDateUtils.zodiacOf(_birth).isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(
+                                      top: 8,
+                                      left: 2,
+                                    ),
+                                    child: Text(
+                                      '生肖：${LunarDateUtils.zodiacLabel(_birth)}（按农历生日）',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: AppColors.primary,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
                                 if (_lifeStatus == 'deceased') ...[
                                   const SizedBox(height: 13),
                                   LunarDatePickerField(

@@ -191,12 +191,36 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, destination any) error {
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(destination); err != nil {
-		return err
+		return chineseJSONError(err)
 	}
 	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
-		return errors.New("request body must contain exactly one JSON object")
+		return errors.New("请求内容只能包含一个 JSON 对象")
 	}
 	return nil
+}
+
+func chineseJSONError(err error) error {
+	if errors.Is(err, io.EOF) {
+		return errors.New("请求内容不能为空")
+	}
+	var syntax *json.SyntaxError
+	if errors.As(err, &syntax) {
+		return errors.New("请求内容不是合法的 JSON")
+	}
+	var typeError *json.UnmarshalTypeError
+	if errors.As(err, &typeError) {
+		if typeError.Field != "" {
+			return fmt.Errorf("字段 %s 的类型不正确", typeError.Field)
+		}
+		return errors.New("请求字段类型不正确")
+	}
+	message := err.Error()
+	const unknownFieldPrefix = "json: unknown field "
+	if strings.HasPrefix(message, unknownFieldPrefix) {
+		field := strings.Trim(strings.TrimPrefix(message, unknownFieldPrefix), `"`)
+		return fmt.Errorf("请求包含未知字段：%s", field)
+	}
+	return errors.New("请求内容格式不正确")
 }
 
 func clientIP(r *http.Request) string {

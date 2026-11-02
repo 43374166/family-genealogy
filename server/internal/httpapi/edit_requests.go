@@ -100,7 +100,7 @@ func normalizeWritePayload(requestType string, raw json.RawMessage) ([]byte, err
 	case "create_person":
 		var payload createPersonPayload
 		if err := json.Unmarshal(raw, &payload); err != nil {
-			return nil, err
+			return nil, errors.New("人物申请内容格式不正确")
 		}
 		payload.Surname = strings.TrimSpace(payload.Surname)
 		payload.GivenName = strings.TrimSpace(payload.GivenName)
@@ -128,16 +128,16 @@ func normalizeWritePayload(requestType string, raw json.RawMessage) ([]byte, err
 	case "add_parent_child":
 		var payload parentChildPayload
 		if err := json.Unmarshal(raw, &payload); err != nil {
-			return nil, err
+			return nil, errors.New("亲属关系申请内容格式不正确")
 		}
 		payload.ParentID = strings.TrimSpace(payload.ParentID)
 		payload.ChildID = strings.TrimSpace(payload.ChildID)
 		payload.ParentRole = strings.TrimSpace(payload.ParentRole)
 		if payload.ParentID == "" || payload.ChildID == "" {
-			return nil, errors.New("parentId and childId are required")
+			return nil, errors.New("请选择父母和子女")
 		}
 		if payload.ParentRole != "father" && payload.ParentRole != "mother" {
-			return nil, errors.New("parentRole must be father or mother")
+			return nil, errors.New("父母角色必须是父亲或母亲")
 		}
 		return json.Marshal(store.ParentChildInput{
 			ParentID: payload.ParentID, ChildID: payload.ChildID,
@@ -146,18 +146,18 @@ func normalizeWritePayload(requestType string, raw json.RawMessage) ([]byte, err
 	case "add_spouse":
 		var payload spousePayload
 		if err := json.Unmarshal(raw, &payload); err != nil {
-			return nil, err
+			return nil, errors.New("配偶申请内容格式不正确")
 		}
 		payload.PersonAID = strings.TrimSpace(payload.PersonAID)
 		payload.PersonBID = strings.TrimSpace(payload.PersonBID)
 		if payload.PersonAID == "" || payload.PersonBID == "" {
-			return nil, errors.New("personAId and personBId are required")
+			return nil, errors.New("请选择配偶双方")
 		}
 		return json.Marshal(store.SpouseInput{
 			PersonAID: payload.PersonAID, PersonBID: payload.PersonBID,
 		})
 	default:
-		return nil, errors.New("requestType must be create_person, add_parent_child or add_spouse")
+		return nil, errors.New("申请类型必须是新增人物、添加亲属关系或添加配偶")
 	}
 }
 
@@ -297,18 +297,18 @@ func (a *API) writeEditRequestError(w http.ResponseWriter, r *http.Request, err 
 
 func validateEditChanges(changes *model.PersonEditChanges) error {
 	if changes.Empty() {
-		return errors.New("at least one changed field is required")
+		return errors.New("请至少修改一个字段")
 	}
 	fields := []struct {
 		name  string
 		value *string
 		max   int
 	}{
-		{"birthPlace", changes.BirthPlace, 160},
-		{"residence", changes.Residence, 160},
-		{"occupation", changes.Occupation, 160},
-		{"education", changes.Education, 160},
-		{"biography", changes.Biography, 2000},
+		{"籍贯", changes.BirthPlace, 160},
+		{"现居地", changes.Residence, 160},
+		{"职业", changes.Occupation, 160},
+		{"教育", changes.Education, 160},
+		{"生平", changes.Biography, 2000},
 	}
 	for _, field := range fields {
 		if field.value == nil {
@@ -316,7 +316,7 @@ func validateEditChanges(changes *model.PersonEditChanges) error {
 		}
 		value := strings.TrimSpace(*field.value)
 		if len([]rune(value)) > field.max {
-			return errors.New(field.name + " is too long")
+			return errors.New(field.name + "内容过长")
 		}
 		*field.value = value
 	}

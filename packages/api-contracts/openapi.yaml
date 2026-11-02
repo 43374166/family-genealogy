@@ -11,6 +11,8 @@ info:
   contact:
     name: Family Tree API
 servers:
+  - url: https://family.fishdream.xyz:10443
+    description: 线上家庭服务器
   - url: http://localhost:8080
     description: 本地开发
   - url: https://api.example.invalid

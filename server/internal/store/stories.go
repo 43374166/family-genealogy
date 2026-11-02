@@ -40,6 +40,9 @@ func (s *Store) ListStories(ctx context.Context, familyID string, limit int) ([]
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate stories: %w", err)
 	}
+	if err := s.attachStoryPhotos(ctx, familyID, items); err != nil {
+		return nil, err
+	}
 	return items, nil
 }
 
@@ -53,7 +56,15 @@ func (s *Store) GetStory(ctx context.Context, familyID, storyID string) (*model.
 		LEFT JOIN persons p ON p.id = st.person_id AND p.family_id = st.family_id
 		WHERE st.family_id = ? AND st.id = ? AND st.status = 'active'`,
 		familyID, storyID)
-	return scanStory(row)
+	item, err := scanStory(row)
+	if err != nil {
+		return nil, err
+	}
+	items := []model.Story{*item}
+	if err := s.attachStoryPhotos(ctx, familyID, items); err != nil {
+		return nil, err
+	}
+	return &items[0], nil
 }
 
 func scanStory(scanner rowScanner) (*model.Story, error) {
@@ -79,14 +90,24 @@ func scanStory(scanner rowScanner) (*model.Story, error) {
 func (s *Store) CreateStory(
 	ctx context.Context,
 	familyID, authorUserID, personID, title, body string,
+	photoIDs []string,
 ) (*model.Story, error) {
 	title = strings.TrimSpace(title)
 	body = strings.TrimSpace(body)
 	if err := s.validateStoryPerson(ctx, familyID, personID); err != nil {
 		return nil, err
 	}
+	photoIDs, err := s.validateStoryPhotos(ctx, familyID, photoIDs)
+	if err != nil {
+		return nil, err
+	}
 	storyID := uuid.NewString()
-	if _, err := s.db.ExecContext(ctx, `
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin story create: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO family_stories
 			(id, family_id, author_user_id, person_id, title, body)
 		VALUES (?, ?, ?, NULLIF(?, ''), ?, ?)`,
@@ -94,12 +115,19 @@ func (s *Store) CreateStory(
 	); err != nil {
 		return nil, fmt.Errorf("insert story: %w", err)
 	}
+	if err := replaceStoryPhotos(ctx, tx, familyID, storyID, photoIDs); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit story create: %w", err)
+	}
 	return s.GetStory(ctx, familyID, storyID)
 }
 
 func (s *Store) UpdateStory(
 	ctx context.Context,
 	familyID, storyID, actorUserID, personID, title, body string,
+	photoIDs []string,
 ) (*model.Story, error) {
 	authorID, err := s.storyAuthor(ctx, familyID, storyID)
 	if err != nil {
@@ -113,7 +141,16 @@ func (s *Store) UpdateStory(
 	if err := s.validateStoryPerson(ctx, familyID, personID); err != nil {
 		return nil, err
 	}
-	if _, err := s.db.ExecContext(ctx, `
+	photoIDs, err = s.validateStoryPhotos(ctx, familyID, photoIDs)
+	if err != nil {
+		return nil, err
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin story update: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(ctx, `
 		UPDATE family_stories
 		SET person_id = NULLIF(?, ''), title = ?, body = ?
 		WHERE family_id = ? AND id = ? AND status = 'active'`,
@@ -121,6 +158,12 @@ func (s *Store) UpdateStory(
 		familyID, storyID,
 	); err != nil {
 		return nil, fmt.Errorf("update story: %w", err)
+	}
+	if err := replaceStoryPhotos(ctx, tx, familyID, storyID, photoIDs); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit story update: %w", err)
 	}
 	return s.GetStory(ctx, familyID, storyID)
 }
@@ -190,6 +233,145 @@ func (s *Store) validateStoryPerson(ctx context.Context, familyID, personID stri
 	}
 	if exists == 0 {
 		return ErrNotFound
+	}
+	return nil
+}
+
+const maxStoryPhotos = 9
+
+func (s *Store) validateStoryPhotos(
+	ctx context.Context,
+	familyID string,
+	photoIDs []string,
+) ([]string, error) {
+	photoIDs = uniqueStrings(photoIDs)
+	if len(photoIDs) > maxStoryPhotos {
+		return nil, ErrInvalidRequest
+	}
+	if len(photoIDs) == 0 {
+		return nil, nil
+	}
+	placeholders := strings.TrimRight(strings.Repeat("?,", len(photoIDs)), ",")
+	args := make([]any, 0, len(photoIDs)+1)
+	args = append(args, familyID)
+	for _, photoID := range photoIDs {
+		args = append(args, photoID)
+	}
+	var count int
+	if err := s.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM family_photos
+		WHERE family_id = ? AND status = 'active' AND id IN (`+placeholders+`)`,
+		args...,
+	).Scan(&count); err != nil {
+		return nil, fmt.Errorf("check story photos: %w", err)
+	}
+	if count != len(photoIDs) {
+		return nil, ErrNotFound
+	}
+	return photoIDs, nil
+}
+
+func replaceStoryPhotos(
+	ctx context.Context,
+	exec notificationExecer,
+	familyID, storyID string,
+	photoIDs []string,
+) error {
+	if _, err := exec.ExecContext(ctx, `
+		DELETE FROM family_story_photos
+		WHERE family_id = ? AND story_id = ?`, familyID, storyID,
+	); err != nil {
+		return fmt.Errorf("clear story photos: %w", err)
+	}
+	for index, photoID := range photoIDs {
+		if _, err := exec.ExecContext(ctx, `
+			INSERT INTO family_story_photos (story_id, photo_id, family_id, sort_order)
+			VALUES (?, ?, ?, ?)`, storyID, photoID, familyID, index,
+		); err != nil {
+			return fmt.Errorf("insert story photo: %w", err)
+		}
+	}
+	return nil
+}
+
+func (s *Store) attachStoryPhotos(
+	ctx context.Context,
+	familyID string,
+	stories []model.Story,
+) error {
+	if len(stories) == 0 {
+		return nil
+	}
+	storyIDs := make([]string, 0, len(stories))
+	indexByID := make(map[string]int, len(stories))
+	for index := range stories {
+		storyIDs = append(storyIDs, stories[index].ID)
+		indexByID[stories[index].ID] = index
+	}
+	placeholders := strings.TrimRight(strings.Repeat("?,", len(storyIDs)), ",")
+	args := make([]any, 0, len(storyIDs)+1)
+	args = append(args, familyID)
+	for _, storyID := range storyIDs {
+		args = append(args, storyID)
+	}
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT sp.story_id, `+photoColumns+`
+		FROM family_story_photos sp
+		JOIN family_photos ph ON ph.id = sp.photo_id AND ph.family_id = sp.family_id
+		JOIN users u ON u.id = ph.uploaded_by_user_id
+		LEFT JOIN persons p ON p.id = ph.person_id AND p.family_id = ph.family_id
+		WHERE sp.family_id = ? AND sp.story_id IN (`+placeholders+`)
+		  AND ph.status = 'active'
+		ORDER BY sp.story_id, sp.sort_order`, args...)
+	if err != nil {
+		return fmt.Errorf("list story photos: %w", err)
+	}
+	defer rows.Close()
+	type storyPhotoRow struct {
+		storyID string
+		photo   model.Photo
+	}
+	records := make([]storyPhotoRow, 0)
+	for rows.Next() {
+		var record storyPhotoRow
+		var personID sql.NullString
+		var takenAt sql.NullTime
+		if err := rows.Scan(
+			&record.storyID,
+			&record.photo.ID, &record.photo.FamilyID, &personID, &record.photo.PersonName,
+			&record.photo.UploadedByUserID, &record.photo.UploadedByName, &record.photo.ContentType,
+			&record.photo.SizeBytes, &record.photo.Caption, &takenAt, &record.photo.CreatedAt,
+		); err != nil {
+			return fmt.Errorf("scan story photo: %w", err)
+		}
+		if personID.Valid {
+			value := personID.String
+			record.photo.PersonID = &value
+		}
+		if takenAt.Valid {
+			value := takenAt.Time
+			record.photo.TakenAt = &value
+		}
+		records = append(records, record)
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate story photos: %w", err)
+	}
+	photos := make([]model.Photo, len(records))
+	for index, record := range records {
+		photos[index] = record.photo
+	}
+	if err := s.attachPhotoPeople(ctx, familyID, photos); err != nil {
+		return err
+	}
+	storyPhoto := make(map[string][]model.Photo, len(stories))
+	for index, record := range records {
+		storyPhoto[record.storyID] = append(storyPhoto[record.storyID], photos[index])
+	}
+	for storyID, items := range storyPhoto {
+		if index, ok := indexByID[storyID]; ok {
+			stories[index].Photos = items
+		}
 	}
 	return nil
 }

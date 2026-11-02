@@ -29,7 +29,7 @@ func (a *API) joinFamily(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, r, http.StatusUnprocessableEntity, "INVALID_INVITE", "a valid invite code is required")
 		return
 	}
-	membership, family, err := a.Store.JoinFamilyWithInvite(
+	outcome, err := a.Store.JoinFamilyWithInvite(
 		r.Context(), principal.User.ID, payload.InviteCode, auditMeta(r),
 	)
 	if err != nil {
@@ -44,7 +44,7 @@ func (a *API) joinFamily(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, _, err := a.Store.SwitchSessionFamily(
-		r.Context(), principal.SessionID, principal.User.ID, family.ID,
+		r.Context(), principal.SessionID, principal.User.ID, outcome.Family.ID,
 	); err != nil {
 		a.writeAccessError(w, r, err)
 		return
@@ -54,10 +54,12 @@ func (a *API) joinFamily(w http.ResponseWriter, r *http.Request) {
 		a.writeAccessError(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, model.Me{
-		User:       principal.User,
-		Membership: *membership,
-		Family:     *family,
-		Families:   families,
+	writeJSON(w, http.StatusOK, model.JoinFamilyResult{
+		User:             principal.User,
+		Membership:       *outcome.Membership,
+		Family:           *outcome.Family,
+		Families:         families,
+		ArchivedFamilies: outcome.ArchivedFamilies,
+		MergeRequests:    outcome.MergeRequests,
 	})
 }

@@ -10,6 +10,7 @@ import '../../services/api_models.dart';
 import '../../services/app_session.dart';
 import '../../core/lunar/lunar_utils.dart';
 import '../gallery/gallery_page.dart';
+import 'avatar_actions.dart';
 import 'edit_person_page.dart';
 
 /// API-backed person profile. The summary received from a search result can be
@@ -141,6 +142,9 @@ class _ApiPersonDetailPageState extends State<ApiPersonDetailPage> {
   Widget build(BuildContext context) {
     final person = _person;
     final session = SessionScope.of(context);
+    final canManageAvatar =
+        person != null &&
+        (session.canWrite || session.membership?.personId == person.id);
     return Scaffold(
       backgroundColor: AppColors.background,
       body: CustomScrollView(
@@ -164,6 +168,24 @@ class _ApiPersonDetailPageState extends State<ApiPersonDetailPage> {
             ),
             title: Text('人物档案', style: AppTheme.serif(fontSize: 19)),
             centerTitle: true,
+            actions: [
+              if (canManageAvatar)
+                IconButton(
+                  tooltip: '设置头像',
+                  onPressed: () async {
+                    final changed = await showAvatarActions(
+                      context,
+                      personId: person.id,
+                      canRemove: person.hasAvatar,
+                    );
+                    if (changed && mounted) await _load();
+                  },
+                  icon: const Icon(
+                    Icons.photo_camera_outlined,
+                    color: AppColors.inkSoft,
+                  ),
+                ),
+            ],
           ),
           if (person == null)
             SliverFillRemaining(
@@ -189,7 +211,19 @@ class _ApiPersonDetailPageState extends State<ApiPersonDetailPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _ProfileHero(person: person),
+                        _ProfileHero(
+                          person: person,
+                          onAvatarTap: canManageAvatar
+                              ? () async {
+                                  final changed = await showAvatarActions(
+                                    context,
+                                    personId: person.id,
+                                    canRemove: person.hasAvatar,
+                                  );
+                                  if (changed && mounted) await _load();
+                                }
+                              : null,
+                        ),
                         const SizedBox(height: 14),
                         _PersonPhotos(person: person),
                         const SizedBox(height: 14),
@@ -287,7 +321,7 @@ class _PersonPhotosState extends State<_PersonPhotos> {
     try {
       final photos = await SessionScope.of(
         context,
-      ).photos(personId: widget.person.id);
+      ).photos(personIds: [widget.person.id]);
       if (!mounted) return;
       setState(() {
         _photos = photos;
@@ -437,13 +471,21 @@ class _LoadingOrError extends StatelessWidget {
 }
 
 class _ProfileHero extends StatelessWidget {
-  const _ProfileHero({required this.person});
+  const _ProfileHero({required this.person, this.onAvatarTap});
 
   final ApiPerson person;
+  final VoidCallback? onAvatarTap;
 
   @override
   Widget build(BuildContext context) {
     final member = person.toFamilyMember('');
+    final portrait = InkPortrait(
+      person: member,
+      width: 92,
+      height: 112,
+      radius: 18,
+      showBorder: true,
+    );
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 22, 20, 19),
       decoration: BoxDecoration(
@@ -461,13 +503,36 @@ class _ProfileHero extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              InkPortrait(
-                person: member,
-                width: 92,
-                height: 112,
-                radius: 18,
-                showBorder: true,
-              ),
+              if (onAvatarTap == null)
+                portrait
+              else
+                GestureDetector(
+                  onTap: onAvatarTap,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      portrait,
+                      Positioned(
+                        right: -4,
+                        bottom: -4,
+                        child: Container(
+                          width: 25,
+                          height: 25,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppColors.line),
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt_outlined,
+                            size: 14,
+                            color: AppColors.inkSoft,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
@@ -525,6 +590,13 @@ class _ProfileHero extends StatelessWidget {
                             label: '号 ${person.alias}',
                             color: AppColors.gold,
                             background: AppColors.goldSoft,
+                          ),
+                        if (LunarDateUtils.zodiacOf(person.birth).isNotEmpty)
+                          TagPill(
+                            label: LunarDateUtils.zodiacLabel(person.birth),
+                            color: AppColors.primary,
+                            background: AppColors.primarySoft,
+                            icon: Icons.auto_awesome_outlined,
                           ),
                       ],
                     ),
@@ -747,6 +819,13 @@ class _LifeDetails extends StatelessWidget {
   Widget build(BuildContext context) {
     final rows = <(IconData, String, String)>[
       (Icons.cake_outlined, '出生', _dateText(person.birth, '未记录')),
+      (
+        Icons.auto_awesome_outlined,
+        '生肖',
+        LunarDateUtils.zodiacLabel(person.birth).isEmpty
+            ? '未记录'
+            : LunarDateUtils.zodiacLabel(person.birth),
+      ),
       (
         Icons.event_busy_outlined,
         '逝世',

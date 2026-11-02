@@ -43,7 +43,10 @@ jobs:
         run: flutter --no-version-check pub get
 
       - name: Build unsigned iOS app
-        run: flutter --no-version-check build ios --release --no-codesign --build-number "${{ github.run_number }}"
+        run: >
+          flutter --no-version-check build ios --release --no-codesign
+          --build-number "${{ github.run_number }}"
+          --dart-define=API_BASE_URL=https://family.fishdream.xyz:10443
 
       - name: Package unsigned IPA and app archive
         run: |

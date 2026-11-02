@@ -49,11 +49,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
-	<!-- Development only: the family server is currently plain HTTP on the LAN.
-	     Remove NSAllowsArbitraryLoads when the API is served over HTTPS. -->
+	<!-- The production API uses HTTPS. Local development can still use an
+	     HTTP address on the LAN through NSAllowsLocalNetworking. -->
 	<key>NSAppTransportSecurity</key>
 	<dict>
-		<key>NSAllowsArbitraryLoads</key>
+		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
 	<key>NSLocalNetworkUsageDescription</key>

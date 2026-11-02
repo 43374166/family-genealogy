@@ -8,6 +8,7 @@ import '../../services/api_client.dart';
 import '../../services/api_models.dart';
 import '../../services/app_session.dart';
 import '../family/binding_requests_page.dart';
+import '../family/merge_requests_page.dart';
 import '../requests/requests_page.dart';
 
 class MessagesPage extends StatefulWidget {
@@ -85,9 +86,11 @@ class _MessagesPageState extends State<MessagesPage> {
       }
     }
     if (!mounted) return;
-    final page = item.targetType == 'binding_request'
-        ? const BindingRequestsPage()
-        : const RequestsPage();
+    final Widget page = switch (item.targetType) {
+      'binding_request' => const BindingRequestsPage(),
+      'family_merge_request' => const MergeRequestsPage(),
+      _ => const RequestsPage(),
+    };
     await Navigator.of(
       context,
     ).push(MaterialPageRoute<void>(builder: (_) => page));

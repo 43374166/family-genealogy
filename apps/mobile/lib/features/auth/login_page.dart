@@ -159,10 +159,10 @@ class _LoginPageState extends State<LoginPage> {
                                     style: const TextStyle(fontSize: 12),
                                     decoration:
                                         _fieldDecoration(
-                                          label: '服务器地址（本地开发）',
+                                          label: '服务器地址',
                                           icon: Icons.dns_outlined,
                                         ).copyWith(
-                                          helperText: '真机需与电脑在同一局域网',
+                                          helperText: '默认连接线上家族服务器，可在这里切换',
                                           helperStyle: const TextStyle(
                                             fontSize: 9.5,
                                             color: AppColors.inkMuted,

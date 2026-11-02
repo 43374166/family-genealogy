@@ -41,7 +41,7 @@ class _ExportDataPageState extends State<ExportDataPage> {
         ShareParams(
           files: [XFile(file.path, mimeType: 'application/json')],
           subject: '$familyName 族谱数据',
-          text: '这是从“家族族谱”导出的 JSON 数据文件。',
+          text: '这是从“家族族谱”导出的数据文件。',
         ),
       );
       if (mounted) setState(() => _exporting = false);
@@ -69,7 +69,7 @@ class _ExportDataPageState extends State<ExportDataPage> {
         bottom: false,
         child: Column(
           children: [
-            const AppPageHeader(title: '导出家族数据', subtitle: '生成 JSON 文件并分享保存'),
+            const AppPageHeader(title: '导出家族数据', subtitle: '生成数据文件并分享保存'),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(18, 8, 18, 28),
@@ -89,7 +89,7 @@ class _ExportDataPageState extends State<ExportDataPage> {
                         const SizedBox(height: 8),
                         const Text(
                           '导出内容包括：家族资料、家支、人物完整档案、亲子关系、配偶关系、家族故事和照片元数据。\n\n'
-                          '照片原文件不放进 JSON；如需原图，请另行从相册保存。',
+                          '照片原文件不放进数据文件；如需原图，请另行从相册保存。',
                           style: TextStyle(
                             fontSize: 11.5,
                             height: 1.75,
@@ -133,7 +133,7 @@ class _ExportDataPageState extends State<ExportDataPage> {
                   ],
                   const SizedBox(height: 14),
                   const Text(
-                    '建议把导出的文件保存到电脑或云盘。JSON 可用记事本、Excel 插件或其他工具打开。',
+                    '建议把导出的文件保存到电脑或云盘。文件可用记事本、Excel 插件或其他工具打开。',
                     style: TextStyle(
                       fontSize: 10.5,
                       height: 1.6,

@@ -475,7 +475,8 @@ class AppSession extends ChangeNotifier {
     try {
       final stored = await _store.read();
       if (stored == null) return;
-      _api.configureSession(serverUrl: stored.serverUrl, token: stored.token);
+      final serverUrl = ApiConfig.normalizeStoredBaseUrl(stored.serverUrl);
+      _api.configureSession(serverUrl: serverUrl, token: stored.token);
       final me = await _api.me();
       _session = ApiSession(
         token: stored.token,
@@ -484,6 +485,9 @@ class AppSession extends ChangeNotifier {
         family: me.family,
       );
       _applyMe(me);
+      if (serverUrl != stored.serverUrl) {
+        await _persistSession();
+      }
       try {
         _tree = await _api.tree();
         await _loadGenerationNames();
@@ -587,6 +591,15 @@ class AppSession extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> deleteAvatar(String personId) async {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    await _api.deleteAvatar(personId);
+    await refreshTree();
+    notifyListeners();
+  }
+
   Future<List<ApiAnniversary>> anniversaries({int days = 60}) async {
     if (!isAuthenticated) {
       throw const ApiException('登录状态已失效，请重新登录');
@@ -652,11 +665,17 @@ class AppSession extends ChangeNotifier {
     required String title,
     required String body,
     String personId = '',
+    List<String> photoIds = const [],
   }) {
     if (!isAuthenticated) {
       throw const ApiException('登录状态已失效，请重新登录');
     }
-    return _api.createStory(title: title, body: body, personId: personId);
+    return _api.createStory(
+      title: title,
+      body: body,
+      personId: personId,
+      photoIds: photoIds,
+    );
   }
 
   Future<ApiStory> updateStory({
@@ -664,6 +683,7 @@ class AppSession extends ChangeNotifier {
     required String title,
     required String body,
     String personId = '',
+    List<String> photoIds = const [],
   }) {
     if (!isAuthenticated) {
       throw const ApiException('登录状态已失效，请重新登录');
@@ -673,6 +693,7 @@ class AppSession extends ChangeNotifier {
       title: title,
       body: body,
       personId: personId,
+      photoIds: photoIds,
     );
   }
 
@@ -691,18 +712,18 @@ class AppSession extends ChangeNotifier {
     return page.items;
   }
 
-  Future<List<ApiPhoto>> photos({String? personId}) async {
+  Future<List<ApiPhoto>> photos({List<String> personIds = const []}) async {
     if (!isAuthenticated) {
       throw const ApiException('登录状态已失效，请重新登录');
     }
-    final page = await _api.photos(personId: personId);
+    final page = await _api.photos(personIds: personIds);
     return page.items;
   }
 
   Future<ApiPhoto> uploadPhoto({
     required List<int> bytes,
     required String filename,
-    String personId = '',
+    List<String> personIds = const [],
     String caption = '',
     DateTime? takenAt,
   }) {
@@ -713,7 +734,7 @@ class AppSession extends ChangeNotifier {
       bytes: bytes,
       filename: filename,
       contentType: '',
-      personId: personId,
+      personIds: personIds,
       caption: caption,
       takenAt: takenAt,
     );
@@ -721,7 +742,7 @@ class AppSession extends ChangeNotifier {
 
   Future<ApiPhoto> updatePhoto({
     required String photoId,
-    String personId = '',
+    List<String> personIds = const [],
     String caption = '',
     DateTime? takenAt,
   }) {
@@ -730,7 +751,7 @@ class AppSession extends ChangeNotifier {
     }
     return _api.updatePhoto(
       photoId: photoId,
-      personId: personId,
+      personIds: personIds,
       caption: caption,
       takenAt: takenAt,
     );
@@ -782,12 +803,65 @@ class AppSession extends ChangeNotifier {
     return result;
   }
 
-  Future<ApiMe> joinFamily(String inviteCode) async {
-    final me = await _api.joinFamily(inviteCode);
-    _applyMe(me);
+  Future<ApiJoinResult> joinFamily(String inviteCode) async {
+    final result = await _api.joinFamily(inviteCode);
+    _applyMe(result.me);
     await refreshTree();
     notifyListeners();
-    return me;
+    return result;
+  }
+
+  Future<List<ApiFamilyMergeRequest>> mergeRequests({String? status}) async {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    final page = await _api.mergeRequests(status: status);
+    return page.items;
+  }
+
+  Future<ApiFamilyMergeDetail> mergeDetail(String requestId) async {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    return _api.mergeDetail(requestId);
+  }
+
+  Future<ApiFamilyMergeResult> approveMerge({
+    required String requestId,
+    required List<String> personIds,
+    required List<String> storyIds,
+    required List<String> photoIds,
+    required String targetBranchId,
+    required int startGeneration,
+    String attachParentId = '',
+    String note = '',
+  }) async {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    final result = await _api.approveMerge(
+      requestId: requestId,
+      personIds: personIds,
+      storyIds: storyIds,
+      photoIds: photoIds,
+      targetBranchId: targetBranchId,
+      startGeneration: startGeneration,
+      attachParentId: attachParentId,
+      note: note,
+    );
+    await refreshTree();
+    await reloadFamilies();
+    return result;
+  }
+
+  Future<ApiFamilyMergeResult> rejectMerge({
+    required String requestId,
+    String note = '',
+  }) async {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    return _api.rejectMerge(requestId: requestId, note: note);
   }
 
   Future<void> createFamily({

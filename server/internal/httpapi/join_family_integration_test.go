@@ -109,10 +109,18 @@ func TestJoinFamilyWithInvite(t *testing.T) {
 				Name string `json:"name"`
 			} `json:"family"`
 		} `json:"families"`
+		ArchivedFamilies []struct {
+			Name string `json:"name"`
+		} `json:"archivedFamilies"`
 	}
 	decodeBody(t, response, &me)
-	if me.Family.Name != "凌氏家族" || len(me.Families) != 2 {
+	// The empty family created at registration is archived automatically, so
+	// only the joined family remains in the active family list.
+	if me.Family.Name != "凌氏家族" || len(me.Families) != 1 {
 		t.Fatalf("join did not switch family: %+v", me)
+	}
+	if len(me.ArchivedFamilies) != 1 || me.ArchivedFamilies[0].Name != "加入测试家族" {
+		t.Fatalf("empty previous family was not archived: %+v", me.ArchivedFamilies)
 	}
 	response = doJSON(t, http.DefaultClient, http.MethodGet,
 		server.URL+"/api/v1/tree", "", session.Token)

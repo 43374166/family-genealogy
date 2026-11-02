@@ -22,8 +22,8 @@ func (a *API) listPhotos(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	items, err := a.Store.ListPhotos(r.Context(), principal.Family.ID, store.PhotoFilter{
-		PersonID: strings.TrimSpace(r.URL.Query().Get("personId")),
-		Limit:    100,
+		PersonIDs: parsePersonIDs(r.URL.Query()["personId"], r.URL.Query()["personIds"]),
+		Limit:     100,
 	})
 	if err != nil {
 		a.writeAccessError(w, r, err)
@@ -40,6 +40,7 @@ func photoResponse(item model.Photo) map[string]any {
 	return map[string]any{
 		"id": item.ID, "familyId": item.FamilyID,
 		"personId": item.PersonID, "personName": item.PersonName,
+		"persons":          item.Persons,
 		"uploadedByUserId": item.UploadedByUserID,
 		"uploadedByName":   item.UploadedByName,
 		"contentType":      item.ContentType, "sizeBytes": item.SizeBytes,
@@ -92,7 +93,9 @@ func (a *API) uploadPhoto(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, r, http.StatusUnsupportedMediaType, "UNSUPPORTED_IMAGE", "only JPEG, PNG or WebP images are supported")
 		return
 	}
-	personID := strings.TrimSpace(r.FormValue("personId"))
+	personIDs := parsePersonIDs(
+		r.MultipartForm.Value["personId"], r.MultipartForm.Value["personIds"],
+	)
 	caption := strings.TrimSpace(r.FormValue("caption"))
 	if len([]rune(caption)) > 500 {
 		writeProblem(w, r, http.StatusUnprocessableEntity, "CAPTION_TOO_LONG", "caption is too long")
@@ -112,7 +115,7 @@ func (a *API) uploadPhoto(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	photo, err := a.Store.CreatePhoto(
-		r.Context(), principal.Family.ID, principal.User.ID, personID,
+		r.Context(), principal.Family.ID, principal.User.ID, personIDs,
 		objectKey, contentType, int64(len(data)), caption, takenAt,
 	)
 	if err != nil {
@@ -161,9 +164,10 @@ func (a *API) photoContent(w http.ResponseWriter, r *http.Request) {
 }
 
 type updatePhotoPayload struct {
-	PersonID string `json:"personId"`
-	Caption  string `json:"caption"`
-	TakenAt  string `json:"takenAt"`
+	PersonID  string   `json:"personId"`
+	PersonIDs []string `json:"personIds"`
+	Caption   string   `json:"caption"`
+	TakenAt   string   `json:"takenAt"`
 }
 
 func (a *API) updatePhoto(w http.ResponseWriter, r *http.Request) {
@@ -190,7 +194,8 @@ func (a *API) updatePhoto(w http.ResponseWriter, r *http.Request) {
 	}
 	photo, err := a.Store.UpdatePhotoMetadata(
 		r.Context(), principal.Family.ID, chi.URLParam(r, "photoID"),
-		principal.User.ID, payload.PersonID, payload.Caption, takenAt,
+		principal.User.ID, parsePersonIDs([]string{payload.PersonID}, payload.PersonIDs),
+		payload.Caption, takenAt,
 	)
 	if err != nil {
 		a.writeAccessError(w, r, err)
@@ -212,6 +217,29 @@ func parsePhotoDate(value string) (*time.Time, error) {
 		}
 	}
 	return nil, fmt.Errorf("invalid photo date %q", value)
+}
+
+// parsePersonIDs accepts repeated fields, comma-separated lists and the
+// legacy single personId field. Empty values are ignored.
+func parsePersonIDs(groups ...[]string) []string {
+	seen := make(map[string]struct{})
+	result := make([]string, 0, 4)
+	for _, group := range groups {
+		for _, value := range group {
+			for _, piece := range strings.Split(value, ",") {
+				piece = strings.TrimSpace(piece)
+				if piece == "" {
+					continue
+				}
+				if _, ok := seen[piece]; ok {
+					continue
+				}
+				seen[piece] = struct{}{}
+				result = append(result, piece)
+			}
+		}
+	}
+	return result
 }
 
 func (a *API) deletePhoto(w http.ResponseWriter, r *http.Request) {

@@ -8,9 +8,10 @@ import (
 )
 
 type storyPayload struct {
-	Title    string `json:"title"`
-	Body     string `json:"body"`
-	PersonID string `json:"personId"`
+	Title    string   `json:"title"`
+	Body     string   `json:"body"`
+	PersonID string   `json:"personId"`
+	PhotoIDs []string `json:"photoIds"`
 }
 
 func (a *API) listStories(w http.ResponseWriter, r *http.Request) {
@@ -61,6 +62,7 @@ func (a *API) createStory(w http.ResponseWriter, r *http.Request) {
 	story, err := a.Store.CreateStory(
 		r.Context(), principal.Family.ID, principal.User.ID,
 		strings.TrimSpace(payload.PersonID), payload.Title, payload.Body,
+		payload.PhotoIDs,
 	)
 	if err != nil {
 		a.writeAccessError(w, r, err)
@@ -88,6 +90,7 @@ func (a *API) updateStory(w http.ResponseWriter, r *http.Request) {
 		r.Context(), principal.Family.ID,
 		strings.TrimSpace(chi.URLParam(r, "storyID")), principal.User.ID,
 		strings.TrimSpace(payload.PersonID), payload.Title, payload.Body,
+		payload.PhotoIDs,
 	)
 	if err != nil {
 		a.writeAccessError(w, r, err)
@@ -115,17 +118,38 @@ func (a *API) deleteStory(w http.ResponseWriter, r *http.Request) {
 func validateStoryPayload(payload *storyPayload) string {
 	payload.Title = strings.TrimSpace(payload.Title)
 	payload.Body = strings.TrimSpace(payload.Body)
+	payload.PhotoIDs = uniquePhotoIDs(payload.PhotoIDs)
 	if payload.Title == "" {
-		return "title is required"
+		return "标题不能为空"
 	}
 	if len([]rune(payload.Title)) > 120 {
-		return "title is too long"
+		return "标题不能超过 120 个字"
 	}
 	if payload.Body == "" {
-		return "body is required"
+		return "正文不能为空"
 	}
 	if len([]rune(payload.Body)) > 20000 {
-		return "body is too long"
+		return "正文不能超过 20000 个字"
+	}
+	if len(payload.PhotoIDs) > 9 {
+		return "故事最多附带 9 张图片"
 	}
 	return ""
+}
+
+func uniquePhotoIDs(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+	return result
 }

@@ -216,6 +216,7 @@ class _FeaturedStory extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final session = SessionScope.of(context);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(18),
@@ -280,6 +281,20 @@ class _FeaturedStory extends StatelessWidget {
                 height: 1.8,
               ),
             ),
+            if (story.photos.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.network(
+                  session.photoUrl(story.photos.first.contentPath),
+                  headers: session.photoHeaders,
+                  height: 108,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                ),
+              ),
+            ],
             const SizedBox(height: 13),
             Row(
               children: [
@@ -315,6 +330,7 @@ class _StoryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final session = SessionScope.of(context);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
@@ -327,17 +343,33 @@ class _StoryRow extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 44,
-              height: 56,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceWarm,
-                borderRadius: BorderRadius.circular(9),
-              ),
-              child: const Icon(
-                Icons.menu_book_outlined,
-                size: 21,
-                color: AppColors.cinnabar,
+            ClipRRect(
+              borderRadius: BorderRadius.circular(9),
+              child: SizedBox(
+                width: 44,
+                height: 56,
+                child: story.photos.isEmpty
+                    ? Container(
+                        color: AppColors.surfaceWarm,
+                        child: const Icon(
+                          Icons.menu_book_outlined,
+                          size: 21,
+                          color: AppColors.cinnabar,
+                        ),
+                      )
+                    : Image.network(
+                        session.photoUrl(story.photos.first.contentPath),
+                        headers: session.photoHeaders,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => Container(
+                          color: AppColors.surfaceWarm,
+                          child: const Icon(
+                            Icons.broken_image_outlined,
+                            size: 18,
+                            color: AppColors.cinnabar,
+                          ),
+                        ),
+                      ),
               ),
             ),
             const SizedBox(width: 11),

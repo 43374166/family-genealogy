@@ -56,13 +56,28 @@ class _JoinFamilyPageState extends State<JoinFamilyPage> {
       _error = null;
     });
     try {
-      final me = await SessionScope.of(context).joinFamily(code);
+      final result = await SessionScope.of(context).joinFamily(code);
       if (!mounted) return;
+      final lines = <String>['当前家族已切换为 ${result.me.family.name}。'];
+      for (final family in result.archivedFamilies) {
+        lines.add('原家族「${family.name}」没有其他成员和数据，已自动删除。');
+      }
+      for (final request in result.mergeRequests) {
+        lines.add(
+          '原家族「${request.sourceFamilyName}」中有 '
+          '${request.personCount} 位人物、${request.storyCount} 篇故事、'
+          '${request.photoCount} 张照片，已提交合并申请。'
+          '目标家族族长可以选择要合并的内容和位置。',
+        );
+      }
       await showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('已加入家族'),
-          content: Text('当前家族已切换为 ${me.family.name}，原家族仍然保留。'),
+          title: Text(result.mergeRequests.isEmpty ? '已加入家族' : '已加入并提交合并申请'),
+          content: Text(
+            lines.join('\n\n'),
+            style: const TextStyle(fontSize: 12.5, height: 1.7),
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
@@ -108,7 +123,7 @@ class _JoinFamilyPageState extends State<JoinFamilyPage> {
                         const SizedBox(width: 9),
                         const Expanded(
                           child: Text(
-                            '加入后会新增一个家族身份，不会删除你原来的家族。你可以随时在“我的家族”里切换。',
+                            '加入后会默认切换到新家族。如果原来的家族只有你且没有人物、照片或故事，会自动删除；如果有数据，会向目标家族族长提交合并申请，由族长选择要合并的内容和加入位置。',
                             style: TextStyle(
                               fontSize: 11,
                               height: 1.65,

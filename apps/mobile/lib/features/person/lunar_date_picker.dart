@@ -392,7 +392,7 @@ class _LunarDatePickerPageState extends State<LunarDatePickerPage> {
                           const SizedBox(width: 9),
                           Expanded(
                             child: Text(
-                              '公历 ${_info!.solarText}    ·    农历 ${_info!.lunarText}',
+                              '公历 ${_info!.solarText}    ·    农历 ${_info!.lunarText}    ·    属${_info!.zodiac}',
                               style: const TextStyle(
                                 fontSize: 11.5,
                                 height: 1.6,

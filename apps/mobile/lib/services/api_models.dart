@@ -441,6 +441,7 @@ class ApiStory {
     required this.body,
     required this.createdAt,
     required this.updatedAt,
+    this.photos = const [],
   });
 
   final String id;
@@ -452,6 +453,7 @@ class ApiStory {
   final String body;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final List<ApiPhoto> photos;
 
   factory ApiStory.fromJson(Map<String, dynamic> json) {
     return ApiStory(
@@ -464,6 +466,7 @@ class ApiStory {
       body: _string(json['body']),
       createdAt: DateTime.tryParse(_string(json['createdAt'])),
       updatedAt: DateTime.tryParse(_string(json['updatedAt'])),
+      photos: _list(json['photos'], ApiPhoto.fromJson),
     );
   }
 }
@@ -531,6 +534,7 @@ class ApiPhoto {
     required this.contentPath,
     required this.createdAt,
     required this.takenAt,
+    this.persons = const [],
   });
 
   final String id;
@@ -542,6 +546,16 @@ class ApiPhoto {
   final String contentPath;
   final DateTime? createdAt;
   final DateTime? takenAt;
+  final List<ApiPhotoPerson> persons;
+
+  List<String> get personIds =>
+      persons.map((person) => person.personId).toList(growable: false);
+
+  List<String> get personNames =>
+      persons.map((person) => person.fullName).toList(growable: false);
+
+  String get displayPersonNames =>
+      personNames.isEmpty ? personName : personNames.join('、');
 
   factory ApiPhoto.fromJson(Map<String, dynamic> json) {
     return ApiPhoto(
@@ -554,6 +568,21 @@ class ApiPhoto {
       contentPath: _string(json['contentPath']),
       createdAt: DateTime.tryParse(_string(json['createdAt'])),
       takenAt: DateTime.tryParse(_string(json['takenAt'])),
+      persons: _list(json['persons'], ApiPhotoPerson.fromJson),
+    );
+  }
+}
+
+class ApiPhotoPerson {
+  const ApiPhotoPerson({required this.personId, required this.fullName});
+
+  final String personId;
+  final String fullName;
+
+  factory ApiPhotoPerson.fromJson(Map<String, dynamic> json) {
+    return ApiPhotoPerson(
+      personId: _string(json['personId']),
+      fullName: _string(json['fullName']),
     );
   }
 }
@@ -792,6 +821,25 @@ class ApiPerson {
   final List<ApiRelative> children;
   final List<ApiRelative> spouses;
 
+  /// Lightweight placeholder for selection lists where only id and name are
+  /// already known (for example the people tagged on an existing photo).
+  factory ApiPerson.brief({required String id, required String fullName}) {
+    return ApiPerson(
+      id: id,
+      fullName: fullName,
+      surname: '',
+      givenName: '',
+      courtesyName: '',
+      alias: '',
+      gender: 'unknown',
+      generationNo: 0,
+      generationLabel: '',
+      lifeStatus: 'unknown',
+      status: 'active',
+      version: 1,
+    );
+  }
+
   factory ApiPerson.fromJson(Map<String, dynamic> json) {
     final name = _string(json['fullName']);
     return ApiPerson(
@@ -960,6 +1008,263 @@ class ApiMe {
       membership: ApiMembership.fromJson(_map(json['membership'])),
       family: ApiFamily.fromJson(_map(json['family'])),
       families: _list(json['families'], ApiFamilyMembership.fromJson),
+    );
+  }
+}
+
+class ApiJoinResult {
+  const ApiJoinResult({
+    required this.me,
+    this.archivedFamilies = const [],
+    this.mergeRequests = const [],
+  });
+
+  final ApiMe me;
+  final List<ApiFamily> archivedFamilies;
+  final List<ApiFamilyMergeRequest> mergeRequests;
+
+  factory ApiJoinResult.fromJson(Map<String, dynamic> json) {
+    return ApiJoinResult(
+      me: ApiMe.fromJson(json),
+      archivedFamilies: _list(json['archivedFamilies'], ApiFamily.fromJson),
+      mergeRequests: _list(
+        json['mergeRequests'],
+        ApiFamilyMergeRequest.fromJson,
+      ),
+    );
+  }
+}
+
+class ApiFamilyMergeRequest {
+  const ApiFamilyMergeRequest({
+    required this.id,
+    required this.sourceFamilyId,
+    required this.sourceFamilyName,
+    required this.targetFamilyId,
+    required this.targetFamilyName,
+    required this.requesterUserId,
+    required this.requesterName,
+    required this.status,
+    required this.reviewNote,
+    required this.personCount,
+    required this.storyCount,
+    required this.photoCount,
+    required this.createdAt,
+    this.reviewedAt,
+    this.targetBranchId,
+    this.startGeneration,
+    this.attachParentId,
+    this.selectedPersonIds = const [],
+    this.selectedStoryIds = const [],
+    this.selectedPhotoIds = const [],
+  });
+
+  final String id;
+  final String sourceFamilyId;
+  final String sourceFamilyName;
+  final String targetFamilyId;
+  final String targetFamilyName;
+  final String requesterUserId;
+  final String requesterName;
+  final String status;
+  final String reviewNote;
+  final int personCount;
+  final int storyCount;
+  final int photoCount;
+  final DateTime? createdAt;
+  final DateTime? reviewedAt;
+  final String? targetBranchId;
+  final int? startGeneration;
+  final String? attachParentId;
+  final List<String> selectedPersonIds;
+  final List<String> selectedStoryIds;
+  final List<String> selectedPhotoIds;
+
+  bool get isPending => status == 'pending';
+  String get statusLabel => switch (status) {
+    'pending' => '待处理',
+    'approved' => '已合并',
+    'rejected' => '已拒绝',
+    'cancelled' => '已取消',
+    _ => status,
+  };
+
+  factory ApiFamilyMergeRequest.fromJson(Map<String, dynamic> json) {
+    return ApiFamilyMergeRequest(
+      id: _string(json['id']),
+      sourceFamilyId: _string(json['sourceFamilyId']),
+      sourceFamilyName: _string(json['sourceFamilyName']),
+      targetFamilyId: _string(json['targetFamilyId']),
+      targetFamilyName: _string(json['targetFamilyName']),
+      requesterUserId: _string(json['requesterUserId']),
+      requesterName: _string(json['requesterName']),
+      status: _string(json['status'], fallback: 'pending'),
+      reviewNote: _string(json['reviewNote']),
+      personCount: _int(json['personCount']),
+      storyCount: _int(json['storyCount']),
+      photoCount: _int(json['photoCount']),
+      createdAt: DateTime.tryParse(_string(json['createdAt'])),
+      reviewedAt: DateTime.tryParse(_string(json['reviewedAt'])),
+      targetBranchId: _nullableString(json['targetBranchId']),
+      startGeneration: _nullableInt(json['startGeneration']),
+      attachParentId: _nullableString(json['attachParentId']),
+      selectedPersonIds: _stringList(json['selectedPersonIds']),
+      selectedStoryIds: _stringList(json['selectedStoryIds']),
+      selectedPhotoIds: _stringList(json['selectedPhotoIds']),
+    );
+  }
+}
+
+class ApiFamilyMergeRequestPage {
+  const ApiFamilyMergeRequestPage({required this.items});
+
+  final List<ApiFamilyMergeRequest> items;
+
+  factory ApiFamilyMergeRequestPage.fromJson(Map<String, dynamic> json) {
+    return ApiFamilyMergeRequestPage(
+      items: _list(json['items'], ApiFamilyMergeRequest.fromJson),
+    );
+  }
+}
+
+class ApiMergePerson {
+  const ApiMergePerson({
+    required this.id,
+    required this.fullName,
+    required this.generationNo,
+    required this.generationName,
+    required this.gender,
+    required this.lifeStatus,
+    required this.branchName,
+    this.birthYear,
+  });
+
+  final String id;
+  final String fullName;
+  final int generationNo;
+  final String generationName;
+  final String gender;
+  final String lifeStatus;
+  final String branchName;
+  final int? birthYear;
+
+  factory ApiMergePerson.fromJson(Map<String, dynamic> json) {
+    return ApiMergePerson(
+      id: _string(json['id']),
+      fullName: _string(json['fullName']),
+      generationNo: _int(json['generationNo']),
+      generationName: _string(json['generationName']),
+      gender: _string(json['gender'], fallback: 'unknown'),
+      lifeStatus: _string(json['lifeStatus'], fallback: 'unknown'),
+      branchName: _string(json['branchName']),
+      birthYear: _nullableInt(json['birthYear']),
+    );
+  }
+}
+
+class ApiMergeStory {
+  const ApiMergeStory({
+    required this.id,
+    required this.title,
+    required this.personName,
+    required this.photoCount,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String title;
+  final String personName;
+  final int photoCount;
+  final DateTime? createdAt;
+
+  factory ApiMergeStory.fromJson(Map<String, dynamic> json) {
+    return ApiMergeStory(
+      id: _string(json['id']),
+      title: _string(json['title']),
+      personName: _string(json['personName']),
+      photoCount: _int(json['photoCount']),
+      createdAt: DateTime.tryParse(_string(json['createdAt'])),
+    );
+  }
+}
+
+class ApiMergePhoto {
+  const ApiMergePhoto({
+    required this.id,
+    required this.caption,
+    required this.personNames,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String caption;
+  final List<String> personNames;
+  final DateTime? createdAt;
+
+  factory ApiMergePhoto.fromJson(Map<String, dynamic> json) {
+    return ApiMergePhoto(
+      id: _string(json['id']),
+      caption: _string(json['caption']),
+      personNames: _stringList(json['personNames']),
+      createdAt: DateTime.tryParse(_string(json['createdAt'])),
+    );
+  }
+}
+
+class ApiFamilyMergeDetail {
+  const ApiFamilyMergeDetail({
+    required this.request,
+    required this.persons,
+    required this.stories,
+    required this.photos,
+    required this.branches,
+    required this.minGeneration,
+    required this.maxGeneration,
+  });
+
+  final ApiFamilyMergeRequest request;
+  final List<ApiMergePerson> persons;
+  final List<ApiMergeStory> stories;
+  final List<ApiMergePhoto> photos;
+  final List<ApiBranch> branches;
+  final int minGeneration;
+  final int maxGeneration;
+
+  factory ApiFamilyMergeDetail.fromJson(Map<String, dynamic> json) {
+    return ApiFamilyMergeDetail(
+      request: ApiFamilyMergeRequest.fromJson(_map(json['request'])),
+      persons: _list(json['persons'], ApiMergePerson.fromJson),
+      stories: _list(json['stories'], ApiMergeStory.fromJson),
+      photos: _list(json['photos'], ApiMergePhoto.fromJson),
+      branches: _list(json['branches'], ApiBranch.fromJson),
+      minGeneration: _int(json['minGeneration']),
+      maxGeneration: _int(json['maxGeneration']),
+    );
+  }
+}
+
+class ApiFamilyMergeResult {
+  const ApiFamilyMergeResult({
+    required this.request,
+    required this.importedPersons,
+    required this.importedStories,
+    required this.importedPhotos,
+    required this.sourceArchived,
+  });
+
+  final ApiFamilyMergeRequest request;
+  final int importedPersons;
+  final int importedStories;
+  final int importedPhotos;
+  final bool sourceArchived;
+
+  factory ApiFamilyMergeResult.fromJson(Map<String, dynamic> json) {
+    return ApiFamilyMergeResult(
+      request: ApiFamilyMergeRequest.fromJson(_map(json['request'])),
+      importedPersons: _int(json['importedPersons']),
+      importedStories: _int(json['importedStories']),
+      importedPhotos: _int(json['importedPhotos']),
+      sourceArchived: json['sourceArchived'] == true,
     );
   }
 }

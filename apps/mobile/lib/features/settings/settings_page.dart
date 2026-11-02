@@ -17,16 +17,18 @@ import '../family/export_family_page.dart';
 import '../family/family_switch_page.dart';
 import '../family/import_family_page.dart';
 import '../family/invite_page.dart';
+import '../family/merge_requests_page.dart';
 import '../family/phone_bind_page.dart';
 import '../legal/account_deletion_page.dart';
 import '../legal/change_password_page.dart';
 import '../legal/legal_page.dart';
 import '../person/api_person_detail_page.dart';
+import '../person/avatar_manage_page.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
 
-  static const _version = '0.44.0';
+  static const _version = '0.45.0';
 
   Future<void> _pickTextSize(BuildContext context) async {
     final settings = SettingsScope.of(context);
@@ -444,7 +446,7 @@ class SettingsPage extends StatelessWidget {
                             _SettingRow(
                               icon: Icons.file_download_outlined,
                               label: '导出家族数据',
-                              trailing: 'JSON 文件',
+                              trailing: '数据文件',
                               onTap: () => Navigator.of(context).push(
                                 MaterialPageRoute<void>(
                                   builder: (_) => const ExportDataPage(),
@@ -485,7 +487,31 @@ class SettingsPage extends StatelessWidget {
                               ),
                             ),
                             const Divider(height: 1, indent: 47),
+                            _SettingRow(
+                              icon: Icons.merge_type_rounded,
+                              label: '家族合并',
+                              trailing: '处理旧家族数据',
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const MergeRequestsPage(),
+                                ),
+                              ),
+                            ),
+                            const Divider(height: 1, indent: 47),
                           ],
+                          if (session.canWrite)
+                            _SettingRow(
+                              icon: Icons.account_circle_outlined,
+                              label: '成员头像',
+                              trailing: '为成员设置头像',
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const AvatarManagePage(),
+                                ),
+                              ),
+                            ),
+                          if (session.canWrite)
+                            const Divider(height: 1, indent: 47),
                           if (session.canWrite)
                             _SettingRow(
                               icon: Icons.how_to_reg_outlined,

@@ -64,6 +64,14 @@ func activityLabel(action string) (summary, kind string, needsReview bool) {
 		return "创建了家族", "family", false
 	case "family.imported":
 		return "导入了旁支数据", "family", false
+	case "family.archived":
+		return "归档了家族", "family", false
+	case "family.merge_requested":
+		return "提交了家族合并申请", "family", true
+	case "family.merge_approved":
+		return "通过了家族合并", "family", false
+	case "family.merge_rejected":
+		return "拒绝了家族合并", "family", false
 	case "member.joined":
 		return "加入了家族", "member", false
 	case "member.registered":

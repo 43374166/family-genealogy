@@ -209,6 +209,10 @@ class _StoryDetailPageState extends State<StoryDetailPage> {
                             ),
                           ),
                         ],
+                        if (story != null && story.photos.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          _StoryPhotos(story: story),
+                        ],
                         const SizedBox(height: 20),
                         Container(
                           width: 34,
@@ -251,4 +255,82 @@ String _dateLabel(DateTime? value) {
   final month = local.month.toString().padLeft(2, '0');
   final day = local.day.toString().padLeft(2, '0');
   return '${local.year}-$month-$day';
+}
+
+class _StoryPhotos extends StatelessWidget {
+  const _StoryPhotos({required this.story});
+
+  final ApiStory story;
+
+  void _view(BuildContext context, ApiPhoto photo) {
+    final session = SessionScope.of(context);
+    showDialog<void>(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: const EdgeInsets.all(8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: InteractiveViewer(
+                child: Image.network(
+                  session.photoUrl(photo.contentPath),
+                  headers: session.photoHeaders,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, _, _) => const Padding(
+                    padding: EdgeInsets.all(28),
+                    child: Text(
+                      '照片加载失败',
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('关闭'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final session = SessionScope.of(context);
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: story.photos.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        mainAxisSpacing: 5,
+        crossAxisSpacing: 5,
+      ),
+      itemBuilder: (context, index) {
+        final photo = story.photos[index];
+        return GestureDetector(
+          onTap: () => _view(context, photo),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(9),
+            child: Image.network(
+              session.photoUrl(photo.contentPath),
+              headers: session.photoHeaders,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => Container(
+                color: AppColors.slateSoft,
+                child: const Icon(
+                  Icons.broken_image_outlined,
+                  color: AppColors.inkMuted,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
 }

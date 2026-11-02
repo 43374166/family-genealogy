@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
@@ -9,7 +8,6 @@ import '../../core/widgets/soft_card.dart';
 import '../../core/widgets/status_pill.dart';
 import '../../data/demo_data.dart';
 import '../../models/family_member.dart';
-import '../../services/api_client.dart';
 import '../../services/app_session.dart';
 import '../family/bind_person_page.dart';
 import '../family/family_switch_page.dart';
@@ -19,6 +17,7 @@ import '../family/phone_bind_page.dart';
 import '../family/qr_scan_page.dart';
 import '../gallery/gallery_page.dart';
 import '../person/api_person_detail_page.dart';
+import '../person/avatar_actions.dart';
 import '../requests/requests_page.dart';
 import '../settings/settings_page.dart';
 import 'family_profile_sheet.dart';
@@ -46,30 +45,12 @@ class ProfilePage extends StatelessWidget {
       );
       return;
     }
-    final session = SessionScope.of(context);
-    final picked = await ImagePicker().pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1200,
-      imageQuality: 85,
+    await showAvatarActions(
+      context,
+      personId: personId,
+      canRemove:
+          SessionScope.of(context).memberById(personId)?.hasAvatar ?? false,
     );
-    if (picked == null || !context.mounted) return;
-    try {
-      final bytes = await picked.readAsBytes();
-      await session.uploadAvatar(
-        personId: personId,
-        bytes: bytes,
-        filename: picked.name,
-      );
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('头像已更新，族谱树同步生效')));
-    } on ApiException catch (error) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.message)));
-    }
   }
 
   Future<void> _scan(BuildContext context) async {
@@ -312,7 +293,7 @@ class ProfilePage extends StatelessWidget {
                           color: AppColors.inkMuted,
                           background: AppColors.slateSoft,
                           label: '关于家族族谱',
-                          trailing: 'v0.44.0',
+                          trailing: 'v0.45.0',
                           onTap: () => _showAbout(context),
                         ),
                       ],
@@ -413,7 +394,7 @@ class ProfilePage extends StatelessWidget {
             ),
             const SizedBox(height: 5),
             const Text(
-              '家族族谱 · Flutter + MySQL v0.44.0',
+              '家族族谱 · 家庭服务器版 v0.45.0',
               style: TextStyle(fontSize: 10.5, color: AppColors.inkMuted),
             ),
             const SizedBox(height: 16),
@@ -428,7 +409,7 @@ class ProfilePage extends StatelessWidget {
             ),
             const SizedBox(height: 19),
             TagPill(
-              label: 'Flutter 3.35 · Android / iOS',
+              label: '安卓 / iOS 客户端',
               color: AppColors.inkMuted,
               background: AppColors.slateSoft,
             ),
@@ -604,7 +585,7 @@ class _ProfileCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 7),
                           Text(
-                            'ID ${person.id}',
+                            '档案编号 ${person.id}',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
