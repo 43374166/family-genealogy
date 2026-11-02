@@ -430,6 +430,10 @@ struct Index {
     await this.loadPhotos();
   }
 
+  private openMembers(): void {
+    this.page = 'members';
+  }
+
   private albumPersonId(): string {
     if (this.albumFilterIndex <= 0 || this.tree === null) return '';
     const index = this.albumFilterIndex - 1;
@@ -1276,6 +1280,16 @@ struct Index {
     return this.selected !== null && this.selected!.id === this.linkedPersonId;
   }
 
+  private linkedPersonAvatar(): string {
+    if (this.tree === null || this.linkedPersonId.length === 0) return '';
+    const person = this.tree.persons.find(
+      (item: ApiPerson) => item.id === this.linkedPersonId
+    );
+    if (person === undefined || person.hasAvatar !== true) return '';
+    return '/api/v1/persons/' + this.linkedPersonId +
+      '/avatar?v=' + String(this.avatarRevision);
+  }
+
   private canDeleteStory(): boolean {
     if (this.canDelete()) return true;
     return this.selectedStory !== null &&
@@ -1323,13 +1337,18 @@ struct Index {
         .width('100%')
         .height('100%')
         .objectFit(ImageFit.Cover)
-        .opacity(0.45)
+        .opacity(0.55)
+      Column()
+        .width('100%')
+        .height('100%')
+        .backgroundColor('#B8FFFFFF')
       Scroll() {
         Column({ space: 12 }) {
           Column({ space: 6 }) {
             Text('家族族谱')
               .fontSize(34)
               .fontWeight(FontWeight.Bold)
+              .fontFamily('serif')
               .fontColor('#1C2A32')
             Text('寻根溯源 · 传承家风')
               .fontSize(13)
@@ -1461,7 +1480,7 @@ struct Index {
     .width('100%')
     .height('100%')
     .justifyContent(FlexAlign.Center)
-    .backgroundColor('#F2F4F5')
+    .backgroundColor('#F4F7F8')
   }
 
   @Builder
@@ -1472,7 +1491,7 @@ struct Index {
       } else if (this.tab === 1) {
         this.TreeView()
       } else if (this.tab === 2) {
-        this.MembersView()
+        this.MessagesTabView()
       } else {
         this.SettingsView()
       }
@@ -1485,103 +1504,261 @@ struct Index {
   @Builder
   private BottomBar() {
     Row() {
-      this.NavItem('首页', 0, '⌂')
-      this.NavItem('族谱树', 1, '⑂')
-      this.NavItem('成员', 2, '☷')
-      this.NavItem('我的', 3, '◉')
+      this.NavItem('首页', 0, '⌂', false)
+      this.NavItem('族谱树', 1, '⑂', false)
+      Button('+')
+        .width(52)
+        .height(52)
+        .fontSize(28)
+        .fontColor(Color.White)
+        .backgroundColor('#4E7DF4')
+        .borderRadius(26)
+        .shadow({ radius: 12, color: '#4E7DF440', offsetY: 5 })
+        .margin({ left: 2, right: 2 })
+        .onClick(() => {
+          this.openAdd();
+        })
+      this.NavItem('消息', 2, '✉', this.unreadCount > 0)
+      this.NavItem('我的', 3, '◉', false)
     }
     .width('100%')
-    .height(64)
+    .height(66)
     .backgroundColor('#FFFFFF')
-    .border({ width: { top: 1 }, color: '#E7ECEE' })
-    .padding({ left: 8, right: 8 })
+    .border({ width: { top: 0.8 }, color: '#EDF1F2' })
+    .shadow({ radius: 18, color: '#0A20323B', offsetY: -5 })
+    .padding({ left: 4, right: 4 })
   }
 
   @Builder
-  private NavItem(label: string, index: number, icon: string) {
+  private NavItem(label: string, index: number, icon: string, badge: boolean) {
     Column({ space: 3 }) {
-      Text(icon)
-        .fontSize(19)
-        .fontColor(this.tab === index ? '#4E7DF4' : '#89969C')
+      Stack({ alignContent: Alignment.TopEnd }) {
+        Text(icon)
+          .fontSize(19)
+          .fontColor(this.tab === index ? '#4E7DF4' : '#849198')
+        if (badge) {
+          Column()
+            .width(7)
+            .height(7)
+            .borderRadius(4)
+            .backgroundColor('#B4423D')
+            .border({ width: 1.2, color: Color.White })
+            .margin({ top: 1, right: 1 })
+        }
+      }
       Text(label)
         .fontSize(10)
-        .fontColor(this.tab === index ? '#4E7DF4' : '#89969C')
+        .fontColor(this.tab === index ? '#4E7DF4' : '#849198')
     }
     .layoutWeight(1)
     .height('100%')
     .justifyContent(FlexAlign.Center)
     .onClick(() => {
       this.tab = index;
+      if (index === 2) {
+        this.loadInbox();
+      } else if (index === 0) {
+        this.refreshUnread();
+      }
     })
+  }
+
+  @Builder
+  private MessagesTabView() {
+    Column() {
+      Row() {
+        Column({ space: 2 }) {
+          Text('消息')
+            .fontSize(24)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#1C2A32')
+          Text(this.unreadCount > 0
+            ? String(this.unreadCount) + ' 条未读消息'
+            : '家族通知与审核动态')
+            .fontSize(11)
+            .fontColor('#89969C')
+        }
+        .alignItems(HorizontalAlign.Start)
+        Blank()
+        if (this.unreadCount > 0) {
+          Button('全部已读')
+            .fontSize(11)
+            .height(30)
+            .backgroundColor('#EAF0FF')
+            .fontColor('#4E7DF4')
+            .onClick(() => {
+              this.markAllNotificationsRead();
+            })
+        }
+      }
+      .width('100%')
+      .padding({ left: 18, right: 18, top: 14, bottom: 10 })
+
+      if (this.inboxBusy && this.notifications.length === 0) {
+        Column({ space: 10 }) {
+          LoadingProgress().width(28).height(28).color('#4E7DF4')
+          Text('正在加载消息...').fontSize(12).fontColor('#89969C')
+        }
+        .layoutWeight(1)
+        .justifyContent(FlexAlign.Center)
+      } else if (this.notifications.length === 0) {
+        Column({ space: 8 }) {
+          Text('暂无消息')
+            .fontSize(15)
+            .fontColor('#1C2A32')
+          Text('审核结果和家族动态会显示在这里')
+            .fontSize(11)
+            .fontColor('#89969C')
+        }
+        .layoutWeight(1)
+        .justifyContent(FlexAlign.Center)
+      } else {
+        List({ space: 8 }) {
+          ForEach(this.notifications, (item: ApiNotification) => {
+            ListItem() {
+              Row({ space: 10 }) {
+                Column()
+                  .width(8)
+                  .height(8)
+                  .borderRadius(4)
+                  .backgroundColor(item.isRead ? '#DDE5E8' : '#B4423D')
+                Column({ space: 3 }) {
+                  Text(item.title)
+                    .fontSize(13)
+                    .fontWeight(item.isRead ? FontWeight.Normal : FontWeight.Medium)
+                    .fontColor('#1C2A32')
+                  Text(item.body)
+                    .fontSize(11)
+                    .fontColor('#6C7B82')
+                    .maxLines(2)
+                    .textOverflow({ overflow: TextOverflow.Ellipsis })
+                  Text(item.createdAt !== undefined
+                    ? item.createdAt!.substring(0, 10) : '')
+                    .fontSize(9)
+                    .fontColor('#89969C')
+                }
+                .layoutWeight(1)
+                .alignItems(HorizontalAlign.Start)
+              }
+              .width('100%')
+              .padding(13)
+              .backgroundColor(item.isRead ? '#F7F9FA' : Color.White)
+              .borderRadius(12)
+              .onClick(() => {
+                this.markNotificationRead(item);
+              })
+            }
+          }, (item: ApiNotification) => String(item.id))
+        }
+        .layoutWeight(1)
+        .padding({ left: 18, right: 18 })
+        .scrollBar(BarState.Off)
+      }
+
+      if (this.canDelete()) {
+        Button('审核与家族合并')
+          .width('92%')
+          .height(42)
+          .fontSize(12)
+          .backgroundColor('#FFFFFF')
+          .fontColor('#1C2A32')
+          .borderRadius(10)
+          .margin({ left: 18, right: 18, bottom: 8 })
+          .onClick(() => {
+            this.openInbox();
+          })
+      }
+    }
+    .width('100%')
+    .height('100%')
+    .backgroundColor('#F4F7F8')
   }
 
   @Builder
   private HomeView() {
     Scroll() {
-      Column({ space: 12 }) {
-        Stack({ alignContent: Alignment.BottomStart }) {
-          Image($r('app.media.hero_ink'))
-            .width('100%')
-            .height(190)
-            .objectFit(ImageFit.Cover)
-          Column({ space: 5 }) {
-            Text(this.displayName + '  ·  ' + (this.role === 'owner' ? '族长' : '成员'))
-              .fontSize(13)
-              .fontColor('#F7F3EA')
-            Text(this.familyName)
-              .fontSize(34)
-              .fontWeight(FontWeight.Bold)
-              .fontColor('#FFFDF7')
-            Text(this.familyMotto)
-              .fontSize(12)
-              .fontColor('#F1EAD9')
+      Stack({ alignContent: Alignment.TopStart }) {
+        Image($r('app.media.hero_ink'))
+          .width('100%')
+          .height(390)
+          .objectFit(ImageFit.Cover)
+          .opacity(0.9)
+        Column()
+          .width('100%')
+          .height(390)
+          .linearGradient({
+            angle: 180,
+            colors: [
+              ['#38FFFFFF', 0.0],
+              ['#00F4F7F8', 0.44],
+              ['#85F4F7F8', 0.72],
+              ['#FFF4F7F8', 1.0]
+            ]
+          })
+        Column({ space: 12 }) {
+          this.HomeTopBar()
+          this.FamilyIdentity()
+          Row() {
+            this.SummaryCell('族', '#4E7DF4', '#EAF0FF',
+              String(this.memberCount), '家族成员', -6)
+            this.SummaryDivider()
+            this.SummaryCell('支', '#3DA77C', '#E8F6EF',
+              String(this.branchCount), '家支', 1)
+            this.SummaryDivider()
+            this.SummaryCell('世', '#E4A636', '#FFF4DF',
+              this.myGeneration.length > 0 ? this.myGeneration : '—', '我的世代', 3)
           }
-          .alignItems(HorizontalAlign.Start)
-          .padding({ left: 20, bottom: 16 })
-        }
-        .width('100%')
-        .height(190)
-        .borderRadius(16)
-        .clip(true)
+          .width('100%')
+          .padding({ top: 15, bottom: 15 })
+          .backgroundColor(Color.White)
+          .borderRadius(15)
+          .border({ width: 1, color: '#FFFFFFCC' })
+          .shadow({ radius: 24, color: '#0A20323B', offsetY: 8 })
 
-        Row() {
-          this.StatCell(String(this.memberCount), '家族成员')
-          this.StatCell(String(this.branchCount), '家支')
-          this.StatCell(this.myGeneration.length > 0 ? this.myGeneration : '—', '我的世代')
-        }
-        .width('100%')
-        .padding({ top: 14, bottom: 14 })
-        .backgroundColor(Color.White)
-        .borderRadius(15)
-
-        Column({ space: 10 }) {
+        Column() {
           Row() {
-            this.QuickTile('族谱树', '查看家族关系', '#4E7DF4', 1)
-            this.QuickTile('成员查询', '查找家族成员', '#3DA77C', 2)
+            this.QuickCell('族谱树', '查看家族关系', '树', '#4E7DF4', 1)
+            this.QuickDivider()
+            this.QuickCell('成员查询', '查找家族成员', '人', '#3DA77C', -6)
+            this.QuickDivider()
+            this.QuickCell('新增成员', '录入正式档案', '录', '#E4A636', -1)
           }
+          .width('100%')
+          Divider()
+            .strokeWidth(1)
+            .color('#ECF0F1')
+            .margin({ left: 14, right: 14 })
           Row() {
-            this.QuickTile('家族相册', '珍贵家族影像', '#35ABC0', -3)
-            this.QuickTile('家族故事', '记录家族记忆', '#B45D5A', -4)
-          }
-          Row() {
-            this.QuickTile('新增成员', '录入正式档案', '#E4A636', -1)
-            this.QuickTile(
+            this.QuickCell(
               '消息中心',
-              this.unreadCount > 0 ? '未读 ' + String(this.unreadCount) + ' 条' : '审核与通知',
-              '#6C7B82',
+              this.unreadCount > 0 ? String(this.unreadCount) + ' 条未读' : '审核与通知',
+              '信',
+              '#8A6BE8',
               -5
             )
+            this.QuickDivider()
+            this.QuickCell('家族相册', '珍贵家族影像', '影', '#35ABC0', -3)
+            this.QuickDivider()
+            this.QuickCell('家族故事', '传承家族文化', '故', '#E46A72', -4)
           }
+          .width('100%')
         }
         .width('100%')
-        .padding(10)
+        .padding({ top: 4, bottom: 4 })
         .backgroundColor(Color.White)
         .borderRadius(15)
+        .border({ width: 1, color: '#FFFFFFCC' })
+        .shadow({ radius: 24, color: '#0A20323B', offsetY: 8 })
 
         Column({ space: 10 }) {
-          Row() {
+          Row({ space: 8 }) {
+            Column()
+              .width(3)
+              .height(15)
+              .backgroundColor('#4E7DF4')
+              .borderRadius(3)
             Text('最近的生日与祭日')
-              .fontSize(15)
+              .fontSize(16)
               .fontWeight(FontWeight.Bold)
               .fontColor('#1C2A32')
             Blank()
@@ -1631,9 +1808,14 @@ struct Index {
         .alignItems(HorizontalAlign.Start)
 
         Column({ space: 8 }) {
-          Row() {
+          Row({ space: 8 }) {
+            Column()
+              .width(3)
+              .height(15)
+              .backgroundColor('#4E7DF4')
+              .borderRadius(3)
             Text('最新动态')
-              .fontSize(15)
+              .fontSize(16)
               .fontWeight(FontWeight.Bold)
               .fontColor('#1C2A32')
             Blank()
@@ -1672,10 +1854,224 @@ struct Index {
         .alignItems(HorizontalAlign.Start)
       }
       .width('100%')
-      .padding({ left: 14, right: 14, top: 12, bottom: 18 })
+      .padding({ left: 18, right: 18, top: 50, bottom: 18 })
+      }
+      .width('100%')
     }
     .layoutWeight(1)
     .scrollBar(BarState.Off)
+  }
+
+  @Builder
+  private HomeTopBar() {
+    Row({ space: 10 }) {
+      Stack() {
+        if (this.linkedPersonAvatar().length > 0) {
+          AuthImage({
+            path: this.linkedPersonAvatar(),
+            radius: 22
+          })
+        } else {
+          Text(this.displayName.length > 0 ? this.displayName.substring(0, 1) : '族')
+            .width(44)
+            .height(44)
+            .textAlign(TextAlign.Center)
+            .fontSize(18)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#B4423D')
+            .backgroundColor('#FBEEEA')
+            .borderRadius(22)
+            .border({ width: 2, color: Color.White })
+        }
+      }
+      .width(44)
+      .height(44)
+      .shadow({ radius: 8, color: '#14202A1A', offsetY: 2 })
+
+      Column({ space: 3 }) {
+        Text(this.displayName)
+          .fontSize(16)
+          .fontWeight(FontWeight.Medium)
+          .fontColor('#1C2A32')
+        Text((this.role === 'owner' ? '族长' : this.role === 'admin' ? '管理员' : '普通成员') + '  ›')
+          .fontSize(11)
+          .fontColor('#54646D')
+      }
+      .alignItems(HorizontalAlign.Start)
+      .onClick(() => {
+        this.tab = 3;
+      })
+      Blank()
+      Stack({ alignContent: Alignment.TopEnd }) {
+        Button('✉')
+          .width(40)
+          .height(40)
+          .fontSize(18)
+          .fontColor('#1C2A32')
+          .backgroundColor('#C7FFFFFF')
+          .border({ width: 1, color: '#FFFFFFB3' })
+          .borderRadius(20)
+          .onClick(() => {
+            this.tab = 2;
+            this.loadInbox();
+          })
+        if (this.unreadCount > 0) {
+          Column()
+            .width(8)
+            .height(8)
+            .borderRadius(4)
+            .backgroundColor('#B4423D')
+            .border({ width: 1.2, color: Color.White })
+            .margin({ top: 5, right: 5 })
+        }
+      }
+    }
+    .width('100%')
+  }
+
+  @Builder
+  private FamilyIdentity() {
+    Column({ space: 8 }) {
+      Row({ space: 10 }) {
+        Text(this.familyName.length > 0 ? this.familyName : '当前家族')
+          .fontSize(40)
+          .fontWeight(FontWeight.Bold)
+          .fontFamily('serif')
+          .fontColor('#1C2A32')
+          .letterSpacing(2.2)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .layoutWeight(1)
+        Column({ space: 0 }) {
+          Text('族')
+            .fontSize(11)
+            .fontColor('#FFF6E8')
+          Text('谱')
+            .fontSize(11)
+            .fontColor('#FFF6E8')
+        }
+        .width(26)
+        .height(43)
+        .justifyContent(FlexAlign.Center)
+        .backgroundColor('#B4423D')
+        .borderRadius(4)
+        .border({ width: 1, color: '#F5DFD5' })
+        .rotate({ angle: -2 })
+        .shadow({ radius: 8, color: '#2EB4423D', offsetY: 3 })
+      }
+      .width('100%')
+      Row({ space: 9 }) {
+        Column()
+          .width(22)
+          .height(1)
+          .backgroundColor('#596A73')
+        Text(this.familyMotto.length > 0 ? this.familyMotto : '敦亲睦族 · 薪火相传')
+          .fontSize(14)
+          .fontColor('#54646D')
+          .letterSpacing(2.2)
+      }
+      .width('100%')
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+    .onClick(() => {
+      this.tab = 3;
+    })
+  }
+
+  @Builder
+  private SummaryCell(icon: string, color: string, softColor: string,
+    value: string, label: string, action: number) {
+    Column({ space: 4 }) {
+      Text(icon)
+        .width(30)
+        .height(30)
+        .textAlign(TextAlign.Center)
+        .fontSize(13)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(color)
+        .backgroundColor(softColor)
+        .borderRadius(9)
+      Text(value)
+        .fontSize(20)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#1C2A32')
+      Text(label)
+        .fontSize(10)
+        .fontColor('#89969C')
+    }
+    .layoutWeight(1)
+    .alignItems(HorizontalAlign.Center)
+    .onClick(() => {
+      this.handleQuickAction(action);
+    })
+  }
+
+  @Builder
+  private SummaryDivider() {
+    Column()
+      .width(1)
+      .height(42)
+      .backgroundColor('#ECF0F1')
+  }
+
+  @Builder
+  private QuickCell(label: string, subtitle: string, icon: string,
+    color: string, action: number) {
+    Column({ space: 8 }) {
+      Text(icon)
+        .width(50)
+        .height(50)
+        .textAlign(TextAlign.Center)
+        .fontSize(21)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(Color.White)
+        .backgroundColor(color)
+        .borderRadius(11)
+        .shadow({ radius: 13, color: color + '3D', offsetY: 6 })
+      Text(label)
+        .fontSize(13)
+        .fontWeight(FontWeight.Medium)
+        .fontColor('#1C2A32')
+        .maxLines(1)
+      Text(subtitle)
+        .fontSize(9)
+        .fontColor('#89969C')
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+    }
+    .layoutWeight(1)
+    .padding({ top: 15, bottom: 15, left: 2, right: 2 })
+    .alignItems(HorizontalAlign.Center)
+    .onClick(() => {
+      this.handleQuickAction(action);
+    })
+  }
+
+  @Builder
+  private QuickDivider() {
+    Column()
+      .width(1)
+      .height(58)
+      .backgroundColor('#ECF0F1')
+  }
+
+  private handleQuickAction(action: number): void {
+    if (action === -1) {
+      this.openAdd();
+    } else if (action === -2) {
+      this.refreshAll();
+    } else if (action === -3) {
+      this.openAlbum();
+    } else if (action === -4) {
+      this.openStories();
+    } else if (action === -5) {
+      this.openInbox();
+    } else if (action === -6) {
+      this.openMembers();
+    } else {
+      this.tab = action;
+    }
   }
 
   @Builder
@@ -1728,6 +2124,8 @@ struct Index {
         this.openStories();
       } else if (action === -5) {
         this.openInbox();
+      } else if (action === -6) {
+        this.openMembers();
       } else {
         this.tab = action;
       }
@@ -1845,16 +2243,30 @@ struct Index {
   @Builder
   private MembersView() {
     Column() {
-      Column({ space: 4 }) {
-        Text('成员查询')
-          .fontSize(24)
-          .fontWeight(FontWeight.Bold)
+      Row() {
+        Button('‹')
+          .width(38)
+          .height(38)
+          .backgroundColor('#FFFFFF')
           .fontColor('#1C2A32')
-        Text('共 ' + (this.tree === null ? 0 : this.tree.persons.length) + ' 人')
-          .fontSize(11)
-          .fontColor('#89969C')
+          .fontSize(22)
+          .borderRadius(19)
+          .onClick(() => {
+            this.page = 'tabs';
+            this.tab = 0;
+          })
+        Column({ space: 4 }) {
+          Text('成员查询')
+            .fontSize(24)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#1C2A32')
+          Text('共 ' + (this.tree === null ? 0 : this.tree.persons.length) + ' 人')
+            .fontSize(11)
+            .fontColor('#89969C')
+        }
+        .alignItems(HorizontalAlign.Start)
+        .margin({ left: 10 })
       }
-      .alignItems(HorizontalAlign.Start)
       .width('100%')
       .padding({ left: 16, right: 16, top: 14, bottom: 8 })
 
@@ -1918,21 +2330,63 @@ struct Index {
   private SettingsView() {
     Scroll() {
       Column({ space: 12 }) {
-        Column({ space: 5 }) {
-          Text('我的')
-            .fontSize(24)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#1C2A32')
-          Text(this.displayName)
-            .fontSize(14)
-            .fontColor('#1C2A32')
-          Text(this.familyName + ' · ' + (this.role === 'owner' ? '族长' : this.role))
-            .fontSize(11)
-            .fontColor('#89969C')
+        Row({ space: 12 }) {
+          Stack() {
+            if (this.linkedPersonAvatar().length > 0) {
+              AuthImage({ path: this.linkedPersonAvatar(), radius: 32 })
+            } else {
+              Text(this.displayName.length > 0 ? this.displayName.substring(0, 1) : '族')
+                .width(64)
+                .height(64)
+                .textAlign(TextAlign.Center)
+                .fontSize(24)
+                .fontWeight(FontWeight.Bold)
+                .fontColor('#B4423D')
+                .backgroundColor('#FBEEEA')
+                .borderRadius(32)
+            }
+          }
+          .width(64)
+          .height(64)
+          Column({ space: 5 }) {
+            Text(this.displayName)
+              .fontSize(22)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#1C2A32')
+            Text(this.familyName + ' · ' +
+              (this.role === 'owner' ? '族长' : this.role === 'admin' ? '管理员' : '普通成员'))
+              .fontSize(11)
+              .fontColor('#89969C')
+            Text(this.myGeneration.length > 0 ? this.myGeneration : '未绑定族谱人物')
+              .fontSize(10)
+              .fontColor('#4E7DF4')
+              .backgroundColor('#EAF0FF')
+              .padding({ left: 7, right: 7, top: 2, bottom: 2 })
+              .borderRadius(6)
+          }
+          .alignItems(HorizontalAlign.Start)
+          .layoutWeight(1)
         }
         .width('100%')
-        .alignItems(HorizontalAlign.Start)
-        .padding({ top: 16, bottom: 6 })
+        .padding(16)
+        .backgroundColor(Color.White)
+        .borderRadius(15)
+        .border({ width: 1, color: '#FFFFFFCC' })
+        .shadow({ radius: 24, color: '#0A20323B', offsetY: 8 })
+
+        Row({ space: 8 }) {
+          Column()
+            .width(3)
+            .height(15)
+            .backgroundColor('#4E7DF4')
+            .borderRadius(3)
+          Text('账号与家族')
+            .fontSize(16)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#1C2A32')
+        }
+        .width('100%')
+        .padding({ left: 2, top: 4 })
 
         Column({ space: 10 }) {
           this.SettingsRow('服务器', this.savedServer)
@@ -1982,11 +2436,11 @@ struct Index {
             .fontSize(13)
             .fontWeight(FontWeight.Bold)
             .fontColor('#1C2A32')
-          Text('这是原生 ArkTS/ArkUI 版本，已接入登录、首页、族谱树、成员查询、人物档案、新增人物和删除人物。')
+          Text('这是原生 ArkTS/ArkUI 版本，已接入族谱、相册、故事、消息、审核、合并与导入导出。')
             .fontSize(11)
             .lineHeight(18)
             .fontColor('#6C7B82')
-          Text('照片、故事、家族合并、头像和资料审核等能力仍在逐步对齐 Android 版。')
+          Text('界面配色、卡片和底部导航正在按 Flutter 版逐页对齐；当前为浅色主题。')
             .fontSize(11)
             .lineHeight(18)
             .fontColor('#6C7B82')
@@ -2104,6 +2558,7 @@ struct Index {
                   Text(this.selected!.fullName)
                     .fontSize(28)
                     .fontWeight(FontWeight.Bold)
+                    .fontFamily('serif')
                     .fontColor('#1C2A32')
                   Row({ space: 8 }) {
                     Text(this.selected!.generationLabel)
@@ -2163,6 +2618,8 @@ struct Index {
             .padding(18)
             .backgroundColor(Color.White)
             .borderRadius(15)
+            .border({ width: 1, color: '#FFFFFFCC' })
+            .shadow({ radius: 24, color: '#0A20323B', offsetY: 8 })
 
             this.RelationSection('父母', this.selected!.parents)
             this.RelationSection('配偶', this.selected!.spouses)
@@ -2756,6 +3213,7 @@ struct Index {
                 Column({ space: 4 }) {
                   Text(story.title)
                     .fontSize(15)
+                    .fontFamily('serif')
                     .fontWeight(FontWeight.Medium)
                     .fontColor('#1C2A32')
                     .maxLines(1)
@@ -2777,6 +3235,8 @@ struct Index {
               .padding(12)
               .backgroundColor(Color.White)
               .borderRadius(14)
+              .border({ width: 1, color: '#FFFFFFCC' })
+              .shadow({ radius: 24, color: '#0A20323B', offsetY: 8 })
               .onClick(() => {
                 this.openStory(story);
               })
@@ -3438,7 +3898,7 @@ struct Index {
           .borderRadius(19)
           .onClick(() => {
             this.page = 'tabs';
-            this.tab = 0;
+            this.tab = 3;
           })
         Column({ space: 2 }) {
           Text('家族合并')
@@ -4312,6 +4772,8 @@ struct Index {
         this.AddPersonView()
       } else if (this.page === 'album') {
         this.AlbumView()
+      } else if (this.page === 'members') {
+        this.MembersView()
       } else if (this.page === 'avatar') {
         this.AvatarCropView()
       } else if (this.page === 'stories') {
@@ -4334,6 +4796,6 @@ struct Index {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#F2F4F5')
+    .backgroundColor('#F4F7F8')
   }
 }
