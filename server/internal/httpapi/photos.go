@@ -22,8 +22,9 @@ func (a *API) listPhotos(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	items, err := a.Store.ListPhotos(r.Context(), principal.Family.ID, store.PhotoFilter{
-		PersonIDs: parsePersonIDs(r.URL.Query()["personId"], r.URL.Query()["personIds"]),
-		Limit:     100,
+		PersonIDs:    parsePersonIDs(r.URL.Query()["personId"], r.URL.Query()["personIds"]),
+		SolePersonID: strings.TrimSpace(r.URL.Query().Get("solePersonId")),
+		Limit:        100,
 	})
 	if err != nil {
 		a.writeAccessError(w, r, err)

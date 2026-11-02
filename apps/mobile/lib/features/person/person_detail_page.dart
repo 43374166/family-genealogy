@@ -91,7 +91,7 @@ class PersonDetailPage extends StatelessWidget {
                                   vertical: 14,
                                 ),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
                               ),
                             ),
@@ -117,7 +117,7 @@ class PersonDetailPage extends StatelessWidget {
                                   vertical: 14,
                                 ),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
                               ),
                             ),
@@ -147,7 +147,7 @@ class PersonDetailPage extends StatelessWidget {
         ),
         decoration: const BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(17)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -181,7 +181,7 @@ class _ProfileHero extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 22, 20, 19),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(17),
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -306,7 +306,7 @@ class _ProfileHero extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.58),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(9),
                 ),
                 child: Row(
                   children: [
@@ -382,7 +382,7 @@ class _Relationships extends StatelessWidget {
           const SizedBox(height: 13),
           for (final relation in relations) ...[
             InkWell(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(9),
               onTap: relation.person == null
                   ? null
                   : () => Navigator.of(context).push(
@@ -646,7 +646,7 @@ class _SheetAction extends StatelessWidget {
         Navigator.pop(context);
         messenger.showSnackBar(const SnackBar(content: Text('该操作将在服务端接入后开放')));
       },
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(9),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 14),
         child: Row(

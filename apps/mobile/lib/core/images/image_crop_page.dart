@@ -4,6 +4,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import '../widgets/preserve_colors.dart';
+
 /// Square crop editor used for person avatars. The editor is implemented with
 /// `dart:ui` only, so it works on Android and iOS without adding a native
 /// cropping plugin.
@@ -145,169 +147,173 @@ class _ImageCropPageState extends State<ImageCropPage> {
   @override
   Widget build(BuildContext context) {
     final image = _image;
-    return Scaffold(
-      backgroundColor: const Color(0xFF111716),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-              child: Row(
-                children: [
-                  TextButton(
-                    onPressed: _exporting
-                        ? null
-                        : () => Navigator.of(context).pop(),
-                    child: const Text(
-                      '取消',
-                      style: TextStyle(color: Colors.white70),
-                    ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      widget.title,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+    return PreserveColors(
+      child: Scaffold(
+        backgroundColor: const Color(0xFF111716),
+        body: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                child: Row(
+                  children: [
+                    TextButton(
+                      onPressed: _exporting
+                          ? null
+                          : () => Navigator.of(context).pop(),
+                      child: const Text(
+                        '取消',
+                        style: TextStyle(color: Colors.white70),
                       ),
                     ),
-                  ),
-                  TextButton(
-                    onPressed: image == null || _exporting ? null : _confirm,
-                    child: _exporting
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text(
-                            '确定',
-                            style: TextStyle(
-                              color: Color(0xFF9FD6C2),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Center(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final size = math.min(
-                      constraints.maxWidth - 32,
-                      constraints.maxHeight - 120,
-                    );
-                    _viewport = size;
-                    if (image == null) {
-                      return SizedBox(
-                        width: size,
-                        height: size,
-                        child: _error == null
-                            ? const Center(
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white70,
-                                ),
-                              )
-                            : Center(
-                                child: Text(
-                                  _error!,
-                                  style: const TextStyle(color: Colors.white70),
-                                ),
-                              ),
-                      );
-                    }
-                    return Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        GestureDetector(
-                          onScaleStart: (details) {
-                            _startScale = _scale;
-                            _startOffset = _offset;
-                            _startFocal = details.localFocalPoint;
-                          },
-                          onScaleUpdate: (details) {
-                            final newScale = (_startScale * details.scale)
-                                .clamp(1.0, 5.0);
-                            final center = Offset(size / 2, size / 2);
-                            final anchor =
-                                ((_startFocal - center - _startOffset) /
-                                _startScale);
-                            final nextOffset =
-                                details.localFocalPoint -
-                                center -
-                                anchor * newScale;
-                            setState(() {
-                              _scale = newScale;
-                              _offset = _clampOffset(
-                                nextOffset,
-                                image,
-                                newScale,
-                              );
-                            });
-                          },
-                          child: ClipRect(
-                            child: SizedBox(
-                              width: size,
-                              height: size,
-                              child: CustomPaint(
-                                painter: _CropPainter(
-                                  image: image,
-                                  scale: _scale,
-                                  offset: _offset,
-                                  baseScale: _coverScale(image),
-                                ),
-                              ),
-                            ),
-                          ),
+                    Expanded(
+                      child: Text(
+                        widget.title,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
                         ),
-                        const SizedBox(height: 18),
-                        if (_error != null) ...[
-                          Text(
-                            _error!,
-                            style: const TextStyle(
-                              color: Color(0xFFFFB4AB),
-                              fontSize: 11.5,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                        ],
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton.filledTonal(
-                              onPressed: () => _zoom(-0.2),
-                              icon: const Icon(Icons.remove_rounded),
-                            ),
-                            const SizedBox(width: 14),
-                            const Text(
-                              '双指缩放 · 拖动调整位置',
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: image == null || _exporting ? null : _confirm,
+                      child: _exporting
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text(
+                              '确定',
                               style: TextStyle(
-                                color: Colors.white54,
-                                fontSize: 11,
+                                color: Color(0xFF9FD6C2),
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
-                            const SizedBox(width: 14),
-                            IconButton.filledTonal(
-                              onPressed: () => _zoom(0.2),
-                              icon: const Icon(Icons.add_rounded),
-                            ),
-                          ],
-                        ),
-                      ],
-                    );
-                  },
+                    ),
+                  ],
                 ),
               ),
-            ),
-          ],
+              Expanded(
+                child: Center(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final size = math.min(
+                        constraints.maxWidth - 32,
+                        constraints.maxHeight - 120,
+                      );
+                      _viewport = size;
+                      if (image == null) {
+                        return SizedBox(
+                          width: size,
+                          height: size,
+                          child: _error == null
+                              ? const Center(
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white70,
+                                  ),
+                                )
+                              : Center(
+                                  child: Text(
+                                    _error!,
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                    ),
+                                  ),
+                                ),
+                        );
+                      }
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          GestureDetector(
+                            onScaleStart: (details) {
+                              _startScale = _scale;
+                              _startOffset = _offset;
+                              _startFocal = details.localFocalPoint;
+                            },
+                            onScaleUpdate: (details) {
+                              final newScale = (_startScale * details.scale)
+                                  .clamp(1.0, 5.0);
+                              final center = Offset(size / 2, size / 2);
+                              final anchor =
+                                  ((_startFocal - center - _startOffset) /
+                                  _startScale);
+                              final nextOffset =
+                                  details.localFocalPoint -
+                                  center -
+                                  anchor * newScale;
+                              setState(() {
+                                _scale = newScale;
+                                _offset = _clampOffset(
+                                  nextOffset,
+                                  image,
+                                  newScale,
+                                );
+                              });
+                            },
+                            child: ClipRect(
+                              child: SizedBox(
+                                width: size,
+                                height: size,
+                                child: CustomPaint(
+                                  painter: _CropPainter(
+                                    image: image,
+                                    scale: _scale,
+                                    offset: _offset,
+                                    baseScale: _coverScale(image),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          if (_error != null) ...[
+                            Text(
+                              _error!,
+                              style: const TextStyle(
+                                color: Color(0xFFFFB4AB),
+                                fontSize: 11.5,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                          ],
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton.filledTonal(
+                                onPressed: () => _zoom(-0.2),
+                                icon: const Icon(Icons.remove_rounded),
+                              ),
+                              const SizedBox(width: 14),
+                              const Text(
+                                '双指缩放 · 拖动调整位置',
+                                style: TextStyle(
+                                  color: Colors.white54,
+                                  fontSize: 11,
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              IconButton.filledTonal(
+                                onPressed: () => _zoom(0.2),
+                                icon: const Icon(Icons.add_rounded),
+                              ),
+                            ],
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

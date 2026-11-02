@@ -250,7 +250,7 @@ class _BranchAdminsPageState extends State<BranchAdminsPage> {
                             backgroundColor: AppColors.primary,
                             minimumSize: const Size.fromHeight(48),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(10),
                             ),
                           ),
                         ),
@@ -279,7 +279,7 @@ class _BranchAdminsPageState extends State<BranchAdminsPage> {
                               ),
                               decoration: BoxDecoration(
                                 color: Colors.white,
-                                borderRadius: BorderRadius.circular(15),
+                                borderRadius: BorderRadius.circular(11),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,

@@ -23,7 +23,7 @@ Future<bool> showAvatarActions(
     showDragHandle: true,
     backgroundColor: Colors.white,
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(17)),
     ),
     builder: (context) => SafeArea(
       child: Column(

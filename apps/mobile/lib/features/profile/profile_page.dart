@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
@@ -293,7 +293,7 @@ class ProfilePage extends StatelessWidget {
                           color: AppColors.inkMuted,
                           background: AppColors.slateSoft,
                           label: '关于家族族谱',
-                          trailing: 'v0.45.0',
+                          trailing: 'v0.46.0',
                           onTap: () => _showAbout(context),
                         ),
                       ],
@@ -304,7 +304,7 @@ class ProfilePage extends StatelessWidget {
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
                       color: AppColors.surfaceWarm,
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: const Color(0xFFF0EBDD)),
                     ),
                     child: Row(
@@ -364,7 +364,7 @@ class ProfilePage extends StatelessWidget {
         ),
         decoration: const BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -374,7 +374,7 @@ class ProfilePage extends StatelessWidget {
               height: 64,
               decoration: BoxDecoration(
                 color: AppColors.cinnabarSoft,
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(13),
               ),
               child: Center(
                 child: Text(
@@ -394,7 +394,7 @@ class ProfilePage extends StatelessWidget {
             ),
             const SizedBox(height: 5),
             const Text(
-              '家族族谱 · 家庭服务器版 v0.45.0',
+              '家族族谱 · 家庭服务器版 v0.46.0',
               style: TextStyle(fontSize: 10.5, color: AppColors.inkMuted),
             ),
             const SizedBox(height: 16),
@@ -424,7 +424,7 @@ class ProfilePage extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         title: const Text('退出登录', style: TextStyle(fontSize: 17)),
         content: const Text(
           '退出后需要重新输入家庭账户密码。',
@@ -474,7 +474,7 @@ class _ProfileCard extends StatelessWidget {
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(23),
+        borderRadius: BorderRadius.circular(17),
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -603,7 +603,7 @@ class _ProfileCard extends StatelessWidget {
                           builder: (_) => const MyQrPage(),
                         ),
                       ),
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(13),
                       child: const Padding(
                         padding: EdgeInsets.all(6),
                         child: Icon(
@@ -759,7 +759,7 @@ class _MenuRow extends StatelessWidget {
               height: 34,
               decoration: BoxDecoration(
                 color: background,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(7),
               ),
               child: Icon(icon, size: 17, color: color),
             ),

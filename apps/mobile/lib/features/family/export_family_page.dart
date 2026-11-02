@@ -5,6 +5,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/app_page_header.dart';
 import '../../core/widgets/ink_portrait.dart';
+import '../../core/widgets/preserve_colors.dart';
 import '../../core/widgets/soft_card.dart';
 import '../../services/api_client.dart';
 import '../../services/api_models.dart';
@@ -113,19 +114,19 @@ class _ExportFamilyPageState extends State<ExportFamilyPage> {
                         foregroundColor: AppColors.primary,
                         side: const BorderSide(color: AppColors.primary),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(9),
                         ),
                       ),
                     )
                   else
                     InkWell(
                       onTap: _pick,
-                      borderRadius: BorderRadius.circular(13),
+                      borderRadius: BorderRadius.circular(9),
                       child: Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(13),
+                          borderRadius: BorderRadius.circular(9),
                         ),
                         child: Row(
                           children: [
@@ -175,7 +176,7 @@ class _ExportFamilyPageState extends State<ExportFamilyPage> {
                       backgroundColor: AppColors.primary,
                       minimumSize: const Size.fromHeight(48),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
                   ),
@@ -215,11 +216,13 @@ class _ExportFamilyPageState extends State<ExportFamilyPage> {
                           ),
                           const SizedBox(height: 10),
                           Center(
-                            child: QrImageView(
-                              data: package.code,
-                              version: QrVersions.auto,
-                              size: 150,
-                              backgroundColor: Colors.white,
+                            child: PreserveColors(
+                              child: QrImageView(
+                                data: package.code,
+                                version: QrVersions.auto,
+                                size: 150,
+                                backgroundColor: Colors.white,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 6),

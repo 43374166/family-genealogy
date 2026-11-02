@@ -127,7 +127,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                       backgroundColor: AppColors.primary,
                       minimumSize: const Size.fromHeight(50),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
+                        borderRadius: BorderRadius.circular(11),
                       ),
                     ),
                     child: _submitting

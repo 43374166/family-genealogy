@@ -275,9 +275,14 @@ class ApiClient {
     return ApiActivityPage.fromJson(body);
   }
 
-  Future<ApiPhotoPage> photos({List<String> personIds = const []}) async {
+  Future<ApiPhotoPage> photos({
+    List<String> personIds = const [],
+    String? solePersonId,
+  }) async {
     final params = <String, String>{
       if (personIds.isNotEmpty) 'personIds': personIds.join(','),
+      if (solePersonId != null && solePersonId.isNotEmpty)
+        'solePersonId': solePersonId,
     };
     final query = params.isEmpty
         ? ''

@@ -8,7 +8,7 @@ class SoftCard extends StatelessWidget {
     required this.child,
     this.padding = const EdgeInsets.all(18),
     this.margin,
-    this.radius = 20,
+    this.radius = 15,
     this.color = AppColors.surface,
     this.onTap,
     this.showBorder = true,
@@ -109,7 +109,7 @@ class SectionTitle extends StatelessWidget {
           if (actionLabel != null)
             InkWell(
               onTap: onAction,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(6),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
                 child: Row(

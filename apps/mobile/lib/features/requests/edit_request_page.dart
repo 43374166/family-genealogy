@@ -187,7 +187,7 @@ class _EditRequestPageState extends State<EditRequestPage> {
                             padding: const EdgeInsets.all(13),
                             decoration: BoxDecoration(
                               color: AppColors.goldSoft,
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(10),
                               border: Border.all(
                                 color: const Color(0xFFF2DFC0),
                               ),
@@ -349,7 +349,7 @@ class _EditRequestPageState extends State<EditRequestPage> {
                     backgroundColor: AppColors.primary,
                     minimumSize: const Size.fromHeight(50),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
+                      borderRadius: BorderRadius.circular(11),
                     ),
                     textStyle: const TextStyle(
                       fontSize: 14,
@@ -482,15 +482,15 @@ class _EditField extends StatelessWidget {
         filled: true,
         fillColor: const Color(0xFFF7F9FA),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(11),
+          borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(11),
+          borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: Color(0xFFE9EEF0)),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(11),
+          borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: AppColors.primary),
         ),
       ),
@@ -511,7 +511,7 @@ class _ChangePreview extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: const Color(0xFFF7F9FA),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(9),
       ),
       child: keys.isEmpty
           ? const Text(

@@ -217,7 +217,7 @@ class _RequestsPageState extends State<RequestsPage> {
                         setState(() => _mineOnly = !_mineOnly);
                         _load();
                       },
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(7),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 4,
@@ -284,7 +284,7 @@ class _RequestsPageState extends State<RequestsPage> {
               side: const BorderSide(color: AppColors.primary),
               minimumSize: const Size.fromHeight(50),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
+                borderRadius: BorderRadius.circular(11),
               ),
               textStyle: const TextStyle(
                 fontSize: 14,
@@ -320,7 +320,7 @@ class _RequestsPageState extends State<RequestsPage> {
         ),
         decoration: const BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(19)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -380,7 +380,7 @@ class _RequestsPageState extends State<RequestsPage> {
         ),
         decoration: const BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(19)),
         ),
         child: SingleChildScrollView(
           child: Column(
@@ -498,7 +498,7 @@ class _RequestsPageState extends State<RequestsPage> {
                     color: request.isRejected
                         ? AppColors.cinnabarSoft
                         : AppColors.jadeSoft,
-                    borderRadius: BorderRadius.circular(13),
+                    borderRadius: BorderRadius.circular(9),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -541,7 +541,7 @@ class _RequestsPageState extends State<RequestsPage> {
                           side: const BorderSide(color: AppColors.cinnabar),
                           minimumSize: const Size.fromHeight(46),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(13),
+                            borderRadius: BorderRadius.circular(9),
                           ),
                         ),
                         child: const Text('拒绝'),
@@ -558,7 +558,7 @@ class _RequestsPageState extends State<RequestsPage> {
                           backgroundColor: AppColors.primary,
                           minimumSize: const Size.fromHeight(46),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(13),
+                            borderRadius: BorderRadius.circular(9),
                           ),
                         ),
                         child: const Text('通过'),
@@ -573,7 +573,7 @@ class _RequestsPageState extends State<RequestsPage> {
                     backgroundColor: AppColors.ink,
                     minimumSize: const Size.fromHeight(46),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(13),
+                      borderRadius: BorderRadius.circular(9),
                     ),
                   ),
                   child: const Text('知道了'),
@@ -637,7 +637,7 @@ class _FilterBar extends StatelessWidget {
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(9),
         border: Border.all(color: const Color(0xFFF3F5F6)),
       ),
       child: Row(
@@ -653,7 +653,7 @@ class _FilterBar extends StatelessWidget {
                     color: selected == option.$2
                         ? AppColors.primary
                         : Colors.transparent,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(7),
                   ),
                   child: Text(
                     option.$1,
@@ -686,10 +686,10 @@ class _RequestCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
           child: Column(
@@ -828,7 +828,7 @@ class _HelpLine extends StatelessWidget {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: AppColors.primarySoft,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
               index,
@@ -872,7 +872,7 @@ class _EmptyRequests extends StatelessWidget {
               height: 70,
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(22),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: AppColors.line),
               ),
               child: const Icon(

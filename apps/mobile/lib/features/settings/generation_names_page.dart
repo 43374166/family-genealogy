@@ -247,7 +247,7 @@ class _GenerationNamesPageState extends State<GenerationNamesPage> {
                             filled: true,
                             fillColor: AppColors.background,
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(9),
                               borderSide: BorderSide.none,
                             ),
                           ),
@@ -338,7 +338,7 @@ class _GenerationNamesPageState extends State<GenerationNamesPage> {
                       backgroundColor: AppColors.primary,
                       minimumSize: const Size.fromHeight(50),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
+                        borderRadius: BorderRadius.circular(11),
                       ),
                     ),
                     child: _saving
@@ -396,7 +396,7 @@ class _CharacterColumn extends StatelessWidget {
                 color: row < chars.length
                     ? AppColors.surfaceWarm
                     : Colors.transparent,
-                borderRadius: BorderRadius.circular(7),
+                borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
                 row < chars.length ? chars[row] : '',
@@ -455,11 +455,11 @@ class _GenerationCharField extends StatelessWidget {
                 vertical: 11,
               ),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(13),
+                borderRadius: BorderRadius.circular(9),
                 borderSide: const BorderSide(color: AppColors.line),
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(13),
+                borderRadius: BorderRadius.circular(9),
                 borderSide: const BorderSide(color: AppColors.line),
               ),
             ),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/ink_portrait.dart';
+import '../../core/widgets/preserve_colors.dart';
 import '../../core/widgets/soft_card.dart';
 import '../../core/widgets/status_pill.dart';
 import '../../services/api_client.dart';
@@ -254,7 +255,7 @@ class _ApiPersonDetailPageState extends State<ApiPersonDetailPage> {
                                     vertical: 14,
                                   ),
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
+                                    borderRadius: BorderRadius.circular(10),
                                   ),
                                 ),
                               ),
@@ -279,7 +280,7 @@ class _ApiPersonDetailPageState extends State<ApiPersonDetailPage> {
                                     vertical: 14,
                                   ),
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
+                                    borderRadius: BorderRadius.circular(10),
                                   ),
                                 ),
                               ),
@@ -321,7 +322,7 @@ class _PersonPhotosState extends State<_PersonPhotos> {
     try {
       final photos = await SessionScope.of(
         context,
-      ).photos(personIds: [widget.person.id]);
+      ).photos(solePersonId: widget.person.id);
       if (!mounted) return;
       setState(() {
         _photos = photos;
@@ -339,6 +340,7 @@ class _PersonPhotosState extends State<_PersonPhotos> {
         builder: (_) => GalleryPage(
           personId: widget.person.id,
           personName: widget.person.fullName,
+          solePerson: true,
         ),
       ),
     );
@@ -370,12 +372,12 @@ class _PersonPhotosState extends State<_PersonPhotos> {
         else if (_photos.isEmpty)
           InkWell(
             onTap: _openGallery,
-            borderRadius: BorderRadius.circular(13),
+            borderRadius: BorderRadius.circular(9),
             child: Container(
               height: 70,
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(13),
+                borderRadius: BorderRadius.circular(9),
               ),
               child: const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -402,19 +404,21 @@ class _PersonPhotosState extends State<_PersonPhotos> {
                 return GestureDetector(
                   onTap: _openGallery,
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(11),
-                    child: Image.network(
-                      session.photoUrl(photo.contentPath),
-                      headers: session.photoHeaders,
-                      width: 112,
-                      height: 88,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => Container(
+                    borderRadius: BorderRadius.circular(8),
+                    child: PreserveColors(
+                      child: Image.network(
+                        session.photoUrl(photo.contentPath),
+                        headers: session.photoHeaders,
                         width: 112,
-                        color: AppColors.slateSoft,
-                        child: const Icon(
-                          Icons.broken_image_outlined,
-                          color: AppColors.inkMuted,
+                        height: 88,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => Container(
+                          width: 112,
+                          color: AppColors.slateSoft,
+                          child: const Icon(
+                            Icons.broken_image_outlined,
+                            color: AppColors.inkMuted,
+                          ),
                         ),
                       ),
                     ),
@@ -489,7 +493,7 @@ class _ProfileHero extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 22, 20, 19),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(17),
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -610,7 +614,7 @@ class _ProfileHero extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.58),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(9),
             ),
             child: Row(
               children: [
@@ -745,7 +749,7 @@ class _Relationships extends StatelessWidget {
               ),
               for (final relative in group.$2)
                 InkWell(
-                  borderRadius: BorderRadius.circular(11),
+                  borderRadius: BorderRadius.circular(8),
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) =>

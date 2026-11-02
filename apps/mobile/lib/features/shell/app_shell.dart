@@ -349,7 +349,7 @@ class _AddSheet extends StatelessWidget {
       ),
       decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -424,10 +424,10 @@ class _AddOption extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: const Color(0xFFF8FAFA),
-      borderRadius: BorderRadius.circular(15),
+      borderRadius: BorderRadius.circular(11),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(11),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
           child: Row(
@@ -437,7 +437,7 @@ class _AddOption extends StatelessWidget {
                 height: 40,
                 decoration: BoxDecoration(
                   color: background,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(9),
                 ),
                 child: Icon(icon, size: 20, color: color),
               ),

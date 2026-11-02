@@ -72,12 +72,12 @@ class SoftDateField extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(10),
       child: Container(
         padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(color: AppColors.line),
         ),
         child: Row(
@@ -320,7 +320,7 @@ class _LunarDatePickerPageState extends State<LunarDatePickerPage> {
                     Container(
                       decoration: BoxDecoration(
                         color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: AppColors.line),
                       ),
                       child: CalendarDatePicker(
@@ -380,7 +380,7 @@ class _LunarDatePickerPageState extends State<LunarDatePickerPage> {
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         color: AppColors.primarySoft,
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: Row(
                         children: [
@@ -410,7 +410,7 @@ class _LunarDatePickerPageState extends State<LunarDatePickerPage> {
                       backgroundColor: AppColors.primary,
                       minimumSize: const Size.fromHeight(48),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
                     child: const Text('确定这个日期'),
@@ -468,7 +468,7 @@ class _LunarSelector extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(14, 5, 14, 8),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.line),
       ),
       child: Column(

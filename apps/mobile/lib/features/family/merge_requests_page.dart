@@ -145,12 +145,12 @@ class _MergeRequestsPageState extends State<MergeRequestsPage> {
                                 final item = _items[index];
                                 return InkWell(
                                   onTap: () => _open(item),
-                                  borderRadius: BorderRadius.circular(16),
+                                  borderRadius: BorderRadius.circular(12),
                                   child: Container(
                                     padding: const EdgeInsets.all(16),
                                     decoration: BoxDecoration(
                                       color: Colors.white,
-                                      borderRadius: BorderRadius.circular(16),
+                                      borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Column(
                                       crossAxisAlignment:
@@ -912,7 +912,7 @@ class _MergeRequestDetailPageState extends State<MergeRequestDetailPage> {
                                 backgroundColor: AppColors.primary,
                                 minimumSize: const Size.fromHeight(50),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(15),
+                                  borderRadius: BorderRadius.circular(11),
                                 ),
                               ),
                               child: _submitting

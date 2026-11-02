@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'core/theme/app_theme.dart';
@@ -18,7 +19,8 @@ class FamilyTreeApp extends StatefulWidget {
   State<FamilyTreeApp> createState() => _FamilyTreeAppState();
 }
 
-class _FamilyTreeAppState extends State<FamilyTreeApp> {
+class _FamilyTreeAppState extends State<FamilyTreeApp>
+    with WidgetsBindingObserver {
   late final AppSession _session = widget.session ?? AppSession();
   late final bool _ownsSession = widget.session == null;
   final AppSettings _settings = AppSettings();
@@ -26,6 +28,8 @@ class _FamilyTreeAppState extends State<FamilyTreeApp> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _settings.addListener(_onSettingsChanged);
     _settings.load();
     if (_ownsSession) {
       _session.restore();
@@ -34,6 +38,8 @@ class _FamilyTreeAppState extends State<FamilyTreeApp> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _settings.removeListener(_onSettingsChanged);
     _settings.dispose();
     if (_ownsSession) {
       _session.dispose();
@@ -41,8 +47,18 @@ class _FamilyTreeAppState extends State<FamilyTreeApp> {
     super.dispose();
   }
 
+  void _onSettingsChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void didChangePlatformBrightness() {
+    if (mounted) setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
+    final darkMode = _settings.isDarkMode;
     return SettingsScope(
       settings: _settings,
       child: SessionScope(
@@ -50,7 +66,7 @@ class _FamilyTreeAppState extends State<FamilyTreeApp> {
         child: MaterialApp(
           title: '家族族谱',
           debugShowCheckedModeBanner: false,
-          theme: AppTheme.light,
+          theme: darkMode ? AppTheme.lightForDarkMode : AppTheme.light,
           scrollBehavior: const _AppScrollBehavior(),
           locale: const Locale('zh', 'CN'),
           supportedLocales: const [Locale('zh', 'CN'), Locale('en', 'US')],
@@ -61,15 +77,36 @@ class _FamilyTreeAppState extends State<FamilyTreeApp> {
           ],
           builder: (context, child) {
             final settings = SettingsScope.of(context);
-            return Listener(
-              behavior: HitTestBehavior.translucent,
-              onPointerDown: (_) =>
-                  FocusManager.instance.primaryFocus?.unfocus(),
-              child: MediaQuery(
-                data: MediaQuery.of(
-                  context,
-                ).copyWith(textScaler: TextScaler.linear(settings.textScale)),
-                child: child ?? const SizedBox.shrink(),
+            final darkMode = settings.isDarkFor(context);
+            Widget content = MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: TextScaler.linear(settings.textScale)),
+              child: child ?? const SizedBox.shrink(),
+            );
+            if (darkMode) {
+              content = ColorFiltered(
+                colorFilter: AppTheme.darkModeFilter,
+                child: content,
+              );
+            }
+            return AnnotatedRegion<SystemUiOverlayStyle>(
+              value: darkMode
+                  ? SystemUiOverlayStyle.light.copyWith(
+                      statusBarColor: Colors.transparent,
+                      systemNavigationBarColor: const Color(0xFF111716),
+                      systemNavigationBarIconBrightness: Brightness.light,
+                    )
+                  : SystemUiOverlayStyle.dark.copyWith(
+                      statusBarColor: Colors.transparent,
+                      systemNavigationBarColor: Colors.white,
+                      systemNavigationBarIconBrightness: Brightness.dark,
+                    ),
+              child: Listener(
+                behavior: HitTestBehavior.translucent,
+                onPointerDown: (_) =>
+                    FocusManager.instance.primaryFocus?.unfocus(),
+                child: content,
               ),
             );
           },
@@ -117,7 +154,7 @@ class _BootSplash extends StatelessWidget {
               height: 76,
               decoration: BoxDecoration(
                 color: const Color(0xFFA63A38),
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(14),
               ),
               alignment: Alignment.center,
               child: const Text(

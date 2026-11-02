@@ -83,7 +83,7 @@ class _BindPersonPageState extends State<BindPersonPage> {
                       color: alreadyBound
                           ? AppColors.jadeSoft
                           : AppColors.goldSoft,
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
                       alreadyBound
@@ -117,19 +117,19 @@ class _BindPersonPageState extends State<BindPersonPage> {
                               foregroundColor: AppColors.primary,
                               side: const BorderSide(color: AppColors.primary),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(9),
                               ),
                             ),
                           )
                         else
                           InkWell(
                             onTap: alreadyBound ? null : _pick,
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(9),
                             child: Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFF7F9FA),
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(9),
                               ),
                               child: Row(
                                 children: [
@@ -194,7 +194,7 @@ class _BindPersonPageState extends State<BindPersonPage> {
               backgroundColor: AppColors.primary,
               minimumSize: const Size.fromHeight(50),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
+                borderRadius: BorderRadius.circular(11),
               ),
             ),
             child: _submitting

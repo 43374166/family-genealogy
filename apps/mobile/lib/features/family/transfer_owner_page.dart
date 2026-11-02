@@ -201,7 +201,7 @@ class _AccountRow extends StatelessWidget {
       padding: EdgeInsets.zero,
       child: InkWell(
         onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(

@@ -191,7 +191,7 @@ class _ImportFamilyPageState extends State<ImportFamilyPage> {
                             filled: true,
                             fillColor: Colors.white,
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(13),
+                              borderRadius: BorderRadius.circular(9),
                             ),
                           ),
                         ),
@@ -386,7 +386,7 @@ class _ImportFamilyPageState extends State<ImportFamilyPage> {
                               backgroundColor: AppColors.primary,
                               minimumSize: const Size.fromHeight(50),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(15),
+                                borderRadius: BorderRadius.circular(11),
                               ),
                             ),
                             child: _importing

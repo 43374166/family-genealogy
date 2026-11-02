@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/app_page_header.dart';
@@ -28,7 +28,7 @@ import '../person/avatar_manage_page.dart';
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
 
-  static const _version = '0.45.0';
+  static const _version = '0.46.0';
 
   Future<void> _pickTextSize(BuildContext context) async {
     final settings = SettingsScope.of(context);
@@ -77,6 +77,55 @@ class SettingsPage extends StatelessWidget {
     );
     if (selected != null) {
       await settings.setTextScale(selected);
+    }
+  }
+
+  Future<void> _pickTheme(BuildContext context) async {
+    final settings = SettingsScope.of(context);
+    final selected = await showModalBottomSheet<ThemeMode>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(19)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 2, 20, 10),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  '主题',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+            for (final option in const [
+              (ThemeMode.system, '跟随系统', Icons.brightness_auto_outlined),
+              (ThemeMode.light, '亮色', Icons.light_mode_outlined),
+              (ThemeMode.dark, '暗色', Icons.dark_mode_outlined),
+            ])
+              ListTile(
+                leading: Icon(option.$3, color: AppColors.primary),
+                title: Text(option.$2),
+                trailing: settings.themeMode == option.$1
+                    ? const Icon(
+                        Icons.check_circle_rounded,
+                        color: AppColors.primary,
+                      )
+                    : null,
+                onTap: () => Navigator.of(context).pop(option.$1),
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (selected != null) {
+      await settings.setThemeMode(selected);
     }
   }
 
@@ -351,6 +400,13 @@ class SettingsPage extends StatelessWidget {
                     child: Column(
                       children: [
                         _SettingRow(
+                          icon: Icons.dark_mode_outlined,
+                          label: '主题',
+                          trailing: settings.themeModeLabel,
+                          onTap: () => _pickTheme(context),
+                        ),
+                        const Divider(height: 1, indent: 47),
+                        _SettingRow(
                           icon: Icons.text_fields_rounded,
                           label: '字体大小',
                           trailing: _textScaleLabel(settings.textScale),
@@ -535,7 +591,7 @@ class SettingsPage extends StatelessWidget {
                       side: const BorderSide(color: Color(0xFFE6C4C0)),
                       minimumSize: const Size.fromHeight(48),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
                     child: const Text('退出登录'),

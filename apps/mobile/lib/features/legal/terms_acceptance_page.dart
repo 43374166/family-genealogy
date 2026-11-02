@@ -102,7 +102,7 @@ class _TermsAcceptancePageState extends State<TermsAcceptancePage> {
                   backgroundColor: AppColors.primary,
                   minimumSize: const Size.fromHeight(50),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
+                    borderRadius: BorderRadius.circular(11),
                   ),
                 ),
                 child: _busy
@@ -143,10 +143,10 @@ class _LegalRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(10),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(10),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
           child: Row(

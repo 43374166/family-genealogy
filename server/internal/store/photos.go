@@ -15,7 +15,10 @@ import (
 type PhotoFilter struct {
 	// PersonIDs matches photos tagged with any of the people.
 	PersonIDs []string
-	Limit     int
+	// SolePersonID additionally requires the photo to have exactly one tag,
+	// which is how the person profile shows only that person's own photos.
+	SolePersonID string
+	Limit        int
 }
 
 const photoColumns = `
@@ -86,6 +89,16 @@ func (s *Store) ListPhotos(ctx context.Context, familyID string, filter PhotoFil
 		for _, personID := range personIDs {
 			args = append(args, personID)
 		}
+	}
+	if solePersonID := strings.TrimSpace(filter.SolePersonID); solePersonID != "" {
+		query += ` AND (
+			SELECT COUNT(*) FROM family_photo_people fpp
+			WHERE fpp.photo_id = ph.id AND fpp.family_id = ph.family_id) = 1
+			AND EXISTS (
+				SELECT 1 FROM family_photo_people fpp2
+				WHERE fpp2.photo_id = ph.id AND fpp2.family_id = ph.family_id
+				  AND fpp2.person_id = ?)`
+		args = append(args, solePersonID)
 	}
 	query += ` ORDER BY ph.created_at DESC, ph.id DESC LIMIT ?`
 	args = append(args, filter.Limit)

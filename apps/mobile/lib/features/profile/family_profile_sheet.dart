@@ -45,7 +45,7 @@ class _FamilyProfileSheet extends StatelessWidget {
       ),
       decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -70,7 +70,7 @@ class _FamilyProfileSheet extends StatelessWidget {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: AppColors.cinnabar,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(9),
                   boxShadow: const [
                     BoxShadow(
                       color: Color(0x24B4423D),
@@ -134,7 +134,7 @@ class _FamilyProfileSheet extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 14),
             decoration: BoxDecoration(
               color: const Color(0xFFF7F9F9),
-              borderRadius: BorderRadius.circular(15),
+              borderRadius: BorderRadius.circular(11),
             ),
             child: Row(
               children: [
@@ -152,7 +152,7 @@ class _FamilyProfileSheet extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(15, 13, 15, 13),
             decoration: BoxDecoration(
               color: AppColors.surfaceWarm,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(10),
               border: Border.all(color: const Color(0xFFF0EBDD)),
             ),
             child: Column(
@@ -204,7 +204,7 @@ class _FamilyProfileSheet extends StatelessWidget {
               side: const BorderSide(color: AppColors.line),
               minimumSize: const Size.fromHeight(44),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(9),
               ),
             ),
             child: const Text('知道了', style: TextStyle(fontSize: 12)),

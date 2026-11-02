@@ -172,7 +172,7 @@ class _BindingRequestsPageState extends State<BindingRequestsPage> {
                           padding: const EdgeInsets.fromLTRB(15, 13, 15, 13),
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(15),
+                            borderRadius: BorderRadius.circular(11),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,

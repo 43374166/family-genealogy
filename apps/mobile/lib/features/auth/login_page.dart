@@ -72,7 +72,7 @@ class _LoginPageState extends State<LoginPage> {
                             padding: const EdgeInsets.fromLTRB(21, 23, 21, 20),
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.94),
-                              borderRadius: BorderRadius.circular(24),
+                              borderRadius: BorderRadius.circular(17),
                               border: Border.all(
                                 color: const Color(0xFFE8EDEC),
                               ),
@@ -183,7 +183,7 @@ class _LoginPageState extends State<LoginPage> {
                                       ),
                                       decoration: BoxDecoration(
                                         color: AppColors.cinnabarSoft,
-                                        borderRadius: BorderRadius.circular(9),
+                                        borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
                                         session.error!,
@@ -337,15 +337,15 @@ class _LoginPageState extends State<LoginPage> {
       fillColor: const Color(0xFFF7F9F8),
       contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 14),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(11),
+        borderRadius: BorderRadius.circular(8),
         borderSide: const BorderSide(color: Color(0xFFE4EBE9)),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(11),
+        borderRadius: BorderRadius.circular(8),
         borderSide: const BorderSide(color: Color(0xFFE4EBE9)),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(11),
+        borderRadius: BorderRadius.circular(8),
         borderSide: const BorderSide(color: AppColors.primary, width: 1.2),
       ),
       labelStyle: const TextStyle(fontSize: 12, color: AppColors.inkMuted),
@@ -366,7 +366,7 @@ class _LoginBrand extends StatelessWidget {
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: AppColors.cinnabar,
-            borderRadius: BorderRadius.circular(13),
+            borderRadius: BorderRadius.circular(9),
             boxShadow: const [
               BoxShadow(
                 color: Color(0x33B4423D),

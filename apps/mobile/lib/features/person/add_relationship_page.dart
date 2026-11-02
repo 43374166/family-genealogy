@@ -192,7 +192,7 @@ class _AddRelationshipPageState extends State<AddRelationshipPage> {
                     padding: const EdgeInsets.all(13),
                     decoration: BoxDecoration(
                       color: AppColors.goldSoft,
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: const Color(0xFFF2DFC0)),
                     ),
                     child: const Text(
@@ -339,7 +339,7 @@ class _AddRelationshipPageState extends State<AddRelationshipPage> {
               backgroundColor: AppColors.primary,
               minimumSize: const Size.fromHeight(50),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
+                borderRadius: BorderRadius.circular(11),
               ),
             ),
             child: _submitting
@@ -374,14 +374,14 @@ class _RelationChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: selected ? AppColors.primary : Colors.white,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(13),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(13),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(13),
             border: Border.all(
               color: selected ? Colors.transparent : AppColors.line,
             ),
@@ -415,10 +415,10 @@ class _PersonPickerTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: const Color(0xFFF7F9FA),
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(9),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(9),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Row(
@@ -436,7 +436,7 @@ class _PersonPickerTile extends StatelessWidget {
                   height: 45,
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(7),
                     border: Border.all(color: AppColors.line),
                   ),
                   child: const Icon(

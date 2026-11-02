@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_page_header.dart';
+import '../../core/widgets/preserve_colors.dart';
 import '../../core/widgets/soft_card.dart';
 import '../../core/widgets/status_pill.dart';
 import '../../services/api_client.dart';
@@ -219,7 +220,7 @@ class _FeaturedStory extends StatelessWidget {
     final session = SessionScope.of(context);
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(13),
       child: Container(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
         decoration: BoxDecoration(
@@ -228,7 +229,7 @@ class _FeaturedStory extends StatelessWidget {
             end: Alignment.bottomRight,
             colors: [Color(0xFF9E3D39), Color(0xFF6E2C2A)],
           ),
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(13),
           boxShadow: [
             BoxShadow(
               color: AppColors.cinnabar.withValues(alpha: 0.22),
@@ -284,14 +285,16 @@ class _FeaturedStory extends StatelessWidget {
             if (story.photos.isNotEmpty) ...[
               const SizedBox(height: 12),
               ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.network(
-                  session.photoUrl(story.photos.first.contentPath),
-                  headers: session.photoHeaders,
-                  height: 108,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                borderRadius: BorderRadius.circular(7),
+                child: PreserveColors(
+                  child: Image.network(
+                    session.photoUrl(story.photos.first.contentPath),
+                    headers: session.photoHeaders,
+                    height: 108,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                  ),
                 ),
               ),
             ],
@@ -333,18 +336,18 @@ class _StoryRow extends StatelessWidget {
     final session = SessionScope.of(context);
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(10),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(10),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(9),
+              borderRadius: BorderRadius.circular(6),
               child: SizedBox(
                 width: 44,
                 height: 56,
@@ -357,16 +360,18 @@ class _StoryRow extends StatelessWidget {
                           color: AppColors.cinnabar,
                         ),
                       )
-                    : Image.network(
-                        session.photoUrl(story.photos.first.contentPath),
-                        headers: session.photoHeaders,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => Container(
-                          color: AppColors.surfaceWarm,
-                          child: const Icon(
-                            Icons.broken_image_outlined,
-                            size: 18,
-                            color: AppColors.cinnabar,
+                    : PreserveColors(
+                        child: Image.network(
+                          session.photoUrl(story.photos.first.contentPath),
+                          headers: session.photoHeaders,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => Container(
+                            color: AppColors.surfaceWarm,
+                            child: const Icon(
+                              Icons.broken_image_outlined,
+                              size: 18,
+                              color: AppColors.cinnabar,
+                            ),
                           ),
                         ),
                       ),

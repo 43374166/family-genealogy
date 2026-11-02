@@ -36,12 +36,12 @@ class ParentPickerField extends StatelessWidget {
     final selected = personId != null && personId!.isNotEmpty;
     return InkWell(
       onTap: () => _pick(context),
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(10),
       child: Container(
         padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(color: AppColors.line),
         ),
         child: Row(

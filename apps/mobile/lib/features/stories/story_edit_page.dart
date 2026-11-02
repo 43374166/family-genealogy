@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/images/image_pick_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/app_page_header.dart';
+import '../../core/widgets/preserve_colors.dart';
 import '../../services/api_client.dart';
 import '../../services/api_models.dart';
 import '../../services/app_session.dart';
@@ -308,13 +309,13 @@ class _StoryEditPageState extends State<StoryEditPage> {
                       if (_photoCount < 9)
                         InkWell(
                           onTap: _saving ? null : _pickPhotos,
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(7),
                           child: Container(
                             width: 86,
                             height: 86,
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(10),
+                              borderRadius: BorderRadius.circular(7),
                               border: Border.all(color: AppColors.line),
                             ),
                             child: const Column(
@@ -369,7 +370,7 @@ class _StoryEditPageState extends State<StoryEditPage> {
                       backgroundColor: AppColors.primary,
                       minimumSize: const Size.fromHeight(50),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
+                        borderRadius: BorderRadius.circular(11),
                       ),
                     ),
                     child: _saving
@@ -417,11 +418,11 @@ class _PhotoTile extends StatelessWidget {
       width: 86,
       height: 86,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(7),
         child: Stack(
           fit: StackFit.expand,
           children: [
-            image,
+            PreserveColors(child: image),
             if (onRemove != null)
               Positioned(
                 right: 2,

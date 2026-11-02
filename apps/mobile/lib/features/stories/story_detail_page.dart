@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_page_header.dart';
+import '../../core/widgets/preserve_colors.dart';
 import '../../core/widgets/status_pill.dart';
 import '../../services/api_client.dart';
 import '../../services/api_models.dart';
@@ -178,7 +179,7 @@ class _StoryDetailPageState extends State<StoryDetailPage> {
                                 ),
                               ),
                             ),
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(7),
                             child: Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 11,
@@ -186,7 +187,7 @@ class _StoryDetailPageState extends State<StoryDetailPage> {
                               ),
                               decoration: BoxDecoration(
                                 color: AppColors.primarySoft,
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(7),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -266,33 +267,35 @@ class _StoryPhotos extends StatelessWidget {
     final session = SessionScope.of(context);
     showDialog<void>(
       context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.black,
-        insetPadding: const EdgeInsets.all(8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Flexible(
-              child: InteractiveViewer(
-                child: Image.network(
-                  session.photoUrl(photo.contentPath),
-                  headers: session.photoHeaders,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, _, _) => const Padding(
-                    padding: EdgeInsets.all(28),
-                    child: Text(
-                      '照片加载失败',
-                      style: TextStyle(color: Colors.white70),
+      builder: (context) => PreserveColors(
+        child: Dialog(
+          backgroundColor: Colors.black,
+          insetPadding: const EdgeInsets.all(8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: InteractiveViewer(
+                  child: Image.network(
+                    session.photoUrl(photo.contentPath),
+                    headers: session.photoHeaders,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, _, _) => const Padding(
+                      padding: EdgeInsets.all(28),
+                      child: Text(
+                        '照片加载失败',
+                        style: TextStyle(color: Colors.white70),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('关闭'),
-            ),
-          ],
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('关闭'),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -315,16 +318,18 @@ class _StoryPhotos extends StatelessWidget {
         return GestureDetector(
           onTap: () => _view(context, photo),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(9),
-            child: Image.network(
-              session.photoUrl(photo.contentPath),
-              headers: session.photoHeaders,
-              fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => Container(
-                color: AppColors.slateSoft,
-                child: const Icon(
-                  Icons.broken_image_outlined,
-                  color: AppColors.inkMuted,
+            borderRadius: BorderRadius.circular(6),
+            child: PreserveColors(
+              child: Image.network(
+                session.photoUrl(photo.contentPath),
+                headers: session.photoHeaders,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => Container(
+                  color: AppColors.slateSoft,
+                  child: const Icon(
+                    Icons.broken_image_outlined,
+                    color: AppColors.inkMuted,
+                  ),
                 ),
               ),
             ),

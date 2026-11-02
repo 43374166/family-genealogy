@@ -111,7 +111,7 @@ class _QrScanPageState extends State<QrScanPage> {
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.48),
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Text(
                     '识别到邀请码后会自动返回并填入。',
@@ -130,7 +130,7 @@ class _QrScanPageState extends State<QrScanPage> {
                 height: 230,
                 decoration: BoxDecoration(
                   border: Border.all(color: AppColors.jadeSoft, width: 2),
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(13),
                 ),
               ),
             ),

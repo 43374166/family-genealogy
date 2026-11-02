@@ -162,7 +162,7 @@ class _FamilySwitchPageState extends State<FamilySwitchPage> {
                       backgroundColor: AppColors.primary,
                       minimumSize: const Size.fromHeight(48),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
                   ),
@@ -182,7 +182,7 @@ class _FamilySwitchPageState extends State<FamilySwitchPage> {
                       side: const BorderSide(color: AppColors.primary),
                       minimumSize: const Size.fromHeight(48),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
                   ),
@@ -219,12 +219,12 @@ class _FamilySwitchPageState extends State<FamilySwitchPage> {
                     for (final item in families) ...[
                       Material(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(15),
+                        borderRadius: BorderRadius.circular(11),
                         child: InkWell(
                           onTap: _busy || item.family.id == session.family?.id
                               ? null
                               : () => _switch(item.family.id, item.family.name),
-                          borderRadius: BorderRadius.circular(15),
+                          borderRadius: BorderRadius.circular(11),
                           child: Padding(
                             padding: const EdgeInsets.fromLTRB(15, 13, 15, 13),
                             child: Row(
@@ -236,7 +236,7 @@ class _FamilySwitchPageState extends State<FamilySwitchPage> {
                                     color: item.family.id == session.family?.id
                                         ? AppColors.jadeSoft
                                         : AppColors.primarySoft,
-                                    borderRadius: BorderRadius.circular(12),
+                                    borderRadius: BorderRadius.circular(9),
                                   ),
                                   child: Icon(
                                     item.membership.role == 'owner'

@@ -4,6 +4,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/app_page_header.dart';
+import '../../core/widgets/preserve_colors.dart';
 import '../../core/widgets/soft_card.dart';
 import '../../services/api_client.dart';
 import '../../services/api_models.dart';
@@ -144,18 +145,20 @@ class _MyQrPageState extends State<MyQrPage> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         else if (invite != null)
-                          QrImageView(
-                            data: invite.code,
-                            version: QrVersions.auto,
-                            size: 210,
-                            backgroundColor: Colors.white,
-                            eyeStyle: const QrEyeStyle(
-                              eyeShape: QrEyeShape.square,
-                              color: AppColors.ink,
-                            ),
-                            dataModuleStyle: const QrDataModuleStyle(
-                              dataModuleShape: QrDataModuleShape.square,
-                              color: AppColors.ink,
+                          PreserveColors(
+                            child: QrImageView(
+                              data: invite.code,
+                              version: QrVersions.auto,
+                              size: 210,
+                              backgroundColor: Colors.white,
+                              eyeStyle: const QrEyeStyle(
+                                eyeShape: QrEyeShape.square,
+                                color: AppColors.ink,
+                              ),
+                              dataModuleStyle: const QrDataModuleStyle(
+                                dataModuleShape: QrDataModuleShape.square,
+                                color: AppColors.ink,
+                              ),
                             ),
                           )
                         else

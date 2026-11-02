@@ -113,7 +113,7 @@ class HeaderIconButton extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(9),
         onTap: onTap,
         child: SizedBox(
           width: 38,

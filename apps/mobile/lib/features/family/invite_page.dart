@@ -4,6 +4,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/app_page_header.dart';
+import '../../core/widgets/preserve_colors.dart';
 import '../../core/widgets/soft_card.dart';
 import '../../core/widgets/status_pill.dart';
 import '../../services/api_client.dart';
@@ -116,7 +117,7 @@ class _InvitePageState extends State<InvitePage> {
     await showDialog<void>(
       context: context,
       builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(22, 20, 22, 16),
           child: Column(
@@ -140,21 +141,23 @@ class _InvitePageState extends State<InvitePage> {
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: AppColors.line),
                 ),
-                child: QrImageView(
-                  data: invite.code,
-                  version: QrVersions.auto,
-                  size: 210,
-                  backgroundColor: Colors.white,
-                  eyeStyle: const QrEyeStyle(
-                    eyeShape: QrEyeShape.square,
-                    color: AppColors.ink,
-                  ),
-                  dataModuleStyle: const QrDataModuleStyle(
-                    dataModuleShape: QrDataModuleShape.square,
-                    color: AppColors.ink,
+                child: PreserveColors(
+                  child: QrImageView(
+                    data: invite.code,
+                    version: QrVersions.auto,
+                    size: 210,
+                    backgroundColor: Colors.white,
+                    eyeStyle: const QrEyeStyle(
+                      eyeShape: QrEyeShape.square,
+                      color: AppColors.ink,
+                    ),
+                    dataModuleStyle: const QrDataModuleStyle(
+                      dataModuleShape: QrDataModuleShape.square,
+                      color: AppColors.ink,
+                    ),
                   ),
                 ),
               ),
@@ -250,7 +253,7 @@ class _InvitePageState extends State<InvitePage> {
                                 height: 42,
                                 decoration: BoxDecoration(
                                   color: AppColors.primarySoft,
-                                  borderRadius: BorderRadius.circular(13),
+                                  borderRadius: BorderRadius.circular(9),
                                 ),
                                 child: const Icon(
                                   Icons.link_rounded,
@@ -345,7 +348,7 @@ class _InvitePageState extends State<InvitePage> {
                             backgroundColor: AppColors.primary,
                             minimumSize: const Size.fromHeight(48),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(10),
                             ),
                           ),
                         ),
@@ -403,10 +406,10 @@ class _InviteCard extends StatelessWidget {
         (invite.expiresAt?.isAfter(DateTime.now()) ?? false);
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(15),
+      borderRadius: BorderRadius.circular(11),
       child: InkWell(
         onTap: onCopy,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(11),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(15, 13, 15, 13),
           child: Row(

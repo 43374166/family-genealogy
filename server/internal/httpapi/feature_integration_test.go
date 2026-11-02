@@ -160,6 +160,29 @@ func TestPhotoPeopleAndStoryPhotos(t *testing.T) {
 		t.Fatalf("photo tagged only with person B returned for person A")
 	}
 
+	response = doJSON(t, http.DefaultClient, http.MethodGet,
+		server.URL+"/api/v1/photos?solePersonId="+personA, "", owner.Token)
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("list sole photos status = %d", response.StatusCode)
+	}
+	var solePage struct {
+		Items []struct {
+			ID string `json:"id"`
+		} `json:"items"`
+	}
+	decodeBody(t, response, &solePage)
+	soleIDs := map[string]bool{}
+	for _, item := range solePage.Items {
+		for _, photoID := range photoIDs {
+			if item.ID == photoID {
+				soleIDs[photoID] = true
+			}
+		}
+	}
+	if !soleIDs[photoIDs[0]] || soleIDs[photoIDs[1]] {
+		t.Fatalf("sole person filter returned wrong photos: %+v", soleIDs)
+	}
+
 	response = doJSON(t, http.DefaultClient, http.MethodPatch,
 		server.URL+"/api/v1/photos/"+photoIDs[0],
 		fmt.Sprintf(`{"personIds":["%s","%s"],"caption":"更新后","takenAt":""}`, personA, personB),

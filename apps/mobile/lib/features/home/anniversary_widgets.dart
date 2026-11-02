@@ -22,6 +22,8 @@ class AnniversarySection extends StatelessWidget {
     if (loading && items.isEmpty) return const SizedBox.shrink();
     final preview = items.take(3).toList(growable: false);
     return SoftCard(
+      margin: const EdgeInsets.symmetric(horizontal: 18),
+      radius: 15,
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -99,7 +101,7 @@ class AnniversaryRow extends StatelessWidget {
                 color: item.isBirthday
                     ? AppColors.cinnabarSoft
                     : AppColors.slateSoft,
-                borderRadius: BorderRadius.circular(11),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
                 item.isBirthday

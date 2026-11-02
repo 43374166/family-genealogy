@@ -393,7 +393,7 @@ class TreePageState extends State<TreePage>
                   ),
                   decoration: BoxDecoration(
                     color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(6),
                     boxShadow: [
                       BoxShadow(
                         color: AppColors.primary.withValues(alpha: 0.25),
@@ -594,7 +594,7 @@ class TreePageState extends State<TreePage>
         ),
         decoration: const BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(19)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -656,7 +656,7 @@ class TreePageState extends State<TreePage>
                 side: const BorderSide(color: AppColors.line),
                 minimumSize: const Size.fromHeight(44),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(9),
                 ),
               ),
               child: const Text('显示全部世代', style: TextStyle(fontSize: 12)),
@@ -732,7 +732,7 @@ class _TreeHeader extends StatelessWidget {
                 fontWeight: FontWeight.w600,
               ),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(13),
               ),
             ),
           ),
@@ -777,7 +777,7 @@ class _TreeEmpty extends StatelessWidget {
               height: 74,
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(22),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: AppColors.line),
               ),
               child: const Icon(
@@ -843,15 +843,15 @@ class _GenerationFilters extends StatelessWidget {
                       color: selected == filter.$2
                           ? const Color(0xFFECF1FF)
                           : Colors.white,
-                      borderRadius: BorderRadius.circular(19),
+                      borderRadius: BorderRadius.circular(14),
                       child: InkWell(
                         onTap: () => onChanged(filter.$2),
-                        borderRadius: BorderRadius.circular(19),
+                        borderRadius: BorderRadius.circular(14),
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 15),
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(19),
+                            borderRadius: BorderRadius.circular(14),
                             border: Border.all(
                               color: selected == filter.$2
                                   ? AppColors.primary.withValues(alpha: 0.12)
@@ -881,10 +881,10 @@ class _GenerationFilters extends StatelessWidget {
             padding: const EdgeInsets.only(right: 12),
             child: Material(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(12),
               child: InkWell(
                 onTap: onMore,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(12),
                 child: const SizedBox(
                   width: 34,
                   height: 34,
@@ -1345,7 +1345,7 @@ class _ZoomControls extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.90),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(13),
         border: Border.all(color: Colors.white),
         boxShadow: const [
           BoxShadow(
@@ -1379,7 +1379,7 @@ class _ZoomButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(9),
+      borderRadius: BorderRadius.circular(6),
       child: SizedBox(
         width: 35,
         height: 35,
@@ -1405,12 +1405,12 @@ class _PersonSummaryCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(14),
         child: Ink(
           padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.97),
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(color: Colors.white),
             boxShadow: const [
               BoxShadow(
@@ -1475,7 +1475,7 @@ class _PersonSummaryCard extends StatelessWidget {
                             vertical: 5,
                           ),
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(10),
                             border: Border.all(color: const Color(0xFFE4E9EA)),
                           ),
                           child: const Row(
@@ -1559,7 +1559,7 @@ class _DirectoryRow extends StatelessWidget {
     final label = SessionScope.of(context).generationLabelFor(generation);
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(9),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 9),
         child: Row(
@@ -1570,7 +1570,7 @@ class _DirectoryRow extends StatelessWidget {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: selected ? AppColors.primary : const Color(0xFFF5F7F8),
-                borderRadius: BorderRadius.circular(9),
+                borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
                 '$generation',

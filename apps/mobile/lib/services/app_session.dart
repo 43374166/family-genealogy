@@ -712,11 +712,17 @@ class AppSession extends ChangeNotifier {
     return page.items;
   }
 
-  Future<List<ApiPhoto>> photos({List<String> personIds = const []}) async {
+  Future<List<ApiPhoto>> photos({
+    List<String> personIds = const [],
+    String? solePersonId,
+  }) async {
     if (!isAuthenticated) {
       throw const ApiException('登录状态已失效，请重新登录');
     }
-    final page = await _api.photos(personIds: personIds);
+    final page = await _api.photos(
+      personIds: personIds,
+      solePersonId: solePersonId,
+    );
     return page.items;
   }
 

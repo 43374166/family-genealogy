@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/family_member.dart';
 import '../../services/app_session.dart';
+import 'preserve_colors.dart';
 
 /// A small, self-contained illustrated portrait.
 ///
@@ -35,6 +36,7 @@ class InkPortrait extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final effectiveRadius = circle ? radius : radius * 0.72;
     final painted = CustomPaint(
       size: Size(width, height),
       painter: _PortraitPainter(profile: _PortraitProfile.fromPerson(person)),
@@ -68,25 +70,27 @@ class InkPortrait extends StatelessWidget {
             child: SizedBox(width: width, height: height, child: portrait),
           )
         : ClipRRect(
-            borderRadius: BorderRadius.circular(radius),
+            borderRadius: BorderRadius.circular(effectiveRadius),
             child: SizedBox(width: width, height: height, child: portrait),
           );
 
-    if (!showBorder) return clipped;
-    return Container(
-      decoration: BoxDecoration(
-        shape: circle ? BoxShape.circle : BoxShape.rectangle,
-        borderRadius: circle ? null : BorderRadius.circular(radius),
-        border: Border.all(color: borderColor, width: 2.2),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x1A20323B),
-            blurRadius: 14,
-            offset: Offset(0, 6),
-          ),
-        ],
+    if (!showBorder) return PreserveColors(child: clipped);
+    return PreserveColors(
+      child: Container(
+        decoration: BoxDecoration(
+          shape: circle ? BoxShape.circle : BoxShape.rectangle,
+          borderRadius: circle ? null : BorderRadius.circular(effectiveRadius),
+          border: Border.all(color: borderColor, width: 2.2),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x1A20323B),
+              blurRadius: 14,
+              offset: Offset(0, 6),
+            ),
+          ],
+        ),
+        child: clipped,
       ),
-      child: clipped,
     );
   }
 }
@@ -364,7 +368,7 @@ class _PortraitPainter extends CustomPainter {
   void _paintNeck(Canvas canvas, _PortraitPalette palette) {
     final neck = RRect.fromRectAndRadius(
       const Rect.fromLTWH(43, 70, 14, 23),
-      const Radius.circular(7),
+      const Radius.circular(6),
     );
     canvas.drawRRect(neck, Paint()..color = palette.skin);
     canvas.drawRRect(

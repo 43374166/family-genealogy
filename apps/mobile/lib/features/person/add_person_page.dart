@@ -247,7 +247,7 @@ class _AddPersonPageState extends State<AddPersonPage> {
                             padding: const EdgeInsets.all(13),
                             decoration: BoxDecoration(
                               color: AppColors.jadeSoft,
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(10),
                               border: Border.all(
                                 color: const Color(0xFFD2E8DD),
                               ),
@@ -519,7 +519,7 @@ class _AddPersonPageState extends State<AddPersonPage> {
                     backgroundColor: AppColors.primary,
                     minimumSize: const Size.fromHeight(50),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
+                      borderRadius: BorderRadius.circular(11),
                     ),
                   ),
                   child: _submitting
@@ -641,15 +641,15 @@ InputDecoration _inputDecoration({String? hint}) {
     filled: true,
     fillColor: const Color(0xFFF7F9FA),
     border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(7),
       borderSide: BorderSide.none,
     ),
     enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(7),
       borderSide: const BorderSide(color: Color(0xFFE9EEF0)),
     ),
     focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(7),
       borderSide: const BorderSide(color: AppColors.primary),
     ),
   );

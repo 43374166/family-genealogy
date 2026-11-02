@@ -146,7 +146,7 @@ class _JoinFamilyPageState extends State<JoinFamilyPage> {
                       filled: true,
                       fillColor: Colors.white,
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(13),
+                        borderRadius: BorderRadius.circular(9),
                       ),
                     ),
                   ),
@@ -160,7 +160,7 @@ class _JoinFamilyPageState extends State<JoinFamilyPage> {
                       foregroundColor: AppColors.primary,
                       side: const BorderSide(color: AppColors.primary),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(13),
+                        borderRadius: BorderRadius.circular(9),
                       ),
                     ),
                   ),
@@ -181,7 +181,7 @@ class _JoinFamilyPageState extends State<JoinFamilyPage> {
                       backgroundColor: AppColors.primary,
                       minimumSize: const Size.fromHeight(50),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
+                        borderRadius: BorderRadius.circular(11),
                       ),
                     ),
                     child: _submitting

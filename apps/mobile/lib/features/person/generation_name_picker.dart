@@ -125,7 +125,7 @@ class _GenerationNamePickerState extends State<GenerationNamePicker> {
         : session.generationNameFor(selected);
     return InkWell(
       onTap: names.isEmpty ? null : _pick,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(10),
       child: InputDecorator(
         decoration: InputDecoration(
           labelText: '字辈',
@@ -162,7 +162,7 @@ class _GenerationGridDialog extends StatelessWidget {
       ..sort((a, b) => a.generationNo.compareTo(b.generationNo));
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 22),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 430),
         child: Padding(
@@ -212,13 +212,13 @@ class _GenerationGridDialog extends StatelessWidget {
                       final active = item.generationNo == selected;
                       return InkWell(
                         onTap: () => Navigator.pop(context, item.generationNo),
-                        borderRadius: BorderRadius.circular(9),
+                        borderRadius: BorderRadius.circular(6),
                         child: Container(
                           decoration: BoxDecoration(
                             color: active
                                 ? AppColors.primarySoft
                                 : AppColors.surfaceWarm,
-                            borderRadius: BorderRadius.circular(9),
+                            borderRadius: BorderRadius.circular(6),
                             border: Border.all(
                               color: active
                                   ? AppColors.primary

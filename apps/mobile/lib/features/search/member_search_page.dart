@@ -133,7 +133,7 @@ class _MemberSearchPageState extends State<MemberSearchPage> {
               child: Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(10),
                   boxShadow: const [
                     BoxShadow(
                       color: Color(0x0820323B),
@@ -334,7 +334,7 @@ class _MemberSearchPageState extends State<MemberSearchPage> {
                       style: FilledButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(9),
                         ),
                       ),
                       child: const Text('确定'),
@@ -368,7 +368,7 @@ class _MemberSearchPageState extends State<MemberSearchPage> {
         ),
         decoration: const BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(19)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -448,14 +448,14 @@ class _GenerationChip extends StatelessWidget {
       padding: const EdgeInsets.only(right: 7),
       child: Material(
         color: selected ? AppColors.primary : Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(13),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(13),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 7),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(13),
               border: Border.all(
                 color: selected ? Colors.transparent : AppColors.line,
               ),
@@ -496,10 +496,10 @@ class _MemberRow extends StatelessWidget {
     final isCurrent = currentPersonId == person.id;
     return Material(
       color: selected ? AppColors.primarySoft : Colors.white,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
           child: Row(
@@ -651,7 +651,7 @@ class _EmptySearch extends StatelessWidget {
                 height: 76,
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(17),
                   border: Border.all(color: AppColors.line),
                 ),
                 child: const Icon(

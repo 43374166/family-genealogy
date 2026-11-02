@@ -89,6 +89,16 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> _refresh() async {
+    final session = SessionScope.of(context);
+    await Future.wait([
+      session.refreshMe(),
+      session.refreshTree(),
+      _loadActivity(),
+      _loadAnniversaries(),
+    ]);
+  }
+
   Future<void> _startEditRequest(BuildContext context) async {
     final person = await Navigator.of(context).push<ApiPerson>(
       MaterialPageRoute<ApiPerson>(
@@ -115,88 +125,94 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(
-          parent: AlwaysScrollableScrollPhysics(),
-        ),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 620),
-            child: Stack(
-              children: [
-                _HeroBackdrop(topInset: topInset),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    SizedBox(height: topInset + 8),
-                    _HomeTopBar(
-                      onOpenMessages: widget.onOpenMessages,
-                      onOpenProfile: widget.onOpenProfile,
-                    ),
-                    const SizedBox(height: 18),
-                    _FamilyIdentity(
-                      onTap: () => showFamilyProfileSheet(context),
-                    ),
-                    const SizedBox(height: 22),
-                    _SummaryCard(
-                      onMembersTap: () =>
-                          _open(context, const MemberSearchPage()),
-                      onBranchesTap: () => _showBranches(context),
-                      onProfileTap: () {
-                        final linkedId = SessionScope.of(
-                          context,
-                        ).membership?.personId;
-                        if (linkedId == null) {
-                          _open(context, const BindPersonPage());
-                        } else {
-                          _open(
-                            context,
-                            ApiPersonDetailPage(personId: linkedId),
-                          );
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 14),
-                    _QuickActions(
-                      onTree: widget.onOpenTree,
-                      onSearch: () => _open(context, const MemberSearchPage()),
-                      onEditProfile: () => _startEditRequest(context),
-                      onRequests: () => _open(context, const RequestsPage()),
-                      onGallery: () => _open(context, const GalleryPage()),
-                      onStories: () => _open(context, const StoriesPage()),
-                    ),
-                    const SizedBox(height: 14),
-                    AnniversarySection(
-                      items: _anniversaries,
-                      loading: _anniversaryLoading,
-                      onMore: () => _open(
-                        context,
-                        AnniversariesPage(items: _anniversaries),
+      body: RefreshIndicator(
+        onRefresh: _refresh,
+        color: AppColors.primary,
+        backgroundColor: AppColors.surface,
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 620),
+              child: Stack(
+                children: [
+                  _HeroBackdrop(topInset: topInset),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(height: topInset + 8),
+                      _HomeTopBar(
+                        onOpenMessages: widget.onOpenMessages,
+                        onOpenProfile: widget.onOpenProfile,
                       ),
-                    ),
-                    const SizedBox(height: 14),
-                    _LatestActivity(
-                      activities: _activities,
-                      loading: _activityLoading,
-                      error: _activityError,
-                      onRetry: _loadActivity,
-                      onMore: () => _open(
-                        context,
-                        _ActivityFeedPage(
-                          activities: _activities,
-                          loading: _activityLoading,
-                          error: _activityError,
-                          onRetry: _loadActivity,
+                      const SizedBox(height: 18),
+                      _FamilyIdentity(
+                        onTap: () => showFamilyProfileSheet(context),
+                      ),
+                      const SizedBox(height: 22),
+                      _SummaryCard(
+                        onMembersTap: () =>
+                            _open(context, const MemberSearchPage()),
+                        onBranchesTap: () => _showBranches(context),
+                        onProfileTap: () {
+                          final linkedId = SessionScope.of(
+                            context,
+                          ).membership?.personId;
+                          if (linkedId == null) {
+                            _open(context, const BindPersonPage());
+                          } else {
+                            _open(
+                              context,
+                              ApiPersonDetailPage(personId: linkedId),
+                            );
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 14),
+                      _QuickActions(
+                        onTree: widget.onOpenTree,
+                        onSearch: () =>
+                            _open(context, const MemberSearchPage()),
+                        onEditProfile: () => _startEditRequest(context),
+                        onRequests: () => _open(context, const RequestsPage()),
+                        onGallery: () => _open(context, const GalleryPage()),
+                        onStories: () => _open(context, const StoriesPage()),
+                      ),
+                      const SizedBox(height: 14),
+                      AnniversarySection(
+                        items: _anniversaries,
+                        loading: _anniversaryLoading,
+                        onMore: () => _open(
+                          context,
+                          AnniversariesPage(items: _anniversaries),
                         ),
                       ),
-                      onMessages: widget.onOpenMessages,
-                    ),
-                    const SizedBox(height: 26),
-                    const _HomeFooter(),
-                    const SizedBox(height: 26),
-                  ],
-                ),
-              ],
+                      const SizedBox(height: 14),
+                      _LatestActivity(
+                        activities: _activities,
+                        loading: _activityLoading,
+                        error: _activityError,
+                        onRetry: _loadActivity,
+                        onMore: () => _open(
+                          context,
+                          _ActivityFeedPage(
+                            activities: _activities,
+                            loading: _activityLoading,
+                            error: _activityError,
+                            onRetry: _loadActivity,
+                          ),
+                        ),
+                        onMessages: widget.onOpenMessages,
+                      ),
+                      const SizedBox(height: 26),
+                      const _HomeFooter(),
+                      const SizedBox(height: 26),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -309,7 +325,7 @@ class _HomeTopBar extends StatelessWidget {
         children: [
           InkWell(
             onTap: onOpenProfile,
-            borderRadius: BorderRadius.circular(28),
+            borderRadius: BorderRadius.circular(20),
             child: Row(
               children: [
                 InkPortrait(
@@ -521,7 +537,7 @@ class _SummaryCard extends StatelessWidget {
     return SoftCard(
       margin: const EdgeInsets.symmetric(horizontal: 18),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 17),
-      radius: 21,
+      radius: 15,
       child: IntrinsicHeight(
         child: Row(
           children: [
@@ -605,7 +621,7 @@ class _SummaryItem extends StatelessWidget {
       label: '$label $value',
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(10),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
           child: Row(
@@ -756,7 +772,7 @@ class _QuickActions extends StatelessWidget {
     return SoftCard(
       margin: const EdgeInsets.symmetric(horizontal: 18),
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
-      radius: 21,
+      radius: 15,
       child: Column(
         children: [
           Row(
@@ -806,7 +822,7 @@ class _QuickActionCell extends StatelessWidget {
     return Expanded(
       child: InkWell(
         onTap: data.onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 2),
           child: Column(
@@ -815,7 +831,7 @@ class _QuickActionCell extends StatelessWidget {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(15),
+                  borderRadius: BorderRadius.circular(11),
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -888,7 +904,7 @@ class _LatestActivity extends StatelessWidget {
     return SoftCard(
       margin: const EdgeInsets.symmetric(horizontal: 18),
       padding: const EdgeInsets.fromLTRB(18, 17, 18, 8),
-      radius: 21,
+      radius: 15,
       child: Column(
         children: [
           SectionTitle(title: '最新动态', actionLabel: '查看更多', onAction: onMore),
@@ -945,7 +961,7 @@ class _ActivityRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(9),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Row(
@@ -1219,7 +1235,7 @@ class _BranchSheetState extends State<_BranchSheet> {
                             color: i == 0
                                 ? AppColors.jadeSoft
                                 : AppColors.slateSoft,
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(7),
                           ),
                           child: Icon(
                             Icons.account_tree_outlined,
@@ -1262,7 +1278,7 @@ class _BranchSheetState extends State<_BranchSheet> {
                           height: 34,
                           decoration: BoxDecoration(
                             color: AppColors.slateSoft,
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(7),
                           ),
                           child: const Icon(
                             Icons.help_outline_rounded,
@@ -1320,7 +1336,7 @@ class _SheetFrame extends StatelessWidget {
       ),
       decoration: const BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(19)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

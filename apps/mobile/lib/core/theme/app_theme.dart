@@ -6,7 +6,42 @@ import 'app_colors.dart';
 abstract final class AppTheme {
   static const String serifFamily = 'NotoSerifSC';
 
-  static ThemeData get light {
+  /// Invert + hue-rotate(180°) keeps the light palette's accents while
+  /// flipping paper and ink. The same filter is re-applied inside
+  /// `PreserveColors` to keep photos, QR codes and the crop editor natural.
+  static const List<double> darkModeMatrix = [
+    0.574,
+    -1.430,
+    -0.144,
+    0,
+    255,
+    -0.426,
+    -0.430,
+    -0.144,
+    0,
+    255,
+    -0.426,
+    -1.430,
+    0.856,
+    0,
+    255,
+    0,
+    0,
+    0,
+    1,
+    0,
+  ];
+
+  static const ColorFilter darkModeFilter = ColorFilter.matrix(darkModeMatrix);
+
+  static ThemeData get light => _light(lightStatusBarIcons: false);
+
+  /// A light ThemeData whose status/navigation bars are ready for the filtered
+  /// dark surface. Widget colours stay light because the global filter
+  /// transforms them at paint time.
+  static ThemeData get lightForDarkMode => _light(lightStatusBarIcons: true);
+
+  static ThemeData _light({required bool lightStatusBarIcons}) {
     const colorScheme = ColorScheme(
       brightness: Brightness.light,
       primary: AppColors.primary,
@@ -37,19 +72,27 @@ abstract final class AppTheme {
         bodyColor: AppColors.ink,
         displayColor: AppColors.ink,
       ),
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
-        iconTheme: IconThemeData(color: AppColors.ink, size: 22),
+        iconTheme: const IconThemeData(color: AppColors.ink, size: 22),
         systemOverlayStyle: SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,
-          statusBarIconBrightness: Brightness.dark,
-          statusBarBrightness: Brightness.light,
-          systemNavigationBarColor: Colors.white,
-          systemNavigationBarIconBrightness: Brightness.dark,
+          statusBarIconBrightness: lightStatusBarIcons
+              ? Brightness.light
+              : Brightness.dark,
+          statusBarBrightness: lightStatusBarIcons
+              ? Brightness.dark
+              : Brightness.light,
+          systemNavigationBarColor: lightStatusBarIcons
+              ? const Color(0xFF111716)
+              : Colors.white,
+          systemNavigationBarIconBrightness: lightStatusBarIcons
+              ? Brightness.light
+              : Brightness.dark,
         ),
       ),
       dividerTheme: const DividerThemeData(
@@ -67,15 +110,15 @@ abstract final class AppTheme {
         ),
         prefixIconColor: AppColors.inkMuted,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: AppColors.primary, width: 1.2),
         ),
       ),
@@ -83,12 +126,16 @@ abstract final class AppTheme {
         backgroundColor: AppColors.ink,
         contentTextStyle: const TextStyle(color: Colors.white, fontSize: 13.5),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
       ),
-      bottomSheetTheme: const BottomSheetThemeData(
+      dialogTheme: DialogThemeData(
+        barrierColor: lightStatusBarIcons ? Colors.white70 : null,
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         showDragHandle: false,
+        modalBarrierColor: lightStatusBarIcons ? Colors.white70 : null,
       ),
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {

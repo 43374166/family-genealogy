@@ -74,7 +74,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                       padding: const EdgeInsets.all(13),
                       decoration: BoxDecoration(
                         color: AppColors.goldSoft,
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: const Color(0xFFF2DFC0)),
                       ),
                       child: Row(
@@ -162,7 +162,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                               ),
                               minimumSize: Size.zero,
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(9),
+                                borderRadius: BorderRadius.circular(6),
                               ),
                               textStyle: const TextStyle(fontSize: 10.5),
                             ),
@@ -284,7 +284,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFF7F9FA),
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(9),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -392,7 +392,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
               backgroundColor: AppColors.primary,
               minimumSize: const Size.fromHeight(50),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
+                borderRadius: BorderRadius.circular(11),
               ),
               textStyle: const TextStyle(
                 fontSize: 14,
@@ -418,7 +418,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         ),
         decoration: const BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(19)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -466,7 +466,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                 backgroundColor: AppColors.ink,
                 minimumSize: const Size.fromHeight(44),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(9),
                 ),
               ),
               child: const Text('知道了'),
@@ -492,7 +492,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         ),
         decoration: const BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -530,7 +530,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
                 color: const Color(0xFFF7F9FA),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(9),
               ),
               child: Row(
                 children: [
@@ -563,7 +563,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                 backgroundColor: AppColors.primary,
                 minimumSize: const Size.fromHeight(48),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
               child: const Text('完成并返回'),
@@ -626,7 +626,7 @@ class _ReadOnlyField extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
       decoration: BoxDecoration(
         color: const Color(0xFFF7F9FA),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(9),
       ),
       child: Text(
         value.isEmpty ? '未记录' : value,
@@ -684,11 +684,11 @@ class _EditField extends StatelessWidget {
               ),
         prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(9),
           borderSide: const BorderSide(color: Color(0xFFEEF1F2)),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(9),
           borderSide: const BorderSide(color: AppColors.primary, width: 1.2),
         ),
       ),

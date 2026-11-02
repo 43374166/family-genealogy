@@ -163,7 +163,7 @@ class _AccountDeletionPageState extends State<AccountDeletionPage> {
                         side: const BorderSide(color: Color(0xFFE6C4C0)),
                         minimumSize: const Size.fromHeight(48),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                       ),
                       child: _submitting
