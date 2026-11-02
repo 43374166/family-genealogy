@@ -166,15 +166,16 @@ type Anniversary struct {
 }
 
 type FamilyExport struct {
-	Version     int               `json:"version"`
-	ExportedAt  time.Time         `json:"exportedAt"`
-	Family      Family            `json:"family"`
-	Branches    []Branch          `json:"branches"`
-	Persons     []Person          `json:"persons"`
-	ParentChild []ParentChildEdge `json:"parentChild"`
-	Spouses     []SpouseEdge      `json:"spouses"`
-	Stories     []Story           `json:"stories"`
-	Photos      []Photo           `json:"photos"`
+	Version         int               `json:"version"`
+	ExportedAt      time.Time         `json:"exportedAt"`
+	Family          Family            `json:"family"`
+	Branches        []Branch          `json:"branches"`
+	GenerationNames []GenerationName  `json:"generationNames"`
+	Persons         []Person          `json:"persons"`
+	ParentChild     []ParentChildEdge `json:"parentChild"`
+	Spouses         []SpouseEdge      `json:"spouses"`
+	Stories         []Story           `json:"stories"`
+	Photos          []Photo           `json:"photos"`
 }
 
 type Activity struct {
