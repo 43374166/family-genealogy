@@ -1,4 +1,4 @@
-﻿# 家族族谱 · 多家族信息管理系统
+# 家族族谱 · 多家族信息管理系统
 
 以族谱树为核心的多家族信息管理系统。Flutter 端已接入登录、首页和族谱树真实 API；
 Go + MySQL 8.4 后端提供家庭与人物只读接口（PostgreSQL 17 设计作为参考保留），
@@ -44,14 +44,15 @@ release APK 已构建（`familytree-0.47.4.apk`），Go 服务端全部测试通
 | 微信小程序 | `apps/mini-program` | 📁 占位，后续独立实现并复用 API |
 | Go 服务端 | `server` | ✅ MySQL 8.4 + 登录/邀请码注册/绑定 + 族谱树/人物 API + 资料审核 + 人物/关系写入 + 多人物照片 + 故事配图 + 家族合并 + 每日备份/恢复 |
 | Flutter 数据接入 | `apps/mobile` | ✅ 持久化登录、动态族谱、人物详情、资料审核、新增人物与关系、绑定人物、头像裁剪、相册多选/人物筛选、故事配图、家族合并接真实 API；其余页面仍为演示数据 |
+| HarmonyOS 原生 | `apps/harmony` | ✅ ArkTS/ArkUI MVP：登录、首页、族谱树、成员查询、人物档案、新增人物、删除人物 |
 | API 契约 | `packages/api-contracts` | ✅ OpenAPI 3.1 初版 |
 
 已实现的首期移动端页面：
 
 - **首页**：水墨家族头图、家族概览、六个快捷入口、最新动态；支持下拉刷新。
 - **主题与圆角**：设置中可切换亮色、暗色、跟随系统；全站卡片、输入框、弹层等圆角统一收紧。
-- **族谱树**：夫妻卡片并排，子代从夫妻中线的连接点向下生长；支持缩放 / 拖动、
-  世代筛选、人物选中态和底部人物摘要。
+- **族谱树**：夫妻卡片并排，配偶并排显示；父亲、母亲都从各自卡片中心接入共同子女横线，
+  每对夫妻的子女共用一条横线，不同配偶的横线分层错开；支持缩放 / 拖动、世代筛选、人物选中态和底部人物摘要。
 - **人物档案**：生平、亲属关系、资料版本提示；个人照片区只展示仅关联本人的照片。
 - **成员查询**：姓名 / 籍贯 / 职业搜索、按世代筛选。
 - **资料申请与审核**：成员选择人物后提交修改，族长/管理员可查看待审核并同意或拒绝；
@@ -66,6 +67,7 @@ release APK 已构建（`familytree-0.47.4.apk`），Go 服务端全部测试通
 - **家族合并**：加入新家族后，原家族为空则自动归档；有数据则生成合并申请，目标家族族长选择人物、故事、照片，以及目标家支、起始世代和挂靠父辈。
 - **消息**、**我的**：可交互的真实数据页面。
 - 底部导航：首页、族谱树、添加、消息、我的。
+- **HarmonyOS 原生端**：`apps/harmony` 使用 ArkTS/ArkUI 重写登录、首页、族谱树、成员查询、人物档案、新增人物和删除人物，直连同一套 API；照片、故事、家族合并等仍待补齐。
 
 关系编辑、照片上传、家庭切换、登录会话续期和登录失败锁定均已接入主流程；
 仍带「原型 / 演示」提示的入口不会假装已经完成持久化。
@@ -142,6 +144,27 @@ flutter --no-version-check test
 > `android/build.gradle.kts` 已为 `io.flutter` 增加 Flutter 中国镜像和官方仓库回退，
 > 脚本也会把 `FLUTTER_STORAGE_BASE_URL` 指向 `https://storage.flutter-io.cn`。
 > Gradle 发行包则通过 `gradle-wrapper.properties` 中的华为云镜像获取。
+
+## HarmonyOS 原生端
+
+`apps/harmony` 是独立的 ArkTS/ArkUI 工程，不是 Flutter 套壳。已接入登录、首页、
+族谱树、成员查询、人物档案、新增人物和删除人物，默认连接线上 API。
+
+用 DevEco Studio 打开 `apps/harmony`，或使用本机 DevEco 命令行构建：
+
+```powershell
+$env:JAVA_HOME='D:\install\DevEco Studio\jbr'
+$env:DEVECO_SDK_HOME='D:\install\DevEco Studio\sdk'
+$env:DEVECO_HOME='D:\install\DevEco Studio'
+$env:PATH='D:\install\DevEco Studio\tools\node;D:\install\DevEco Studio\tools\ohpm\bin;D:\install\DevEco Studio\tools\hvigor\bin;' + $env:PATH
+cd apps\harmony
+hvigorw.bat --mode module -p module=entry@default -p product=default -p buildMode=release assembleHap --no-daemon
+# 产物：entry\build\default\outputs\default\entry-default-unsigned.hap
+```
+
+仓库不提交开发者签名证书，产物是 unsigned HAP；用 DevEco 的 Signing Configs
+生成签名后即可通过 `hdc install` 安装。完整说明见
+[apps/harmony/README.md](apps/harmony/README.md)。
 
 ## iOS 云端打包（无签名）
 

@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "家族族谱鸿蒙版"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "家族族谱"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "家族族谱"
+    }
+  ]
+}

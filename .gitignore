@@ -93,6 +93,7 @@ data/backups/
 *.log
 *.apk
 *.aab
+*.hap
 *.ipa
 *.zip
 *.tmp
@@ -100,6 +101,10 @@ data/backups/
 scratch/
 tmp/
 backups/
+
+# HarmonyOS build caches and local dependencies
+apps/harmony/.hvigor/
+apps/harmony/oh_modules/
 
 # The app icon sources stay in assets; generated density variants are tracked.
 apps/mobile/android/key.properties
