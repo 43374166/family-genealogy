@@ -272,10 +272,6 @@ class _EditPersonPageState extends State<EditPersonPage> {
   Widget build(BuildContext context) {
     final session = SessionScope.of(context);
     final showGenerationName = session.family?.surname == _surname.text.trim();
-    final generations = <int>{
-      1,
-      for (var i = -2; i <= 2; i++) _generation + i,
-    }.where((value) => value > 0).toList()..sort();
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -335,35 +331,25 @@ class _EditPersonPageState extends State<EditPersonPage> {
                             },
                           ),
                           const SizedBox(height: 12),
-                          DropdownButtonFormField<int>(
-                            initialValue: _generation,
-                            decoration: const InputDecoration(
-                              labelText: '世代',
-                              border: OutlineInputBorder(),
-                            ),
-                            items: [
-                              for (final generation in generations)
-                                DropdownMenuItem(
-                                  value: generation,
-                                  child: Text('第$generation世'),
-                                ),
-                            ],
-                            onChanged: (value) {
-                              if (value != null) {
-                                setState(() => _generation = value);
-                              }
-                            },
-                          ),
-                          if (showGenerationName) ...[
-                            const SizedBox(height: 10),
+                          if (showGenerationName)
                             GenerationNamePicker(
                               currentGeneration: _generation,
                               currentName: _generationName,
                               onChanged: (item) {
-                                setState(() => _generationName = item.name);
+                                setState(() {
+                                  _generationName = item.name;
+                                  _generation = item.generationNo;
+                                });
                               },
+                            )
+                          else
+                            const Text(
+                              '母亲方不设字辈',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.inkMuted,
+                              ),
                             ),
-                          ],
                           const SizedBox(height: 12),
                           if (_loadingBranches)
                             const LinearProgressIndicator(minHeight: 2)

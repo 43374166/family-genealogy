@@ -87,7 +87,7 @@ class _GenerationNamePickerState extends State<GenerationNamePicker> {
         title: const Text('字辈与世代不一致'),
         content: Text(
           '「${item.name}」是第${item.generationNo}世的字辈，当前人物是第${widget.currentGeneration}世。\n\n'
-          '字辈可能选错了，仍要使用「${item.name}」吗？',
+          '是否把人物改到第${item.generationNo}世？',
           style: const TextStyle(fontSize: 12.5, height: 1.7),
         ),
         actions: [
@@ -97,7 +97,7 @@ class _GenerationNamePickerState extends State<GenerationNamePicker> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('仍然使用'),
+            child: const Text('改到该世'),
           ),
         ],
       ),

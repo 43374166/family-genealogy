@@ -112,6 +112,16 @@ class _AddPersonPageState extends State<AddPersonPage> {
         ).showSnackBar(const SnackBar(content: Text('父亲和母亲不能选择同一个人')));
         return;
       }
+      final samePaternalLine = session.family?.surname == surname;
+      if (samePaternalLine &&
+          session.generationNames.isNotEmpty &&
+          _generationName.isEmpty) {
+        setState(() => _submitting = false);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('请选择字辈，世代会按字辈自动确定')));
+        return;
+      }
       if (session.canWrite) {
         final person = await session.createPerson(
           surname: surname,
@@ -210,7 +220,6 @@ class _AddPersonPageState extends State<AddPersonPage> {
     final session = SessionScope.of(context);
     final familyName = session.family?.name ?? '当前家庭';
     final showGenerationName = session.family?.surname == _surname.text.trim();
-    final generations = _generationOptions();
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -340,34 +349,23 @@ class _AddPersonPageState extends State<AddPersonPage> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          const _FieldLabel('世代'),
-                                          DropdownButtonFormField<int>(
-                                            initialValue: _generation,
-                                            decoration: _inputDecoration(),
-                                            items: [
-                                              for (final generation
-                                                  in generations)
-                                                DropdownMenuItem(
-                                                  value: generation,
-                                                  child: Text('第$generation世'),
-                                                ),
-                                            ],
-                                            onChanged: (value) => setState(
-                                              () => _generation =
-                                                  value ?? _generation,
-                                            ),
-                                          ),
-                                          if (showGenerationName) ...[
-                                            const SizedBox(height: 10),
+                                          if (showGenerationName)
                                             GenerationNamePicker(
                                               currentGeneration: _generation,
                                               currentName: _generationName,
-                                              onChanged: (item) => setState(
-                                                () =>
-                                                    _generationName = item.name,
+                                              onChanged: (item) => setState(() {
+                                                _generationName = item.name;
+                                                _generation = item.generationNo;
+                                              }),
+                                            )
+                                          else
+                                            const Text(
+                                              '母亲方不设字辈',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: AppColors.inkMuted,
                                               ),
                                             ),
-                                          ],
                                         ],
                                       ),
                                     ),
@@ -522,16 +520,6 @@ class _AddPersonPageState extends State<AddPersonPage> {
               ),
             ),
     );
-  }
-
-  List<int> _generationOptions() {
-    final maxGeneration =
-        SessionScope.of(context).tree?.persons
-            .map((person) => person.generationNo)
-            .fold<int>(1, (max, value) => value > max ? value : max) ??
-        1;
-    final max = maxGeneration + 1;
-    return [for (var i = 1; i <= max; i++) i];
   }
 
   List<ApiBranch> _orderedBranches() {
