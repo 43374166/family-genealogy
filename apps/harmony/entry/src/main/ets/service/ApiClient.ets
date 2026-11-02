@@ -291,7 +291,9 @@ export class ApiClient {
       data: buffer
     });
     const client = http.createHttp();
-    const headers: Record<string, string> = {};
+    const headers: Record<string, string> = {
+      'Content-Type': 'multipart/form-data'
+    };
     if (this.token.length > 0) {
       headers['Authorization'] = 'Bearer ' + this.token;
     }
