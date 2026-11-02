@@ -31,7 +31,7 @@ MySQL schema、迁移、登录/会话、家庭/族谱树/人物只读 API；Flut
 | ![首页](docs/screenshots/home.png) | ![族谱树](docs/screenshots/tree.png) |
 
 2026-11-02 验收：`flutter analyze` 无问题；`flutter test` 15 项全部通过；
-release APK 已构建（`familytree-0.47.1.apk`），Go 服务端全部测试通过。
+release APK 已构建（`familytree-0.47.2.apk`），Go 服务端全部测试通过。
 历史验收：2026-10-30 Pixel 7 / Android 15 模拟器启动成功，并通过 HTTPS 实机网络验证。
 
 ## 当前进度

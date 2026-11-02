@@ -93,8 +93,8 @@ void main() {
     expect(layout.edges, isNotEmpty);
     expect(layout.placementFor('e')!.person.fullName, '陈戊');
 
-    // Both parents give the child a connector; no line starts at the old
-    // marriage-bridge midpoint beside the mother's card.
+    // One couple gets one child branch. Both parent cards share this single
+    // branch; no separate mother line is drawn.
     final father = layout.placementFor('a')!;
     final mother = layout.placementFor('b')!;
     final child = layout.placementFor('c')!;
@@ -105,13 +105,13 @@ void main() {
               (edge.points.last.dy - child.rect.top).abs() < 0.1,
         )
         .toList();
-    expect(childEdges.length, 2);
-    for (final parent in [father, mother]) {
-      final edge = childEdges.firstWhere(
-        (item) => (item.points.first.dx - parent.center.dx).abs() < 0.1,
-      );
-      expect((edge.points.first.dy - parent.rect.bottom).abs(), lessThan(0.1));
-    }
+    expect(childEdges.length, 1);
+    final childEdge = childEdges.single;
+    expect((childEdge.points.first.dx - father.center.dx).abs(), lessThan(0.1));
+    expect(
+      (childEdge.points.first.dy - father.rect.bottom).abs(),
+      lessThan(0.1),
+    );
     final bridgeMidX = (father.rect.right + mother.rect.left) / 2;
     expect(
       layout.unionNodes.any(
@@ -218,52 +218,20 @@ void main() {
 
       final firstEdges = edgesFor('c1');
       final secondEdges = edgesFor('c2');
-      expect(firstEdges.length, 2);
-      expect(secondEdges.length, 2);
+      expect(firstEdges.length, 1);
+      expect(secondEdges.length, 1);
 
-      TreeEdge fatherEdge(List<TreeEdge> edges) => edges.firstWhere(
-        (edge) =>
-            edge.points.first.dx >= husband.rect.left &&
-            edge.points.first.dx <= husband.rect.right,
-      );
-
-      final firstFather = fatherEdge(firstEdges);
-      final secondFather = fatherEdge(secondEdges);
+      final firstFather = firstEdges.single;
+      final secondFather = secondEdges.single;
       expect(
         (firstFather.points.first.dx - secondFather.points.first.dx).abs(),
         greaterThan(10),
-        reason: 'different wives need separate father anchors',
+        reason: 'different wives need separate couple anchors',
       );
       expect(
         (firstFather.points[1].dy - secondFather.points[1].dy).abs(),
         greaterThan(0),
-        reason: 'different wives need staggered father branch levels',
-      );
-      expect(
-        firstEdges.any(
-          (edge) =>
-              (edge.points.first.dx - layout.placementFor('w1')!.center.dx)
-                      .abs() <
-                  0.1 &&
-              (edge.points.first.dy - layout.placementFor('w1')!.rect.bottom)
-                      .abs() <
-                  0.1,
-        ),
-        isTrue,
-        reason: 'mother w1 must also connect to c1',
-      );
-      expect(
-        secondEdges.any(
-          (edge) =>
-              (edge.points.first.dx - layout.placementFor('w2')!.center.dx)
-                      .abs() <
-                  0.1 &&
-              (edge.points.first.dy - layout.placementFor('w2')!.rect.bottom)
-                      .abs() <
-                  0.1,
-        ),
-        isTrue,
-        reason: 'mother w2 must also connect to c2',
+        reason: 'different wives need staggered branch levels',
       );
     },
   );
