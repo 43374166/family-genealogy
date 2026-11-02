@@ -9,7 +9,12 @@ import {
   ApiBindingRequest,
   ApiBranch,
   ApiEditRequest,
+  ApiFamilyMergeDetail,
+  ApiFamilyMergeRequest,
   ApiMeResult,
+  ApiMergePerson,
+  ApiMergePhoto,
+  ApiMergeStory,
   ApiNotification,
   ApiPerson,
   ApiPhoto,
@@ -102,6 +107,21 @@ struct Index {
   @State private reviewNote: string = '';
   @State private reviewError: string = '';
   @State private reviewBusy: boolean = false;
+
+  @State private mergeRequests: ApiFamilyMergeRequest[] = [];
+  @State private mergesBusy: boolean = false;
+  @State private mergesError: string = '';
+  @State private mergeDetail: ApiFamilyMergeDetail | null = null;
+  @State private mergeDetailBusy: boolean = false;
+  @State private mergePersonIds: string[] = [];
+  @State private mergeStoryIds: string[] = [];
+  @State private mergePhotoIds: string[] = [];
+  @State private mergeBranchIndex: number = 0;
+  @State private mergeStartGeneration: number = 1;
+  @State private mergeAttachIndex: number = 0;
+  @State private mergeNote: string = '';
+  @State private mergeError: string = '';
+  @State private mergeSubmitting: boolean = false;
 
   @State private branches: ApiBranch[] = [];
   @State private addSurname: string = '';
@@ -814,6 +834,227 @@ struct Index {
     }
   }
 
+  private async openMerges(): Promise<void> {
+    this.page = 'merges';
+    await this.loadMerges();
+  }
+
+  private async loadMerges(): Promise<void> {
+    this.mergesBusy = true;
+    this.mergesError = '';
+    try {
+      const page = await this.api.mergeRequests();
+      this.mergeRequests = page.items;
+    } catch (error) {
+      this.mergesError = this.errorText(error);
+    } finally {
+      this.mergesBusy = false;
+    }
+  }
+
+  private async openMerge(request: ApiFamilyMergeRequest): Promise<void> {
+    this.page = 'mergeDetail';
+    this.mergeDetail = null;
+    this.mergeDetailBusy = true;
+    this.mergeError = '';
+    try {
+      const detail = await this.api.mergeDetail(request.id);
+      this.mergeDetail = detail;
+      const pending = detail.request.status === 'pending';
+      const selectedPersons = detail.request.selectedPersonIds;
+      const selectedStories = detail.request.selectedStoryIds;
+      const selectedPhotos = detail.request.selectedPhotoIds;
+      this.mergePersonIds = selectedPersons !== undefined && selectedPersons.length > 0
+        ? selectedPersons
+        : (pending ? detail.persons.map((person: ApiMergePerson) => person.id) : []);
+      this.mergeStoryIds = selectedStories !== undefined && selectedStories.length > 0
+        ? selectedStories
+        : (pending ? detail.stories.map((story: ApiMergeStory) => story.id) : []);
+      this.mergePhotoIds = selectedPhotos !== undefined && selectedPhotos.length > 0
+        ? selectedPhotos
+        : (pending ? detail.photos.map((photo: ApiMergePhoto) => photo.id) : []);
+      this.mergeBranchIndex = 0;
+      if (detail.request.targetBranchId !== undefined) {
+        const found = detail.branches.findIndex(
+          (branch: ApiBranch) => branch.id === detail.request.targetBranchId
+        );
+        if (found >= 0) this.mergeBranchIndex = found;
+      }
+      this.mergeStartGeneration = detail.request.startGeneration !== undefined
+        ? detail.request.startGeneration
+        : Math.min(99, this.highestGeneration() + 1);
+      this.mergeAttachIndex = 0;
+      this.mergeNote = detail.request.reviewNote === undefined
+        ? '' : detail.request.reviewNote;
+    } catch (error) {
+      this.mergesError = this.errorText(error);
+    } finally {
+      this.mergeDetailBusy = false;
+    }
+  }
+
+  private mergeBranchId(): string {
+    const detail = this.mergeDetail;
+    if (detail === null || detail.branches.length === 0) return '';
+    const index = Math.min(this.mergeBranchIndex, detail.branches.length - 1);
+    return detail.branches[index].id;
+  }
+
+  private mergeAttachOptions(): SelectOption[] {
+    const options: SelectOption[] = [{ value: '不挂靠父辈' }];
+    if (this.tree !== null) {
+      this.tree.persons.forEach((person: ApiPerson) => {
+        options.push({ value: person.fullName });
+      });
+    }
+    return options;
+  }
+
+  private mergeAttachParentId(): string {
+    if (this.mergeAttachIndex <= 0 || this.tree === null) return '';
+    const index = this.mergeAttachIndex - 1;
+    if (index >= this.tree.persons.length) return '';
+    return this.tree.persons[index].id;
+  }
+
+  private toggleMergeId(ids: string[], id: string): string[] {
+    if (ids.includes(id)) {
+      return ids.filter((item: string) => item !== id);
+    }
+    return ids.concat([id]);
+  }
+
+  private toggleMergePerson(id: string): void {
+    this.mergePersonIds = this.toggleMergeId(this.mergePersonIds, id);
+  }
+
+  private toggleMergeStory(id: string): void {
+    this.mergeStoryIds = this.toggleMergeId(this.mergeStoryIds, id);
+  }
+
+  private toggleMergePhoto(id: string): void {
+    this.mergePhotoIds = this.toggleMergeId(this.mergePhotoIds, id);
+  }
+
+  private approveMergeTap(): void {
+    const detail = this.mergeDetail;
+    if (detail === null) return;
+    if (this.mergePersonIds.length + this.mergeStoryIds.length +
+      this.mergePhotoIds.length === 0) {
+      this.mergeError = '请至少选择一位人物、一篇故事或一张照片';
+      return;
+    }
+    const start = Math.max(1, Math.min(99, this.mergeStartGeneration));
+    if (detail.minGeneration > 0 &&
+      start + detail.maxGeneration - detail.minGeneration > 99) {
+      this.mergeError = '合并后的世代会超过第 99 世，请调小起始世代';
+      return;
+    }
+    if (this.mergeBranchId().length === 0) {
+      this.mergeError = '请选择目标家支';
+      return;
+    }
+    this.mergeError = '';
+    AlertDialog.show({
+      title: '确认合并',
+      message: '将把 ' + String(this.mergePersonIds.length) + ' 位人物、' +
+        String(this.mergeStoryIds.length) + ' 篇故事、' +
+        String(this.mergePhotoIds.length) + ' 张照片合并到当前家族。\n\n' +
+        '合并后原家族没有其他成员时会被归档。',
+      primaryButton: {
+        value: '取消',
+        action: () => {
+        }
+      },
+      secondaryButton: {
+        value: '确认合并',
+        action: () => {
+          this.doApproveMerge();
+        }
+      }
+    });
+  }
+
+  private async doApproveMerge(): Promise<void> {
+    const detail = this.mergeDetail;
+    if (detail === null || this.mergeSubmitting) return;
+    this.mergeSubmitting = true;
+    this.mergeError = '';
+    try {
+      const result = await this.api.approveMerge(
+        detail.request.id,
+        this.mergePersonIds,
+        this.mergeStoryIds,
+        this.mergePhotoIds,
+        this.mergeBranchId(),
+        Math.max(1, Math.min(99, this.mergeStartGeneration)),
+        this.mergeAttachParentId(),
+        this.mergeNote.trim()
+      );
+      await this.loadTree();
+      this.applyMe(await this.api.me());
+      await this.loadMerges();
+      AlertDialog.show({
+        title: '合并完成',
+        message: '已合并 ' + String(result.importedPersons) + ' 位人物、' +
+          String(result.importedStories) + ' 篇故事、' +
+          String(result.importedPhotos) + ' 张照片。' +
+          (result.sourceArchived ? '原家族已归档。' : '原家族仍有其他成员，继续保持独立。'),
+        confirm: {
+          value: '知道了',
+          action: () => {
+            this.page = 'merges';
+          }
+        }
+      });
+    } catch (error) {
+      this.mergeError = this.errorText(error);
+    } finally {
+      this.mergeSubmitting = false;
+    }
+  }
+
+  private rejectMergeTap(): void {
+    if (this.mergeDetail === null) return;
+    if (this.mergeNote.trim().length === 0) {
+      this.mergeError = '拒绝合并时必须填写原因';
+      return;
+    }
+    AlertDialog.show({
+      title: '拒绝合并',
+      message: '确定拒绝这个家族合并申请吗？',
+      primaryButton: {
+        value: '取消',
+        action: () => {
+        }
+      },
+      secondaryButton: {
+        value: '确认拒绝',
+        fontColor: '#B4423D',
+        action: () => {
+          this.doRejectMerge();
+        }
+      }
+    });
+  }
+
+  private async doRejectMerge(): Promise<void> {
+    const detail = this.mergeDetail;
+    if (detail === null || this.mergeSubmitting) return;
+    this.mergeSubmitting = true;
+    this.mergeError = '';
+    try {
+      await this.api.rejectMerge(detail.request.id, this.mergeNote.trim());
+      await this.loadMerges();
+      this.page = 'merges';
+      this.toast('已拒绝合并申请');
+    } catch (error) {
+      this.mergeError = this.errorText(error);
+    } finally {
+      this.mergeSubmitting = false;
+    }
+  }
+
   private filteredPersons(): ApiPerson[] {
     if (this.tree === null) return [];
     const key = this.query.trim();
@@ -1499,6 +1740,22 @@ struct Index {
           this.SettingsRow('登录账号', this.loginName)
           this.SettingsRow('我的世代', this.myGeneration.length > 0 ? this.myGeneration : '未绑定')
           this.SettingsRow('家族人数', String(this.memberCount))
+          if (this.canDelete()) {
+            Row() {
+              Text('家族合并')
+                .fontSize(13)
+                .fontColor('#1C2A32')
+              Blank()
+              Text('查看合并申请 ›')
+                .fontSize(11)
+                .fontColor('#4E7DF4')
+            }
+            .width('100%')
+            .padding({ top: 8, bottom: 4 })
+            .onClick(() => {
+              this.openMerges();
+            })
+          }
         }
         .width('100%')
         .padding(16)
@@ -2696,6 +2953,32 @@ struct Index {
         } else {
           Scroll() {
             Column({ space: 14 }) {
+              Row() {
+                Column({ space: 2 }) {
+                  Text('家族合并')
+                    .fontSize(14)
+                    .fontWeight(FontWeight.Bold)
+                    .fontColor('#1C2A32')
+                  Text('查看其他家族并入本家族的申请')
+                    .fontSize(10)
+                    .fontColor('#89969C')
+                }
+                .alignItems(HorizontalAlign.Start)
+                Blank()
+                Button('查看')
+                  .fontSize(11)
+                  .height(32)
+                  .backgroundColor('#EAF0FF')
+                  .fontColor('#4E7DF4')
+                  .onClick(() => {
+                    this.openMerges();
+                  })
+              }
+              .width('100%')
+              .padding(14)
+              .backgroundColor(Color.White)
+              .borderRadius(14)
+
               Column({ space: 8 }) {
                 Row() {
                   Text('资料修改审核')
@@ -2927,6 +3210,550 @@ struct Index {
     .height('100%')
   }
 
+  @Builder
+  private MergesView() {
+    Column() {
+      Row() {
+        Button('‹')
+          .width(38)
+          .height(38)
+          .backgroundColor('#FFFFFF')
+          .fontColor('#1C2A32')
+          .fontSize(22)
+          .borderRadius(19)
+          .onClick(() => {
+            this.page = 'tabs';
+            this.tab = 0;
+          })
+        Column({ space: 2 }) {
+          Text('家族合并')
+            .fontSize(20)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#1C2A32')
+          Text('共 ' + String(this.mergeRequests.length) + ' 个申请')
+            .fontSize(10)
+            .fontColor('#89969C')
+        }
+        .alignItems(HorizontalAlign.Start)
+        .margin({ left: 10 })
+        Blank()
+        Button('刷新')
+          .fontSize(11)
+          .height(32)
+          .backgroundColor('#EAF0FF')
+          .fontColor('#4E7DF4')
+          .onClick(() => {
+            this.loadMerges();
+          })
+      }
+      .width('100%')
+      .padding({ left: 14, right: 14, top: 12, bottom: 8 })
+
+      if (this.mergesBusy && this.mergeRequests.length === 0) {
+        Column({ space: 10 }) {
+          LoadingProgress().width(28).height(28).color('#4E7DF4')
+          Text('正在加载合并申请...').fontSize(12).fontColor('#89969C')
+        }
+        .layoutWeight(1)
+        .justifyContent(FlexAlign.Center)
+      } else if (this.mergesError.length > 0) {
+        Column({ space: 8 }) {
+          Text(this.mergesError).fontSize(12).fontColor('#B4423D')
+          Button('重新加载')
+            .fontSize(11)
+            .height(32)
+            .backgroundColor('#EAF0FF')
+            .fontColor('#4E7DF4')
+            .onClick(() => {
+              this.loadMerges();
+            })
+        }
+        .layoutWeight(1)
+        .justifyContent(FlexAlign.Center)
+      } else if (this.mergeRequests.length === 0) {
+        Column({ space: 8 }) {
+          Text('暂时没有家族合并申请')
+            .fontSize(15)
+            .fontColor('#1C2A32')
+          Text('成员加入本家族时，如果原家族有数据，会自动提交到这里')
+            .fontSize(10)
+            .fontColor('#89969C')
+            .textAlign(TextAlign.Center)
+        }
+        .layoutWeight(1)
+        .padding(24)
+        .justifyContent(FlexAlign.Center)
+      } else {
+        List({ space: 9 }) {
+          ForEach(this.mergeRequests, (item: ApiFamilyMergeRequest) => {
+            ListItem() {
+              Column({ space: 6 }) {
+                Row() {
+                  Text(item.sourceFamilyName + '  →  ' + item.targetFamilyName)
+                    .fontSize(14)
+                    .fontWeight(FontWeight.Medium)
+                    .fontColor('#1C2A32')
+                  Blank()
+                  Text(item.status === 'pending' ? '待处理' :
+                    item.status === 'approved' ? '已合并' :
+                    item.status === 'rejected' ? '已拒绝' : item.status)
+                    .fontSize(9)
+                    .fontColor(item.status === 'pending' ? '#B7791F' :
+                      item.status === 'approved' ? '#2F8F67' : '#B4423D')
+                    .backgroundColor(item.status === 'pending' ? '#FFF6E5' :
+                      item.status === 'approved' ? '#E9F6EF' : '#FBEEEA')
+                    .padding({ left: 7, right: 7, top: 2, bottom: 2 })
+                    .borderRadius(6)
+                }
+                .width('100%')
+                Text('人物 ' + String(item.personCount) + ' · 故事 ' +
+                  String(item.storyCount) + ' · 照片 ' + String(item.photoCount))
+                  .fontSize(11)
+                  .fontColor('#6C7B82')
+                Text(item.requesterName + ' 提交 · ' +
+                  (item.createdAt !== undefined ? item.createdAt!.substring(0, 10) : ''))
+                  .fontSize(9)
+                  .fontColor('#89969C')
+              }
+              .width('100%')
+              .padding(14)
+              .backgroundColor(Color.White)
+              .borderRadius(13)
+              .alignItems(HorizontalAlign.Start)
+              .onClick(() => {
+                this.openMerge(item);
+              })
+            }
+          }, (item: ApiFamilyMergeRequest) => item.id)
+        }
+        .layoutWeight(1)
+        .padding({ left: 14, right: 14 })
+        .scrollBar(BarState.Off)
+      }
+    }
+    .width('100%')
+    .height('100%')
+  }
+
+  @Builder
+  private MergeDetailView() {
+    Column() {
+      Row() {
+        Button('‹')
+          .width(38)
+          .height(38)
+          .backgroundColor('#FFFFFF')
+          .fontColor('#1C2A32')
+          .fontSize(22)
+          .borderRadius(19)
+          .onClick(() => {
+            this.page = 'merges';
+            this.loadMerges();
+          })
+        Column({ space: 2 }) {
+          Text('合并审核')
+            .fontSize(20)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#1C2A32')
+          Text(this.mergeDetail !== null
+            ? this.mergeDetail!.request.sourceFamilyName + ' → ' +
+              this.mergeDetail!.request.targetFamilyName
+            : '正在加载')
+            .fontSize(10)
+            .fontColor('#89969C')
+        }
+        .alignItems(HorizontalAlign.Start)
+        .margin({ left: 10 })
+      }
+      .width('100%')
+      .padding({ left: 14, right: 14, top: 12, bottom: 8 })
+
+      if (this.mergeDetailBusy || this.mergeDetail === null) {
+        Column({ space: 10 }) {
+          LoadingProgress().width(28).height(28).color('#4E7DF4')
+          Text('正在加载合并详情...').fontSize(12).fontColor('#89969C')
+        }
+        .layoutWeight(1)
+        .justifyContent(FlexAlign.Center)
+      } else {
+        Scroll() {
+          Column({ space: 12 }) {
+            Column({ space: 5 }) {
+              Text(this.mergeDetail!.request.sourceFamilyName + '  →  ' +
+                this.mergeDetail!.request.targetFamilyName)
+                .fontSize(16)
+                .fontWeight(FontWeight.Bold)
+                .fontColor('#1C2A32')
+              Text('申请人：' + this.mergeDetail!.request.requesterName + ' · ' +
+                (this.mergeDetail!.request.createdAt !== undefined
+                  ? this.mergeDetail!.request.createdAt!.substring(0, 10) : ''))
+                .fontSize(10)
+                .fontColor('#89969C')
+              Text('原家族第 ' + String(this.mergeDetail!.minGeneration) + '—' +
+                String(this.mergeDetail!.maxGeneration) + ' 世')
+                .fontSize(10)
+                .fontColor('#6C7B82')
+            }
+            .width('100%')
+            .padding(14)
+            .backgroundColor(Color.White)
+            .borderRadius(13)
+            .alignItems(HorizontalAlign.Start)
+
+            if (this.mergeDetail!.request.status !== 'pending') {
+              Column({ space: 4 }) {
+                Text(this.mergeDetail!.request.status === 'approved' ? '已合并' : '已拒绝')
+                  .fontSize(13)
+                  .fontWeight(FontWeight.Bold)
+                  .fontColor(this.mergeDetail!.request.status === 'approved'
+                    ? '#2F8F67' : '#B4423D')
+                if (this.mergeDetail!.request.reviewNote !== undefined &&
+                  this.mergeDetail!.request.reviewNote!.length > 0) {
+                  Text(this.mergeDetail!.request.reviewNote!)
+                    .fontSize(11)
+                    .fontColor('#6C7B82')
+                }
+              }
+              .width('100%')
+              .padding(14)
+              .backgroundColor(Color.White)
+              .borderRadius(13)
+              .alignItems(HorizontalAlign.Start)
+            }
+
+            if (this.mergeDetail!.request.status === 'pending') {
+              if (this.role !== 'owner') {
+                Text('只有族长可以确认或拒绝家族合并')
+                  .fontSize(11)
+                  .fontColor('#B7791F')
+                  .padding(12)
+                  .width('100%')
+                  .backgroundColor('#FFF6E5')
+                  .borderRadius(10)
+              }
+            }
+
+            Column({ space: 6 }) {
+              Row() {
+                Text('人物 · ' + String(this.mergePersonIds.length) + '/' +
+                  String(this.mergeDetail!.persons.length))
+                  .fontSize(13)
+                  .fontWeight(FontWeight.Bold)
+                  .fontColor('#1C2A32')
+                Blank()
+                if (this.mergeDetail!.request.status === 'pending' && this.role === 'owner') {
+                  Text(this.mergePersonIds.length === this.mergeDetail!.persons.length
+                    ? '清空' : '全选')
+                    .fontSize(10)
+                    .fontColor('#4E7DF4')
+                    .onClick(() => {
+                      this.mergePersonIds =
+                        this.mergePersonIds.length === this.mergeDetail!.persons.length
+                          ? [] : this.mergeDetail!.persons.map(
+                            (person: ApiMergePerson) => person.id);
+                    })
+                }
+              }
+              .width('100%')
+              if (this.mergeDetail!.persons.length === 0) {
+                Text('无可合并人物').fontSize(10).fontColor('#89969C')
+              }
+              ForEach(this.mergeDetail!.persons, (person: ApiMergePerson) => {
+                Row({ space: 10 }) {
+                  Text(this.mergePersonIds.includes(person.id) ? '✓' : '○')
+                    .width(22)
+                    .height(22)
+                    .textAlign(TextAlign.Center)
+                    .fontSize(11)
+                    .fontColor(this.mergePersonIds.includes(person.id)
+                      ? Color.White : '#89969C')
+                    .backgroundColor(this.mergePersonIds.includes(person.id)
+                      ? '#4E7DF4' : '#F2F5F7')
+                    .borderRadius(11)
+                  Column({ space: 2 }) {
+                    Text(person.fullName)
+                      .fontSize(12)
+                      .fontColor('#1C2A32')
+                    Text('第 ' + String(person.generationNo) + ' 世 · ' +
+                      person.branchName)
+                      .fontSize(9)
+                      .fontColor('#89969C')
+                  }
+                  .alignItems(HorizontalAlign.Start)
+                  .layoutWeight(1)
+                }
+                .width('100%')
+                .padding({ top: 5, bottom: 5 })
+                .onClick(() => {
+                  if (this.mergeDetail!.request.status === 'pending' &&
+                    this.role === 'owner') {
+                    this.toggleMergePerson(person.id);
+                  }
+                })
+              }, (person: ApiMergePerson) => person.id)
+            }
+            .width('100%')
+            .padding(14)
+            .backgroundColor(Color.White)
+            .borderRadius(13)
+            .alignItems(HorizontalAlign.Start)
+
+            Column({ space: 6 }) {
+              Row() {
+                Text('故事 · ' + String(this.mergeStoryIds.length) + '/' +
+                  String(this.mergeDetail!.stories.length))
+                  .fontSize(13)
+                  .fontWeight(FontWeight.Bold)
+                  .fontColor('#1C2A32')
+                Blank()
+                if (this.mergeDetail!.request.status === 'pending' && this.role === 'owner') {
+                  Text(this.mergeStoryIds.length === this.mergeDetail!.stories.length
+                    ? '清空' : '全选')
+                    .fontSize(10)
+                    .fontColor('#4E7DF4')
+                    .onClick(() => {
+                      this.mergeStoryIds =
+                        this.mergeStoryIds.length === this.mergeDetail!.stories.length
+                          ? [] : this.mergeDetail!.stories.map(
+                            (story: ApiMergeStory) => story.id);
+                    })
+                }
+              }
+              .width('100%')
+              if (this.mergeDetail!.stories.length === 0) {
+                Text('无可合并故事').fontSize(10).fontColor('#89969C')
+              }
+              ForEach(this.mergeDetail!.stories, (story: ApiMergeStory) => {
+                Row({ space: 10 }) {
+                  Text(this.mergeStoryIds.includes(story.id) ? '✓' : '○')
+                    .width(22)
+                    .height(22)
+                    .textAlign(TextAlign.Center)
+                    .fontSize(11)
+                    .fontColor(this.mergeStoryIds.includes(story.id)
+                      ? Color.White : '#89969C')
+                    .backgroundColor(this.mergeStoryIds.includes(story.id)
+                      ? '#4E7DF4' : '#F2F5F7')
+                    .borderRadius(11)
+                  Column({ space: 2 }) {
+                    Text(story.title)
+                      .fontSize(12)
+                      .fontColor('#1C2A32')
+                      .maxLines(1)
+                    Text(String(story.photoCount) + ' 张图片' +
+                      (story.personName.length > 0 ? ' · ' + story.personName : ''))
+                      .fontSize(9)
+                      .fontColor('#89969C')
+                  }
+                  .alignItems(HorizontalAlign.Start)
+                  .layoutWeight(1)
+                }
+                .width('100%')
+                .padding({ top: 5, bottom: 5 })
+                .onClick(() => {
+                  if (this.mergeDetail!.request.status === 'pending' &&
+                    this.role === 'owner') {
+                    this.toggleMergeStory(story.id);
+                  }
+                })
+              }, (story: ApiMergeStory) => story.id)
+            }
+            .width('100%')
+            .padding(14)
+            .backgroundColor(Color.White)
+            .borderRadius(13)
+            .alignItems(HorizontalAlign.Start)
+
+            Column({ space: 6 }) {
+              Row() {
+                Text('照片 · ' + String(this.mergePhotoIds.length) + '/' +
+                  String(this.mergeDetail!.photos.length))
+                  .fontSize(13)
+                  .fontWeight(FontWeight.Bold)
+                  .fontColor('#1C2A32')
+                Blank()
+                if (this.mergeDetail!.request.status === 'pending' && this.role === 'owner') {
+                  Text(this.mergePhotoIds.length === this.mergeDetail!.photos.length
+                    ? '清空' : '全选')
+                    .fontSize(10)
+                    .fontColor('#4E7DF4')
+                    .onClick(() => {
+                      this.mergePhotoIds =
+                        this.mergePhotoIds.length === this.mergeDetail!.photos.length
+                          ? [] : this.mergeDetail!.photos.map(
+                            (photo: ApiMergePhoto) => photo.id);
+                    })
+                }
+              }
+              .width('100%')
+              if (this.mergeDetail!.photos.length === 0) {
+                Text('无可合并照片').fontSize(10).fontColor('#89969C')
+              }
+              ForEach(this.mergeDetail!.photos, (photo: ApiMergePhoto) => {
+                Row({ space: 10 }) {
+                  Text(this.mergePhotoIds.includes(photo.id) ? '✓' : '○')
+                    .width(22)
+                    .height(22)
+                    .textAlign(TextAlign.Center)
+                    .fontSize(11)
+                    .fontColor(this.mergePhotoIds.includes(photo.id)
+                      ? Color.White : '#89969C')
+                    .backgroundColor(this.mergePhotoIds.includes(photo.id)
+                      ? '#4E7DF4' : '#F2F5F7')
+                    .borderRadius(11)
+                  Column({ space: 2 }) {
+                    Text(photo.caption.length > 0 ? photo.caption : '未命名照片')
+                      .fontSize(12)
+                      .fontColor('#1C2A32')
+                      .maxLines(1)
+                    Text(photo.personNames.length > 0
+                      ? photo.personNames.join('、') : '未关联人物')
+                      .fontSize(9)
+                      .fontColor('#89969C')
+                  }
+                  .alignItems(HorizontalAlign.Start)
+                  .layoutWeight(1)
+                }
+                .width('100%')
+                .padding({ top: 5, bottom: 5 })
+                .onClick(() => {
+                  if (this.mergeDetail!.request.status === 'pending' &&
+                    this.role === 'owner') {
+                    this.toggleMergePhoto(photo.id);
+                  }
+                })
+              }, (photo: ApiMergePhoto) => photo.id)
+            }
+            .width('100%')
+            .padding(14)
+            .backgroundColor(Color.White)
+            .borderRadius(13)
+            .alignItems(HorizontalAlign.Start)
+
+            if (this.mergeDetail!.request.status === 'pending' && this.role === 'owner') {
+              Column({ space: 10 }) {
+                Text('合并设置')
+                  .fontSize(13)
+                  .fontWeight(FontWeight.Bold)
+                  .fontColor('#1C2A32')
+                  .width('100%')
+                if (this.mergeDetail!.branches.length > 0) {
+                  Select(this.mergeDetail!.branches.map((branch: ApiBranch) => {
+                    const option: SelectOption = { value: branch.name };
+                    return option;
+                  }))
+                    .selected(this.mergeBranchIndex)
+                    .value(this.mergeDetail!.branches[Math.min(
+                      this.mergeBranchIndex,
+                      this.mergeDetail!.branches.length - 1
+                    )].name)
+                    .onSelect((index: number) => {
+                      this.mergeBranchIndex = index;
+                    })
+                    .width('100%')
+                } else {
+                  Text('当前家族没有可用家支').fontSize(10).fontColor('#B4423D')
+                }
+                Row({ space: 12 }) {
+                  Text('起始世代')
+                    .fontSize(12)
+                    .fontColor('#1C2A32')
+                  Button('−')
+                    .width(30)
+                    .height(30)
+                    .fontSize(16)
+                    .backgroundColor('#F2F5F7')
+                    .fontColor('#1C2A32')
+                    .onClick(() => {
+                      this.mergeStartGeneration =
+                        Math.max(1, this.mergeStartGeneration - 1);
+                    })
+                  Text('第 ' + String(this.mergeStartGeneration) + ' 世')
+                    .fontSize(12)
+                    .fontColor('#4E7DF4')
+                  Button('+')
+                    .width(30)
+                    .height(30)
+                    .fontSize(16)
+                    .backgroundColor('#F2F5F7')
+                    .fontColor('#1C2A32')
+                    .onClick(() => {
+                      this.mergeStartGeneration =
+                        Math.min(99, this.mergeStartGeneration + 1);
+                    })
+                }
+                .width('100%')
+                Select(this.mergeAttachOptions())
+                  .selected(this.mergeAttachIndex)
+                  .value(this.mergeAttachOptions()[Math.min(
+                    this.mergeAttachIndex,
+                    this.mergeAttachOptions().length - 1
+                  )].value)
+                  .onSelect((index: number) => {
+                    this.mergeAttachIndex = index;
+                    if (index > 0 && this.tree !== null &&
+                      index - 1 < this.tree.persons.length) {
+                      this.mergeStartGeneration = Math.min(
+                        99,
+                        this.tree.persons[index - 1].generationNo + 1
+                      );
+                    }
+                  })
+                  .width('100%')
+                TextArea({ placeholder: '审核备注（拒绝时必填）', text: this.mergeNote })
+                  .height(80)
+                  .backgroundColor('#F7F9FA')
+                  .borderRadius(8)
+                  .fontSize(11)
+                  .onChange((value: string) => {
+                    this.mergeNote = value;
+                  })
+                if (this.mergeError.length > 0) {
+                  Text(this.mergeError)
+                    .fontSize(11)
+                    .fontColor('#B4423D')
+                    .width('100%')
+                }
+                Row({ space: 10 }) {
+                  Button('拒绝')
+                    .layoutWeight(1)
+                    .height(42)
+                    .backgroundColor('#FBEEEA')
+                    .fontColor('#B4423D')
+                    .enabled(!this.mergeSubmitting)
+                    .onClick(() => {
+                      this.rejectMergeTap();
+                    })
+                  Button(this.mergeSubmitting ? '处理中' : '确认合并')
+                    .layoutWeight(1)
+                    .height(42)
+                    .backgroundColor('#4E7DF4')
+                    .fontColor(Color.White)
+                    .enabled(!this.mergeSubmitting)
+                    .onClick(() => {
+                      this.approveMergeTap();
+                    })
+                }
+                .width('100%')
+              }
+              .width('100%')
+              .padding(14)
+              .backgroundColor(Color.White)
+              .borderRadius(13)
+              .alignItems(HorizontalAlign.Start)
+            }
+          }
+          .width('100%')
+          .padding({ left: 14, right: 14, bottom: 28 })
+        }
+        .layoutWeight(1)
+        .scrollBar(BarState.Off)
+      }
+    }
+    .width('100%')
+    .height('100%')
+  }
+
   build() {
     Stack() {
       if (this.booting) {
@@ -2949,6 +3776,10 @@ struct Index {
         this.StoryEditView()
       } else if (this.page === 'inbox') {
         this.InboxView()
+      } else if (this.page === 'merges') {
+        this.MergesView()
+      } else if (this.page === 'mergeDetail') {
+        this.MergeDetailView()
       } else {
         this.TabsView()
       }

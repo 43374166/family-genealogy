@@ -8,6 +8,10 @@ import {
   ApiEditRequest,
   ApiEditRequestPage,
   ApiFamily,
+  ApiFamilyMergeDetail,
+  ApiFamilyMergeRequest,
+  ApiFamilyMergeRequestPage,
+  ApiFamilyMergeResult,
   ApiLoginResult,
   ApiMeResult,
   ApiNotificationPage,
@@ -494,6 +498,58 @@ export class ApiClient {
     return JSON.parse(text) as ApiBindingRequest;
   }
 
+  async mergeRequests(status: string = ''): Promise<ApiFamilyMergeRequestPage> {
+    let path = '/api/v1/merge-requests';
+    if (status.length > 0) path += '?status=' + encodeURIComponent(status);
+    const text = await this.request(http.RequestMethod.GET, path);
+    return JSON.parse(text) as ApiFamilyMergeRequestPage;
+  }
+
+  async mergeDetail(requestId: string): Promise<ApiFamilyMergeDetail> {
+    const text = await this.request(
+      http.RequestMethod.GET,
+      '/api/v1/merge-requests/' + encodeURIComponent(requestId)
+    );
+    return JSON.parse(text) as ApiFamilyMergeDetail;
+  }
+
+  async approveMerge(
+    requestId: string,
+    personIds: string[],
+    storyIds: string[],
+    photoIds: string[],
+    targetBranchId: string,
+    startGeneration: number,
+    attachParentId: string,
+    note: string
+  ): Promise<ApiFamilyMergeResult> {
+    const payload: MergeApprovePayload = {
+      personIds: personIds,
+      storyIds: storyIds,
+      photoIds: photoIds,
+      targetBranchId: targetBranchId,
+      startGeneration: startGeneration,
+      attachParentId: attachParentId,
+      note: note
+    };
+    const text = await this.request(
+      http.RequestMethod.POST,
+      '/api/v1/merge-requests/' + encodeURIComponent(requestId) + '/approve',
+      payload
+    );
+    return JSON.parse(text) as ApiFamilyMergeResult;
+  }
+
+  async rejectMerge(requestId: string, note: string): Promise<ApiFamilyMergeResult> {
+    const payload: ReviewPayload = { note: note };
+    const text = await this.request(
+      http.RequestMethod.POST,
+      '/api/v1/merge-requests/' + encodeURIComponent(requestId) + '/reject',
+      payload
+    );
+    return JSON.parse(text) as ApiFamilyMergeResult;
+  }
+
   async family(): Promise<ApiFamily> {
     const text = await this.request(http.RequestMethod.GET, '/api/v1/family');
     return JSON.parse(text) as ApiFamily;
@@ -517,5 +573,15 @@ interface NotificationReadPayload {
 }
 
 interface ReviewPayload {
+  note: string;
+}
+
+interface MergeApprovePayload {
+  personIds: string[];
+  storyIds: string[];
+  photoIds: string[];
+  targetBranchId: string;
+  startGeneration: number;
+  attachParentId: string;
   note: string;
 }

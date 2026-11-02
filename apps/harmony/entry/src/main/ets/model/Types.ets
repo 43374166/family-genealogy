@@ -258,3 +258,74 @@ export interface ApiBindingRequest {
 export interface ApiBindingRequestPage {
   items: ApiBindingRequest[];
 }
+
+export interface ApiMergePerson {
+  id: string;
+  fullName: string;
+  generationNo: number;
+  generationName: string;
+  gender: string;
+  lifeStatus: string;
+  branchName: string;
+  birthYear?: number;
+}
+
+export interface ApiMergeStory {
+  id: string;
+  title: string;
+  personName: string;
+  photoCount: number;
+  createdAt?: string;
+}
+
+export interface ApiMergePhoto {
+  id: string;
+  caption: string;
+  personNames: string[];
+  createdAt?: string;
+}
+
+export interface ApiFamilyMergeRequest {
+  id: string;
+  sourceFamilyId: string;
+  sourceFamilyName: string;
+  targetFamilyId: string;
+  targetFamilyName: string;
+  requesterUserId: string;
+  requesterName: string;
+  status: string;
+  reviewNote?: string;
+  personCount: number;
+  storyCount: number;
+  photoCount: number;
+  createdAt?: string;
+  reviewedAt?: string;
+  targetBranchId?: string;
+  startGeneration?: number;
+  attachParentId?: string;
+  selectedPersonIds?: string[];
+  selectedStoryIds?: string[];
+  selectedPhotoIds?: string[];
+}
+
+export interface ApiFamilyMergeRequestPage {
+  items: ApiFamilyMergeRequest[];
+}
+
+export interface ApiFamilyMergeDetail {
+  request: ApiFamilyMergeRequest;
+  persons: ApiMergePerson[];
+  stories: ApiMergeStory[];
+  photos: ApiMergePhoto[];
+  branches: ApiBranch[];
+  minGeneration: number;
+  maxGeneration: number;
+}
+
+export interface ApiFamilyMergeResult {
+  request: ApiFamilyMergeRequest;
+  importedPersons: number;
+  importedStories: number;
+  importedPhotos: number;
+  sourceArchived: boolean;
+}
