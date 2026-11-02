@@ -192,3 +192,20 @@ export interface ApiPhoto {
 export interface ApiPhotoPage {
   items: ApiPhoto[];
 }
+
+export interface ApiStory {
+  id: string;
+  authorUserId: string;
+  authorName: string;
+  personId?: string;
+  personName: string;
+  title: string;
+  body: string;
+  createdAt?: string;
+  updatedAt?: string;
+  photos: ApiPhoto[];
+}
+
+export interface ApiStoryPage {
+  items: ApiStory[];
+}

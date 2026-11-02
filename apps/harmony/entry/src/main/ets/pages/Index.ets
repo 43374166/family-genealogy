@@ -11,6 +11,7 @@ import {
   ApiPerson,
   ApiPhoto,
   ApiRelative,
+  ApiStory,
   ApiTree
 } from '../model/Types';
 import { PersonBox, TreeLayoutBuilder, TreeLayoutResult } from '../model/TreeLayout';
@@ -40,6 +41,7 @@ struct Index {
   @State private serverMode: number = 0;
 
   @State private displayName: string = '';
+  @State private currentUserId: string = '';
   @State private role: string = '';
   @State private linkedPersonId: string = '';
   @State private familyName: string = '';
@@ -69,6 +71,19 @@ struct Index {
   @State private avatarBusy: boolean = false;
   @State private avatarError: string = '';
   @State private avatarRevision: number = 0;
+
+  @State private stories: ApiStory[] = [];
+  @State private storiesBusy: boolean = false;
+  @State private storiesError: string = '';
+  @State private selectedStory: ApiStory | null = null;
+  @State private storyDetailBusy: boolean = false;
+  @State private storyTitle: string = '';
+  @State private storyBody: string = '';
+  @State private storyPersonIndex: number = 0;
+  @State private storyPhotoUris: string[] = [];
+  @State private storySaving: boolean = false;
+  @State private storyStatus: string = '';
+  @State private storyError: string = '';
 
   @State private branches: ApiBranch[] = [];
   @State private addSurname: string = '';
@@ -118,6 +133,7 @@ struct Index {
 
   private applyMe(me: ApiMeResult): void {
     this.displayName = me.user.displayName;
+    this.currentUserId = me.user.id;
     this.familyName = me.family.name;
     this.familySurname = me.family.surname;
     this.familyMotto = me.family.motto;
@@ -520,6 +536,157 @@ struct Index {
     }
   }
 
+  private async openStories(): Promise<void> {
+    this.page = 'stories';
+    this.selectedStory = null;
+    await this.loadStories();
+  }
+
+  private async loadStories(): Promise<void> {
+    this.storiesBusy = true;
+    this.storiesError = '';
+    try {
+      const page = await this.api.stories();
+      this.stories = page.items;
+    } catch (error) {
+      this.storiesError = this.errorText(error);
+    } finally {
+      this.storiesBusy = false;
+    }
+  }
+
+  private async openStory(story: ApiStory): Promise<void> {
+    this.selectedStory = story;
+    this.page = 'storyDetail';
+    this.storyDetailBusy = true;
+    try {
+      this.selectedStory = await this.api.story(story.id);
+    } catch (error) {
+      this.storiesError = this.errorText(error);
+    } finally {
+      this.storyDetailBusy = false;
+    }
+  }
+
+  private openStoryEditor(): void {
+    this.storyTitle = '';
+    this.storyBody = '';
+    this.storyPersonIndex = 0;
+    this.storyPhotoUris = [];
+    this.storyStatus = '';
+    this.storyError = '';
+    this.page = 'storyEdit';
+  }
+
+  private storyPersonOptions(): SelectOption[] {
+    const options: SelectOption[] = [{ value: '不关联人物' }];
+    if (this.tree !== null) {
+      this.tree.persons.forEach((person: ApiPerson) => {
+        options.push({ value: person.fullName });
+      });
+    }
+    return options;
+  }
+
+  private storyPersonId(): string {
+    if (this.storyPersonIndex <= 0 || this.tree === null) return '';
+    const index = this.storyPersonIndex - 1;
+    if (index >= this.tree.persons.length) return '';
+    return this.tree.persons[index].id;
+  }
+
+  private async pickStoryPhotos(): Promise<void> {
+    const remaining = 9 - this.storyPhotoUris.length;
+    if (remaining <= 0) {
+      this.storyError = '故事最多附带 9 张图片';
+      return;
+    }
+    try {
+      const picker = new photoAccessHelper.PhotoViewPicker();
+      const result = await picker.select({
+        MIMEType: photoAccessHelper.PhotoViewMIMETypes.IMAGE_TYPE,
+        maxSelectNumber: remaining
+      });
+      if (result.photoUris.length > 0) {
+        const merged = this.storyPhotoUris.concat(result.photoUris);
+        this.storyPhotoUris = merged.slice(0, 9);
+        this.storyError = '';
+      }
+    } catch (error) {
+      this.storyError = this.errorText(error);
+    }
+  }
+
+  private async saveStory(): Promise<void> {
+    if (this.storySaving) return;
+    const title = this.storyTitle.trim();
+    const body = this.storyBody.trim();
+    if (title.length === 0 || body.length === 0) {
+      this.storyError = '标题和正文都要填写';
+      return;
+    }
+    if (title.length > 120) {
+      this.storyError = '标题不能超过 120 个字';
+      return;
+    }
+    this.storySaving = true;
+    this.storyError = '';
+    this.storyStatus = '';
+    try {
+      const personId = this.storyPersonId();
+      const photoIds: string[] = [];
+      for (let i = 0; i < this.storyPhotoUris.length; i++) {
+        this.storyStatus = '正在上传图片 ' + String(i + 1) + '/' +
+          String(this.storyPhotoUris.length);
+        const uploaded = await this.api.uploadPhoto(this.storyPhotoUris[i], personId);
+        photoIds.push(uploaded.id);
+      }
+      this.storyStatus = '正在保存故事...';
+      await this.api.createStory(title, body, personId, photoIds);
+      await this.loadStories();
+      this.page = 'stories';
+      this.toast('故事已发布');
+    } catch (error) {
+      this.storyError = this.errorText(error);
+    } finally {
+      this.storySaving = false;
+      this.storyStatus = '';
+    }
+  }
+
+  private confirmDeleteStory(): void {
+    const story = this.selectedStory;
+    if (story === null) return;
+    AlertDialog.show({
+      title: '删除故事',
+      message: '确定删除《' + story.title + '》吗？图片会保留在家族相册。',
+      primaryButton: {
+        value: '取消',
+        action: () => {
+        }
+      },
+      secondaryButton: {
+        value: '删除',
+        fontColor: '#B4423D',
+        action: () => {
+          this.deleteStory(story.id);
+        }
+      }
+    });
+  }
+
+  private async deleteStory(storyId: string): Promise<void> {
+    try {
+      await this.api.deleteStory(storyId);
+      this.selectedStory = null;
+      await this.loadStories();
+      this.page = 'stories';
+      this.toast('故事已删除');
+    } catch (error) {
+      this.toast(this.errorText(error));
+    }
+  }
+
   private filteredPersons(): ApiPerson[] {
     if (this.tree === null) return [];
     const key = this.query.trim();
@@ -540,6 +707,12 @@ struct Index {
   private canEditAvatar(): boolean {
     if (this.canDelete()) return true;
     return this.selected !== null && this.selected!.id === this.linkedPersonId;
+  }
+
+  private canDeleteStory(): boolean {
+    if (this.canDelete()) return true;
+    return this.selectedStory !== null &&
+      this.selectedStory!.authorUserId === this.currentUserId;
   }
 
   private albumFilterOptions(): SelectOption[] {
@@ -821,7 +994,11 @@ struct Index {
           }
           Row() {
             this.QuickTile('家族相册', '珍贵家族影像', '#35ABC0', -3)
+            this.QuickTile('家族故事', '记录家族记忆', '#B45D5A', -4)
+          }
+          Row() {
             this.QuickTile('新增成员', '录入正式档案', '#E4A636', -1)
+            this.QuickTile('我的', '账号与设置', '#6C7B82', 3)
           }
         }
         .width('100%')
@@ -975,6 +1152,8 @@ struct Index {
         this.refreshAll();
       } else if (action === -3) {
         this.openAlbum();
+      } else if (action === -4) {
+        this.openStories();
       } else {
         this.tab = action;
       }
@@ -1864,6 +2043,395 @@ struct Index {
     .justifyContent(FlexAlign.Center)
   }
 
+  @Builder
+  private StoriesView() {
+    Column() {
+      Row() {
+        Button('‹')
+          .width(38)
+          .height(38)
+          .backgroundColor('#FFFFFF')
+          .fontColor('#1C2A32')
+          .fontSize(22)
+          .borderRadius(19)
+          .onClick(() => {
+            this.page = 'tabs';
+          })
+        Column({ space: 2 }) {
+          Text('家族故事')
+            .fontSize(22)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#1C2A32')
+          Text('共 ' + this.stories.length + ' 篇家族记忆')
+            .fontSize(10)
+            .fontColor('#89969C')
+        }
+        .alignItems(HorizontalAlign.Start)
+        .margin({ left: 10 })
+        Blank()
+        Button('写故事')
+          .fontSize(11)
+          .height(32)
+          .backgroundColor('#4E7DF4')
+          .fontColor(Color.White)
+          .onClick(() => {
+            this.openStoryEditor();
+          })
+      }
+      .width('100%')
+      .padding({ left: 14, right: 14, top: 12, bottom: 8 })
+
+      if (this.storiesBusy && this.stories.length === 0) {
+        Column({ space: 10 }) {
+          LoadingProgress().width(28).height(28).color('#4E7DF4')
+          Text('正在加载家族故事...').fontSize(12).fontColor('#89969C')
+        }
+        .layoutWeight(1)
+        .justifyContent(FlexAlign.Center)
+      } else if (this.storiesError.length > 0) {
+        Column({ space: 8 }) {
+          Text(this.storiesError)
+            .fontSize(12)
+            .fontColor('#B4423D')
+          Button('重新加载')
+            .fontSize(11)
+            .height(32)
+            .backgroundColor('#EAF0FF')
+            .fontColor('#4E7DF4')
+            .onClick(() => {
+              this.loadStories();
+            })
+        }
+        .layoutWeight(1)
+        .justifyContent(FlexAlign.Center)
+      } else if (this.stories.length === 0) {
+        Column({ space: 8 }) {
+          Text('还没有家族故事')
+            .fontSize(16)
+            .fontColor('#1C2A32')
+          Text('写下长辈的经历、家族的迁徙或一次难忘的团聚')
+            .fontSize(11)
+            .fontColor('#89969C')
+          Button('写第一篇故事')
+            .fontSize(12)
+            .height(36)
+            .backgroundColor('#4E7DF4')
+            .fontColor(Color.White)
+            .onClick(() => {
+              this.openStoryEditor();
+            })
+        }
+        .layoutWeight(1)
+        .justifyContent(FlexAlign.Center)
+      } else {
+        List({ space: 10 }) {
+          ForEach(this.stories, (story: ApiStory) => {
+            ListItem() {
+              Row({ space: 12 }) {
+                Stack() {
+                  if (story.photos.length > 0) {
+                    AuthImage({
+                      path: '/api/v1/photos/' + story.photos[0].id + '/content',
+                      radius: 12
+                    })
+                  } else {
+                    Text('文')
+                      .width('100%')
+                      .height('100%')
+                      .textAlign(TextAlign.Center)
+                      .fontSize(20)
+                      .fontColor('#B45D5A')
+                      .backgroundColor('#FBEEEA')
+                  }
+                }
+                .width(82)
+                .height(82)
+
+                Column({ space: 4 }) {
+                  Text(story.title)
+                    .fontSize(15)
+                    .fontWeight(FontWeight.Medium)
+                    .fontColor('#1C2A32')
+                    .maxLines(1)
+                    .textOverflow({ overflow: TextOverflow.Ellipsis })
+                  Text(story.body)
+                    .fontSize(11)
+                    .fontColor('#6C7B82')
+                    .maxLines(2)
+                    .textOverflow({ overflow: TextOverflow.Ellipsis })
+                  Text(story.authorName + ' · ' +
+                    (story.createdAt !== undefined ? story.createdAt!.substring(0, 10) : ''))
+                    .fontSize(9)
+                    .fontColor('#89969C')
+                }
+                .alignItems(HorizontalAlign.Start)
+                .layoutWeight(1)
+              }
+              .width('100%')
+              .padding(12)
+              .backgroundColor(Color.White)
+              .borderRadius(14)
+              .onClick(() => {
+                this.openStory(story);
+              })
+            }
+          }, (story: ApiStory) => story.id)
+        }
+        .layoutWeight(1)
+        .padding({ left: 14, right: 14 })
+        .scrollBar(BarState.Off)
+      }
+    }
+    .width('100%')
+    .height('100%')
+  }
+
+  @Builder
+  private StoryDetailView() {
+    Column() {
+      Row() {
+        Button('‹')
+          .width(38)
+          .height(38)
+          .backgroundColor('#FFFFFF')
+          .fontColor('#1C2A32')
+          .fontSize(22)
+          .borderRadius(19)
+          .onClick(() => {
+            this.selectedStory = null;
+            this.page = 'stories';
+          })
+        Text('家族故事')
+          .fontSize(19)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#1C2A32')
+          .margin({ left: 12 })
+        Blank()
+        if (this.canDeleteStory() && this.selectedStory !== null) {
+          Button('删除')
+            .fontSize(11)
+            .height(32)
+            .backgroundColor('#FBEEEA')
+            .fontColor('#B4423D')
+            .onClick(() => {
+              this.confirmDeleteStory();
+            })
+        }
+      }
+      .width('100%')
+      .padding({ left: 14, right: 14, top: 12, bottom: 8 })
+
+      if (this.storyDetailBusy || this.selectedStory === null) {
+        Column({ space: 10 }) {
+          LoadingProgress().width(28).height(28).color('#4E7DF4')
+          Text('正在打开故事...').fontSize(12).fontColor('#89969C')
+        }
+        .layoutWeight(1)
+        .justifyContent(FlexAlign.Center)
+      } else {
+        Scroll() {
+          Column({ space: 12 }) {
+            Text(this.selectedStory!.title)
+              .fontSize(26)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#1C2A32')
+              .width('100%')
+            Text(this.selectedStory!.authorName + ' · ' +
+              (this.selectedStory!.createdAt !== undefined
+                ? this.selectedStory!.createdAt!.substring(0, 10) : ''))
+              .fontSize(10)
+              .fontColor('#89969C')
+              .width('100%')
+            if (this.selectedStory!.personName.length > 0) {
+              Text('关联人物：' + this.selectedStory!.personName)
+                .fontSize(10)
+                .fontColor('#4E7DF4')
+                .padding({ left: 8, right: 8, top: 3, bottom: 3 })
+                .backgroundColor('#EAF0FF')
+                .borderRadius(8)
+            }
+            Text(this.selectedStory!.body)
+              .fontSize(14)
+              .lineHeight(24)
+              .fontColor('#3A4A52')
+              .width('100%')
+
+            if (this.selectedStory!.photos.length > 0) {
+              Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.SpaceBetween }) {
+                ForEach(this.selectedStory!.photos, (photo: ApiPhoto) => {
+                  Stack() {
+                    AuthImage({
+                      path: '/api/v1/photos/' + photo.id + '/content',
+                      radius: 10
+                    })
+                  }
+                  .width('48%')
+                  .aspectRatio(1)
+                  .margin({ bottom: 8 })
+                }, (photo: ApiPhoto) => photo.id)
+              }
+              .width('100%')
+            }
+          }
+          .width('100%')
+          .padding({ left: 16, right: 16, bottom: 28 })
+          .alignItems(HorizontalAlign.Start)
+        }
+        .layoutWeight(1)
+        .scrollBar(BarState.Off)
+      }
+    }
+    .width('100%')
+    .height('100%')
+  }
+
+  @Builder
+  private StoryEditView() {
+    Column() {
+      Row() {
+        Button('‹')
+          .width(38)
+          .height(38)
+          .backgroundColor('#FFFFFF')
+          .fontColor('#1C2A32')
+          .fontSize(22)
+          .borderRadius(19)
+          .onClick(() => {
+            this.page = 'stories';
+          })
+        Text('写家族故事')
+          .fontSize(19)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#1C2A32')
+          .margin({ left: 12 })
+        Blank()
+        Button(this.storySaving ? '保存中' : '发布')
+          .fontSize(11)
+          .height(32)
+          .backgroundColor('#4E7DF4')
+          .fontColor(Color.White)
+          .enabled(!this.storySaving)
+          .onClick(() => {
+            this.saveStory();
+          })
+      }
+      .width('100%')
+      .padding({ left: 14, right: 14, top: 12, bottom: 8 })
+
+      Scroll() {
+        Column({ space: 12 }) {
+          TextInput({ placeholder: '故事标题', text: this.storyTitle })
+            .height(48)
+            .backgroundColor(Color.White)
+            .borderRadius(10)
+            .fontSize(15)
+            .onChange((value: string) => {
+              this.storyTitle = value;
+            })
+
+          TextArea({ placeholder: '写下这段家族记忆...', text: this.storyBody })
+            .height(220)
+            .backgroundColor(Color.White)
+            .borderRadius(10)
+            .fontSize(13)
+            .onChange((value: string) => {
+              this.storyBody = value;
+            })
+
+          Select(this.storyPersonOptions())
+            .selected(this.storyPersonIndex)
+            .value(this.storyPersonOptions()[Math.min(
+              this.storyPersonIndex,
+              this.storyPersonOptions().length - 1
+            )].value)
+            .onSelect((index: number) => {
+              this.storyPersonIndex = index;
+            })
+            .width('100%')
+
+          Column({ space: 8 }) {
+            Row() {
+              Text('故事配图')
+                .fontSize(13)
+                .fontWeight(FontWeight.Bold)
+                .fontColor('#1C2A32')
+              Blank()
+              Text(this.storyPhotoUris.length + '/9')
+                .fontSize(10)
+                .fontColor('#89969C')
+            }
+            .width('100%')
+            if (this.storyPhotoUris.length > 0) {
+              Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.SpaceBetween }) {
+                ForEach(this.storyPhotoUris, (uri: string, index: number) => {
+                  Stack({ alignContent: Alignment.TopEnd }) {
+                    Image(uri)
+                      .width('100%')
+                      .height('100%')
+                      .objectFit(ImageFit.Cover)
+                    Text('×')
+                      .width(24)
+                      .height(24)
+                      .textAlign(TextAlign.Center)
+                      .fontSize(15)
+                      .fontColor(Color.White)
+                      .backgroundColor('#00000099')
+                      .borderRadius(12)
+                      .margin(4)
+                      .onClick(() => {
+                        const next = this.storyPhotoUris.filter(
+                          (item: string, i: number) => i !== index
+                        );
+                        this.storyPhotoUris = next;
+                      })
+                  }
+                  .width('31%')
+                  .aspectRatio(1)
+                  .borderRadius(8)
+                  .clip(true)
+                  .margin({ bottom: 8 })
+                }, (uri: string, index: number) => uri + String(index))
+              }
+              .width('100%')
+            }
+            Button('添加图片')
+              .width('100%')
+              .height(38)
+              .fontSize(12)
+              .backgroundColor('#F2F5F7')
+              .fontColor('#1C2A32')
+              .enabled(!this.storySaving)
+              .onClick(() => {
+                this.pickStoryPhotos();
+              })
+          }
+          .width('100%')
+          .padding(14)
+          .backgroundColor(Color.White)
+          .borderRadius(12)
+          .alignItems(HorizontalAlign.Start)
+
+          if (this.storyStatus.length > 0) {
+            Text(this.storyStatus)
+              .fontSize(11)
+              .fontColor('#4E7DF4')
+          }
+          if (this.storyError.length > 0) {
+            Text(this.storyError)
+              .fontSize(11)
+              .fontColor('#B4423D')
+          }
+        }
+        .width('100%')
+        .padding({ left: 14, right: 14, bottom: 24 })
+      }
+      .layoutWeight(1)
+      .scrollBar(BarState.Off)
+    }
+    .width('100%')
+    .height('100%')
+  }
+
   build() {
     Stack() {
       if (this.booting) {
@@ -1878,6 +2446,12 @@ struct Index {
         this.AlbumView()
       } else if (this.page === 'avatar') {
         this.AvatarCropView()
+      } else if (this.page === 'stories') {
+        this.StoriesView()
+      } else if (this.page === 'storyDetail') {
+        this.StoryDetailView()
+      } else if (this.page === 'storyEdit') {
+        this.StoryEditView()
       } else {
         this.TabsView()
       }

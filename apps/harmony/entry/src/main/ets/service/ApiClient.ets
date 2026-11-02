@@ -13,6 +13,8 @@ import {
   ApiPhoto,
   ApiPhotoPage,
   ApiProblem,
+  ApiStory,
+  ApiStoryPage,
   ApiTree
 } from '../model/Types';
 
@@ -373,6 +375,46 @@ export class ApiClient {
     );
   }
 
+  async stories(): Promise<ApiStoryPage> {
+    const text = await this.request(http.RequestMethod.GET, '/api/v1/stories');
+    return JSON.parse(text) as ApiStoryPage;
+  }
+
+  async story(storyId: string): Promise<ApiStory> {
+    const text = await this.request(
+      http.RequestMethod.GET,
+      '/api/v1/stories/' + encodeURIComponent(storyId)
+    );
+    return JSON.parse(text) as ApiStory;
+  }
+
+  async createStory(
+    title: string,
+    body: string,
+    personId: string,
+    photoIds: string[]
+  ): Promise<ApiStory> {
+    const payload: StoryPayload = {
+      title: title,
+      body: body,
+      personId: personId,
+      photoIds: photoIds
+    };
+    const text = await this.request(
+      http.RequestMethod.POST,
+      '/api/v1/stories',
+      payload
+    );
+    return JSON.parse(text) as ApiStory;
+  }
+
+  async deleteStory(storyId: string): Promise<void> {
+    await this.request(
+      http.RequestMethod.DELETE,
+      '/api/v1/stories/' + encodeURIComponent(storyId)
+    );
+  }
+
   async family(): Promise<ApiFamily> {
     const text = await this.request(http.RequestMethod.GET, '/api/v1/family');
     return JSON.parse(text) as ApiFamily;
@@ -381,4 +423,11 @@ export class ApiClient {
 
 export class AppServices {
   static api: ApiClient = new ApiClient();
+}
+
+interface StoryPayload {
+  title: string;
+  body: string;
+  personId: string;
+  photoIds: string[];
 }
