@@ -90,8 +90,38 @@ void main() {
     expect(layout.width, greaterThan(300));
     expect(layout.height, greaterThan(200));
     expect(layout.edges, isNotEmpty);
-    expect(layout.marriageBridges.length, 3);
     expect(layout.placementFor('e')!.person.fullName, '陈戊');
+
+    // A child with two parents gets one line centred on each parent's card.
+    // No line is allowed to start at the old marriage-bridge midpoint beside
+    // the mother's card.
+    final father = layout.placementFor('a')!;
+    final mother = layout.placementFor('b')!;
+    final child = layout.placementFor('c')!;
+    final childEdges = layout.edges
+        .where(
+          (edge) =>
+              (edge.points.last.dx - child.center.dx).abs() < 0.1 &&
+              (edge.points.last.dy - child.rect.top).abs() < 0.1,
+        )
+        .toList();
+    expect(childEdges.length, 2);
+    for (final parent in [father, mother]) {
+      final edge = childEdges.firstWhere(
+        (item) => (item.points.first.dx - parent.center.dx).abs() < 0.1,
+      );
+      expect((edge.points.first.dy - parent.rect.bottom).abs(), lessThan(0.1));
+    }
+    final bridgeMidX = (father.rect.right + mother.rect.left) / 2;
+    expect(
+      layout.unionNodes.any(
+        (point) =>
+            (point.dx - bridgeMidX).abs() < 0.1 &&
+            (point.dy - father.center.dy).abs() < 0.1,
+      ),
+      isFalse,
+      reason: 'no vertical line should hang from the marriage bridge centre',
+    );
 
     for (final generation in layout.generations) {
       final row =

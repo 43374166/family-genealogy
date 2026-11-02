@@ -140,29 +140,54 @@ class _EditPersonPageState extends State<EditPersonPage> {
     }
   }
 
-  Future<void> _syncParents(AppSession session) async {
+  Future<void> _syncParents(
+    AppSession session, {
+    required bool asRequest,
+  }) async {
+    Future<void> endRelation(String edgeId) async {
+      if (asRequest) {
+        await session.createRelationshipEndRequest(
+          edgeType: 'parent_child',
+          edgeId: edgeId,
+        );
+      } else {
+        await session.deleteParentChild(edgeId);
+      }
+    }
+
+    Future<void> addRelation(String parentId, String role) async {
+      if (asRequest) {
+        await session.createWriteRequest(
+          requestType: 'add_parent_child',
+          payload: {
+            'parentId': parentId,
+            'childId': widget.person.id,
+            'parentRole': role,
+          },
+        );
+      } else {
+        await session.addParentChild(
+          parentId: parentId,
+          childId: widget.person.id,
+          parentRole: role,
+        );
+      }
+    }
+
     if (_fatherId != _initialFatherId) {
       if (_initialFatherEdgeId != null) {
-        await session.deleteParentChild(_initialFatherEdgeId!);
+        await endRelation(_initialFatherEdgeId!);
       }
       if (_fatherId != null) {
-        await session.addParentChild(
-          parentId: _fatherId!,
-          childId: widget.person.id,
-          parentRole: 'father',
-        );
+        await addRelation(_fatherId!, 'father');
       }
     }
     if (_motherId != _initialMotherId) {
       if (_initialMotherEdgeId != null) {
-        await session.deleteParentChild(_initialMotherEdgeId!);
+        await endRelation(_initialMotherEdgeId!);
       }
       if (_motherId != null) {
-        await session.addParentChild(
-          parentId: _motherId!,
-          childId: widget.person.id,
-          parentRole: 'mother',
-        );
+        await addRelation(_motherId!, 'mother');
       }
     }
   }
@@ -220,6 +245,7 @@ class _EditPersonPageState extends State<EditPersonPage> {
           biography: biography,
           version: widget.person.version,
         );
+        await _syncParents(session, asRequest: false);
       } else {
         await session.createProfileRequest(
           personId: widget.person.id,
@@ -242,7 +268,7 @@ class _EditPersonPageState extends State<EditPersonPage> {
           biography: biography,
           version: widget.person.version,
         );
-        await _syncParents(session);
+        await _syncParents(session, asRequest: true);
       }
       if (!mounted) return;
       await showDialog<void>(

@@ -254,7 +254,6 @@ class TreePageState extends State<TreePage>
                                     child: CustomPaint(
                                       painter: _TreeLinesPainter(
                                         edges: layout.edges,
-                                        marriageBridges: layout.marriageBridges,
                                         unionNodes: layout.unionNodes,
                                         branchNodes: layout.branchNodes,
                                       ),
@@ -906,13 +905,11 @@ class _GenerationFilters extends StatelessWidget {
 class _TreeLinesPainter extends CustomPainter {
   _TreeLinesPainter({
     required this.edges,
-    required this.marriageBridges,
     required this.unionNodes,
     required this.branchNodes,
   });
 
   final List<TreeEdge> edges;
-  final List<(Offset, Offset)> marriageBridges;
   final List<Offset> unionNodes;
   final List<Offset> branchNodes;
 
@@ -926,11 +923,6 @@ class _TreeLinesPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final bridgePaint = Paint()
-      ..color = const Color(0xFF9A7E58).withValues(alpha: 0.98)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.1
-      ..strokeCap = StrokeCap.round;
     final glowPaint = Paint()
       ..color = Colors.white.withValues(alpha: 0.52)
       ..style = PaintingStyle.stroke
@@ -958,13 +950,6 @@ class _TreeLinesPainter extends CustomPainter {
       drawPolyline(edge.points, coloredPaint);
     }
 
-    // A short bridge joins the two cards; the child line starts exactly at its
-    // centre. This makes the relationship read as a couple, never as a line
-    // drawn from only one parent.
-    for (final bridge in marriageBridges) {
-      drawPolyline([bridge.$1, bridge.$2], bridgePaint);
-    }
-
     final unionFill = Paint()..color = const Color(0xFFFFFEFA);
     final unionStroke = Paint()
       ..color = const Color(0xFFB09875).withValues(alpha: 0.95)
@@ -986,7 +971,6 @@ class _TreeLinesPainter extends CustomPainter {
   @override
   bool shouldRepaint(_TreeLinesPainter oldDelegate) =>
       oldDelegate.edges != edges ||
-      oldDelegate.marriageBridges != marriageBridges ||
       oldDelegate.unionNodes != unionNodes ||
       oldDelegate.branchNodes != branchNodes;
 }

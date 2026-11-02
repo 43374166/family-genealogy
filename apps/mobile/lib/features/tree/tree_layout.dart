@@ -38,7 +38,6 @@ class TreeLayout {
   const TreeLayout({
     required this.placements,
     required this.edges,
-    required this.marriageBridges,
     required this.unionNodes,
     required this.branchNodes,
     required this.generations,
@@ -50,7 +49,6 @@ class TreeLayout {
 
   final List<TreePersonPlacement> placements;
   final List<TreeEdge> edges;
-  final List<(Offset, Offset)> marriageBridges;
   final List<Offset> unionNodes;
   final List<Offset> branchNodes;
   final List<int> generations;
@@ -139,7 +137,6 @@ class _TreeLayoutBuilder {
     return TreeLayout(
       placements: placementsById.values.toList(growable: false),
       edges: geometry.edges,
-      marriageBridges: geometry.bridges,
       unionNodes: geometry.unions,
       branchNodes: geometry.branches,
       generations: List.unmodifiable(generations),
@@ -356,67 +353,35 @@ class _TreeLayoutBuilder {
 
   _TreeGeometry _buildConnections() {
     final edges = <TreeEdge>[];
-    final bridges = <(Offset, Offset)>[];
     final unions = <Offset>[];
     final branches = <Offset>[];
 
-    for (final unit in unitsByGeneration.values.expand((row) => row)) {
-      if (unit.members.length < 2) continue;
-      final placements = unit.members
-          .map((member) => placementsById[member.id])
-          .whereType<TreePersonPlacement>()
-          .toList();
-      if (placements.length < 2) continue;
-      final first = placements[0];
-      final second = placements[1];
-      final y = first.rect.center.dy;
-      bridges.add((Offset(first.rect.right, y), Offset(second.rect.left, y)));
-      unions.add(Offset((first.rect.right + second.rect.left) / 2, y));
-    }
-
-    final grouped = <String, List<ApiParentChildEdge>>{};
+    // Each person's line starts at the horizontal centre of their own card.
+    // The old spouse bridge used to hang a line from the gap beside the wife's
+    // card; keeping one connector per parent removes that stray line.
+    final childrenByParent = <String, List<TreePersonPlacement>>{};
     for (final edge in tree.parentChild) {
-      final key = ([edge.parentId]..sort()).join('|');
-      grouped.putIfAbsent(key, () => []).add(edge);
+      final parent = placementsById[edge.parentId];
+      final child = placementsById[edge.childId];
+      if (parent == null || child == null) continue;
+      if (parent.generation >= child.generation) continue;
+      final children = childrenByParent.putIfAbsent(
+        parent.person.id,
+        () => <TreePersonPlacement>[],
+      );
+      if (!children.any((item) => item.person.id == child.person.id)) {
+        children.add(child);
+      }
     }
 
-    for (final group in grouped.values) {
-      final children =
-          group
-              .map((edge) => placementsById[edge.childId])
-              .whereType<TreePersonPlacement>()
-              .toList()
-            ..sort((a, b) => a.center.dx.compareTo(b.center.dx));
-      if (children.isEmpty) continue;
-      final parentPlacements =
-          group
-              .map((edge) => placementsById[edge.parentId])
-              .whereType<TreePersonPlacement>()
-              .toSet()
-              .toList()
-            ..sort((a, b) => a.center.dx.compareTo(b.center.dx));
-      if (parentPlacements.isEmpty) continue;
-
+    for (final entry in childrenByParent.entries) {
+      final parent = placementsById[entry.key]!;
+      final children = entry.value
+        ..sort((a, b) => a.center.dx.compareTo(b.center.dx));
+      final anchorX = parent.center.dx;
+      final startY = parent.rect.bottom;
       for (var index = 0; index < children.length; index++) {
         final child = children[index];
-        final double anchorX;
-        final double startY;
-        if (parentPlacements.length >= 2 &&
-            parentPlacements[0].generation == parentPlacements[1].generation) {
-          anchorX =
-              (parentPlacements[0].center.dx + parentPlacements[1].center.dx) /
-              2;
-          startY = parentPlacements[0].center.dy;
-        } else {
-          anchorX =
-              parentPlacements
-                  .map((parent) => parent.center.dx)
-                  .reduce((a, b) => a + b) /
-              parentPlacements.length;
-          startY = parentPlacements
-              .map((parent) => parent.rect.bottom)
-              .reduce(math.max);
-        }
         final childX = child.center.dx;
         final childTop = child.rect.top;
         final distance = math.max(20.0, childTop - startY);
@@ -428,14 +393,13 @@ class _TreeLayoutBuilder {
           Offset(childX, childTop),
         ];
         edges.add(TreeEdge(points: path, colorSlot: index));
-        unions.add(Offset(anchorX, startY));
         branches.add(Offset(childX, midY));
       }
+      unions.add(Offset(anchorX, startY));
     }
 
     return _TreeGeometry(
       edges: List.unmodifiable(edges),
-      bridges: List.unmodifiable(bridges),
       unions: List.unmodifiable(unions),
       branches: List.unmodifiable(branches),
       canvasWidth: _canvasWidth,
@@ -466,7 +430,6 @@ class _TreeLayoutBuilder {
 class _TreeGeometry {
   const _TreeGeometry({
     required this.edges,
-    required this.bridges,
     required this.unions,
     required this.branches,
     required this.canvasWidth,
@@ -474,7 +437,6 @@ class _TreeGeometry {
   });
 
   final List<TreeEdge> edges;
-  final List<(Offset, Offset)> bridges;
   final List<Offset> unions;
   final List<Offset> branches;
   final double canvasWidth;
