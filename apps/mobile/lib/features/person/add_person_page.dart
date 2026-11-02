@@ -7,6 +7,7 @@ import '../../services/api_client.dart';
 import '../../services/api_models.dart';
 import '../../services/app_session.dart';
 import 'lunar_date_picker.dart';
+import 'parent_picker_field.dart';
 
 class AddPersonPage extends StatefulWidget {
   const AddPersonPage({super.key});
@@ -23,6 +24,8 @@ class _AddPersonPageState extends State<AddPersonPage> {
   final _biography = TextEditingController();
   ApiPartialDate? _birth;
   ApiPartialDate? _death;
+  ApiPerson? _father;
+  ApiPerson? _mother;
   String _lifeStatus = 'living';
 
   List<ApiBranch> _branches = const [];
@@ -100,6 +103,13 @@ class _AddPersonPageState extends State<AddPersonPage> {
       final birth = _birth;
       final death = _lifeStatus == 'deceased' ? _death : null;
       final biography = _biography.text.trim();
+      if (_father != null && _mother != null && _father!.id == _mother!.id) {
+        setState(() => _submitting = false);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('父亲和母亲不能选择同一个人')));
+        return;
+      }
       if (session.canWrite) {
         final person = await session.createPerson(
           surname: surname,
@@ -113,6 +123,20 @@ class _AddPersonPageState extends State<AddPersonPage> {
           lifeStatus: _lifeStatus,
           biography: biography,
         );
+        if (_father != null) {
+          await session.addParentChild(
+            parentId: _father!.id,
+            childId: person.id,
+            parentRole: 'father',
+          );
+        }
+        if (_mother != null) {
+          await session.addParentChild(
+            parentId: _mother!.id,
+            childId: person.id,
+            parentRole: 'mother',
+          );
+        }
         if (!mounted) return;
         await showDialog<void>(
           context: context,
@@ -405,6 +429,29 @@ class _AddPersonPageState extends State<AddPersonPage> {
                                     hint: '选择公历或农历祭日',
                                     onChanged: (value) =>
                                         setState(() => _death = value),
+                                  ),
+                                ],
+                                if (_canWrite) ...[
+                                  const SizedBox(height: 13),
+                                  const _FieldLabel('父母（可选）'),
+                                  ParentPickerField(
+                                    label: '父亲',
+                                    personId: _father?.id,
+                                    personName: _father?.fullName ?? '',
+                                    onPick: (person) =>
+                                        setState(() => _father = person),
+                                    onClear: () =>
+                                        setState(() => _father = null),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  ParentPickerField(
+                                    label: '母亲',
+                                    personId: _mother?.id,
+                                    personName: _mother?.fullName ?? '',
+                                    onPick: (person) =>
+                                        setState(() => _mother = person),
+                                    onClear: () =>
+                                        setState(() => _mother = null),
                                   ),
                                 ],
                                 const SizedBox(height: 13),

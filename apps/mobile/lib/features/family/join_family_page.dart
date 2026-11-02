@@ -8,16 +8,24 @@ import '../../services/app_session.dart';
 import 'qr_scan_page.dart';
 
 class JoinFamilyPage extends StatefulWidget {
-  const JoinFamilyPage({super.key});
+  const JoinFamilyPage({super.key, this.initialCode});
+
+  final String? initialCode;
 
   @override
   State<JoinFamilyPage> createState() => _JoinFamilyPageState();
 }
 
 class _JoinFamilyPageState extends State<JoinFamilyPage> {
-  final _code = TextEditingController();
+  late final TextEditingController _code;
   bool _submitting = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _code = TextEditingController(text: widget.initialCode ?? '');
+  }
 
   @override
   void dispose() {

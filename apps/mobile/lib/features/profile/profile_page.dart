@@ -13,8 +13,10 @@ import '../../services/api_client.dart';
 import '../../services/app_session.dart';
 import '../family/bind_person_page.dart';
 import '../family/family_switch_page.dart';
+import '../family/join_family_page.dart';
 import '../family/my_qr_page.dart';
 import '../family/phone_bind_page.dart';
+import '../family/qr_scan_page.dart';
 import '../gallery/gallery_page.dart';
 import '../person/api_person_detail_page.dart';
 import '../requests/requests_page.dart';
@@ -70,6 +72,18 @@ class ProfilePage extends StatelessWidget {
     }
   }
 
+  Future<void> _scan(BuildContext context) async {
+    final value = await Navigator.of(context).push<String>(
+      MaterialPageRoute<String>(builder: (_) => const QrScanPage()),
+    );
+    if (value == null || value.trim().isEmpty || !context.mounted) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => JoinFamilyPage(initialCode: value.trim().toUpperCase()),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final session = SessionScope.of(context);
@@ -98,10 +112,8 @@ class ProfilePage extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(22, 8, 16, 8),
               actions: [
                 HeaderIconButton(
-                  icon: Icons.qr_code_2_rounded,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(builder: (_) => const MyQrPage()),
-                  ),
+                  icon: Icons.qr_code_scanner_rounded,
+                  onTap: () => _scan(context),
                 ),
                 HeaderIconButton(
                   icon: Icons.settings_outlined,
@@ -300,7 +312,7 @@ class ProfilePage extends StatelessWidget {
                           color: AppColors.inkMuted,
                           background: AppColors.slateSoft,
                           label: '关于家族族谱',
-                          trailing: 'v0.35.0',
+                          trailing: 'v0.36.0',
                           onTap: () => _showAbout(context),
                         ),
                       ],
@@ -401,7 +413,7 @@ class ProfilePage extends StatelessWidget {
             ),
             const SizedBox(height: 5),
             const Text(
-              '家族族谱 · Flutter + MySQL v0.35.0',
+              '家族族谱 · Flutter + MySQL v0.36.0',
               style: TextStyle(fontSize: 10.5, color: AppColors.inkMuted),
             ),
             const SizedBox(height: 16),
@@ -604,10 +616,21 @@ class _ProfileCard extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const Icon(
-                      Icons.qr_code_2_rounded,
-                      size: 21,
-                      color: AppColors.inkSoft,
+                    InkWell(
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const MyQrPage(),
+                        ),
+                      ),
+                      borderRadius: BorderRadius.circular(18),
+                      child: const Padding(
+                        padding: EdgeInsets.all(6),
+                        child: Icon(
+                          Icons.qr_code_2_rounded,
+                          size: 21,
+                          color: AppColors.inkSoft,
+                        ),
+                      ),
                     ),
                   ],
                 ),

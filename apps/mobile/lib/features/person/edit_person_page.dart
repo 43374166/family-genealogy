@@ -7,6 +7,7 @@ import '../../services/api_client.dart';
 import '../../services/api_models.dart';
 import '../../services/app_session.dart';
 import 'lunar_date_picker.dart';
+import 'parent_picker_field.dart';
 
 class EditPersonPage extends StatefulWidget {
   const EditPersonPage({super.key, required this.person});
@@ -26,6 +27,14 @@ class _EditPersonPageState extends State<EditPersonPage> {
   late final TextEditingController _birthOrder;
   ApiPartialDate? _birth;
   ApiPartialDate? _death;
+  String? _fatherId;
+  String? _motherId;
+  String _fatherName = '';
+  String _motherName = '';
+  String? _initialFatherId;
+  String? _initialMotherId;
+  String? _initialFatherEdgeId;
+  String? _initialMotherEdgeId;
   late final TextEditingController _birthPlace;
   late final TextEditingController _residence;
   late final TextEditingController _occupation;
@@ -54,6 +63,19 @@ class _EditPersonPageState extends State<EditPersonPage> {
     _birthOrder = TextEditingController(text: person.birthOrder?.toString());
     _birth = person.birth;
     _death = person.death;
+    for (final parent in person.parents) {
+      if (parent.relation == '父亲') {
+        _fatherId = parent.personId;
+        _fatherName = parent.fullName;
+        _initialFatherId = parent.personId;
+        _initialFatherEdgeId = parent.edgeId;
+      } else if (parent.relation == '母亲') {
+        _motherId = parent.personId;
+        _motherName = parent.fullName;
+        _initialMotherId = parent.personId;
+        _initialMotherEdgeId = parent.edgeId;
+      }
+    }
     _birthPlace = TextEditingController(text: person.birthPlace);
     _residence = TextEditingController(text: person.residence);
     _occupation = TextEditingController(text: person.occupation);
@@ -114,6 +136,33 @@ class _EditPersonPageState extends State<EditPersonPage> {
     }
   }
 
+  Future<void> _syncParents(AppSession session) async {
+    if (_fatherId != _initialFatherId) {
+      if (_initialFatherEdgeId != null) {
+        await session.deleteParentChild(_initialFatherEdgeId!);
+      }
+      if (_fatherId != null) {
+        await session.addParentChild(
+          parentId: _fatherId!,
+          childId: widget.person.id,
+          parentRole: 'father',
+        );
+      }
+    }
+    if (_motherId != _initialMotherId) {
+      if (_initialMotherEdgeId != null) {
+        await session.deleteParentChild(_initialMotherEdgeId!);
+      }
+      if (_motherId != null) {
+        await session.addParentChild(
+          parentId: _motherId!,
+          childId: widget.person.id,
+          parentRole: 'mother',
+        );
+      }
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_branchId == null) {
@@ -133,6 +182,13 @@ class _EditPersonPageState extends State<EditPersonPage> {
       final birthOrder = int.tryParse(_birthOrder.text.trim());
       final birth = _birth;
       final death = _lifeStatus == 'deceased' ? _death : null;
+      if (_fatherId != null && _fatherId == _motherId) {
+        setState(() {
+          _submitting = false;
+          _error = '父亲和母亲不能选择同一个人';
+        });
+        return;
+      }
       final birthPlace = _birthPlace.text.trim();
       final residence = _residence.text.trim();
       final occupation = _occupation.text.trim();
@@ -180,6 +236,7 @@ class _EditPersonPageState extends State<EditPersonPage> {
           biography: biography,
           version: widget.person.version,
         );
+        await _syncParents(session);
       }
       if (!mounted) return;
       await showDialog<void>(
@@ -369,6 +426,36 @@ class _EditPersonPageState extends State<EditPersonPage> {
                             ),
                           if (_lifeStatus == 'deceased')
                             const SizedBox(height: 10),
+                          if (_canWrite) ...[
+                            const SizedBox(height: 10),
+                            ParentPickerField(
+                              label: '父亲',
+                              personId: _fatherId,
+                              personName: _fatherName,
+                              onPick: (person) => setState(() {
+                                _fatherId = person.id;
+                                _fatherName = person.fullName;
+                              }),
+                              onClear: () => setState(() {
+                                _fatherId = null;
+                                _fatherName = '';
+                              }),
+                            ),
+                            const SizedBox(height: 8),
+                            ParentPickerField(
+                              label: '母亲',
+                              personId: _motherId,
+                              personName: _motherName,
+                              onPick: (person) => setState(() {
+                                _motherId = person.id;
+                                _motherName = person.fullName;
+                              }),
+                              onClear: () => setState(() {
+                                _motherId = null;
+                                _motherName = '';
+                              }),
+                            ),
+                          ],
                           _field(
                             _birthOrder,
                             '排行',

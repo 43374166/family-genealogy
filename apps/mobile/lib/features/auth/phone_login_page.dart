@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../core/phone/phone_number.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_page_header.dart';
@@ -34,13 +35,12 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
     super.dispose();
   }
 
-  bool _validPhone(String phone) =>
-      RegExp(r'^\+[1-9][0-9]{7,14}$').hasMatch(phone.trim());
+  bool _validPhone(String phone) => PhoneNumber.isValidChina(phone);
 
   Future<void> _send() async {
-    final phone = _phone.text.trim();
+    final phone = PhoneNumber.normalize(_phone.text);
     if (!_validPhone(phone)) {
-      setState(() => _error = '请输入国际格式手机号，例如 +8613800000000');
+      setState(() => _error = '请输入 11 位手机号');
       return;
     }
     setState(() {
@@ -80,7 +80,7 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
   }
 
   Future<void> _login() async {
-    final phone = _phone.text.trim();
+    final phone = PhoneNumber.normalize(_phone.text);
     final code = _code.text.trim();
     if (!_validPhone(phone) || code.length != 6) {
       setState(() => _error = '请输入手机号和 6 位验证码');
@@ -123,7 +123,7 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
                   ),
                   const SizedBox(height: 6),
                   const Text(
-                    '手机号需使用国际格式；未绑定手机号的账号请先用登录名登录后绑定。',
+                    '默认国家码 +86，直接输入 11 位手机号；未绑定手机号的账号请先用登录名登录后绑定。',
                     style: TextStyle(
                       fontSize: 11,
                       height: 1.6,
@@ -137,8 +137,24 @@ class _PhoneLoginPageState extends State<PhoneLoginPage> {
                     style: const TextStyle(fontSize: 14),
                     decoration: InputDecoration(
                       labelText: '手机号',
-                      hintText: '+8613800000000',
-                      prefixIcon: const Icon(Icons.phone_iphone_rounded),
+                      hintText: '13800000000',
+                      prefixIcon: const Padding(
+                        padding: EdgeInsets.only(left: 12, right: 8),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.phone_iphone_rounded),
+                            SizedBox(width: 5),
+                            Text(
+                              '+86',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: AppColors.inkSoft,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                       filled: true,
                       fillColor: Colors.white,
                       border: OutlineInputBorder(

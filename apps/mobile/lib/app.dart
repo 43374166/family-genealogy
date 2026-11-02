@@ -61,11 +61,16 @@ class _FamilyTreeAppState extends State<FamilyTreeApp> {
           ],
           builder: (context, child) {
             final settings = SettingsScope.of(context);
-            return MediaQuery(
-              data: MediaQuery.of(
-                context,
-              ).copyWith(textScaler: TextScaler.linear(settings.textScale)),
-              child: child ?? const SizedBox.shrink(),
+            return Listener(
+              behavior: HitTestBehavior.translucent,
+              onPointerDown: (_) =>
+                  FocusManager.instance.primaryFocus?.unfocus(),
+              child: MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(textScaler: TextScaler.linear(settings.textScale)),
+                child: child ?? const SizedBox.shrink(),
+              ),
             );
           },
           home: const _RootGate(),

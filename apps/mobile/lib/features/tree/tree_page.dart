@@ -8,6 +8,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/ink_portrait.dart';
 import '../../core/widgets/soft_card.dart';
 import '../../models/family_member.dart';
+import '../../services/api_client.dart';
 import '../../services/api_models.dart';
 import '../../services/app_session.dart';
 import '../family/bind_person_page.dart';
@@ -55,6 +56,25 @@ class TreePageState extends State<TreePage>
   void _clearSelection() {
     if (_selectedId == null) return;
     setState(() => _selectedId = null);
+  }
+
+  Future<void> _refreshTree() async {
+    try {
+      await SessionScope.of(context).refreshTree();
+      if (!mounted) return;
+      setState(() {
+        _selectedId = null;
+        _focusGeneration = null;
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('族谱数据已刷新')));
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    }
   }
 
   @override
@@ -133,6 +153,7 @@ class TreePageState extends State<TreePage>
                 ),
                 onDirectory: () {},
                 onSelf: _focusSelf,
+                onRefresh: _refreshTree,
               ),
               const Expanded(child: _TreeEmpty()),
             ],
@@ -164,6 +185,7 @@ class TreePageState extends State<TreePage>
                     ),
                     onDirectory: () => _showDirectory(context),
                     onSelf: _focusSelf,
+                    onRefresh: _refreshTree,
                   ),
                   _GenerationFilters(
                     generations: layout.generations,
@@ -653,6 +675,7 @@ class _TreeHeader extends StatelessWidget {
     required this.onSearch,
     required this.onDirectory,
     required this.onSelf,
+    required this.onRefresh,
   });
 
   final String subtitle;
@@ -660,6 +683,7 @@ class _TreeHeader extends StatelessWidget {
   final VoidCallback onSearch;
   final VoidCallback onDirectory;
   final VoidCallback onSelf;
+  final VoidCallback onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -713,6 +737,12 @@ class _TreeHeader extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 3),
+          RoundIconButton(
+            icon: Icons.refresh_rounded,
+            onTap: onRefresh,
+            size: 38,
+            backgroundColor: Colors.transparent,
+          ),
           RoundIconButton(
             icon: Icons.search_rounded,
             onTap: onSearch,
