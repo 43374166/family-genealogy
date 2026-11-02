@@ -28,6 +28,7 @@ class _AddPersonPageState extends State<AddPersonPage> {
   ApiPartialDate? _death;
   ApiPerson? _father;
   ApiPerson? _mother;
+  ApiPerson? _spouse;
   String _lifeStatus = 'living';
   String _generationName = '';
 
@@ -40,6 +41,16 @@ class _AddPersonPageState extends State<AddPersonPage> {
   bool _started = false;
   bool _canWrite = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _surname.addListener(_onSurnameChanged);
+  }
+
+  void _onSurnameChanged() {
+    if (mounted) setState(() {});
+  }
 
   @override
   void didChangeDependencies() {
@@ -60,7 +71,9 @@ class _AddPersonPageState extends State<AddPersonPage> {
 
   @override
   void dispose() {
-    _surname.dispose();
+    _surname
+      ..removeListener(_onSurnameChanged)
+      ..dispose();
     _givenName.dispose();
     _birthOrder.dispose();
     _biography.dispose();
@@ -106,14 +119,18 @@ class _AddPersonPageState extends State<AddPersonPage> {
       final birth = _birth;
       final death = _lifeStatus == 'deceased' ? _death : null;
       final biography = _biography.text.trim();
-      if (_father != null && _mother != null && _father!.id == _mother!.id) {
+      final samePaternalLine = session.family?.surname == surname;
+      final generationName = samePaternalLine ? _generationName : '';
+      if (samePaternalLine &&
+          _father != null &&
+          _mother != null &&
+          _father!.id == _mother!.id) {
         setState(() => _submitting = false);
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('父亲和母亲不能选择同一个人')));
         return;
       }
-      final samePaternalLine = session.family?.surname == surname;
       if (samePaternalLine &&
           session.generationNames.isNotEmpty &&
           _generationName.isEmpty) {
@@ -129,7 +146,7 @@ class _AddPersonPageState extends State<AddPersonPage> {
           givenName: givenName,
           gender: _gender,
           generationNo: _generation,
-          generationName: _generationName,
+          generationName: generationName,
           branchId: _branchId!,
           birthOrder: birthOrder,
           birth: birth,
@@ -137,19 +154,22 @@ class _AddPersonPageState extends State<AddPersonPage> {
           lifeStatus: _lifeStatus,
           biography: biography,
         );
-        if (_father != null) {
+        if (samePaternalLine && _father != null) {
           await session.addParentChild(
             parentId: _father!.id,
             childId: person.id,
             parentRole: 'father',
           );
         }
-        if (_mother != null) {
+        if (samePaternalLine && _mother != null) {
           await session.addParentChild(
             parentId: _mother!.id,
             childId: person.id,
             parentRole: 'mother',
           );
+        }
+        if (!samePaternalLine && _spouse != null) {
+          await session.addSpouse(personAId: person.id, personBId: _spouse!.id);
         }
         if (!mounted) return;
         await showDialog<void>(
@@ -175,7 +195,7 @@ class _AddPersonPageState extends State<AddPersonPage> {
             'givenName': givenName,
             'gender': _gender,
             'generationNo': _generation,
-            'generationName': _generationName,
+            'generationName': generationName,
             'branchId': _branchId,
             'birthOrder': birthOrder,
             ...?birth?.toJson(prefix: 'birth'),
@@ -220,7 +240,9 @@ class _AddPersonPageState extends State<AddPersonPage> {
   Widget build(BuildContext context) {
     final session = SessionScope.of(context);
     final familyName = session.family?.name ?? '当前家庭';
-    final showGenerationName = session.family?.surname == _surname.text.trim();
+    final isPaternalLine =
+        (session.family?.surname ?? '') == _surname.text.trim();
+    final showGenerationName = isPaternalLine;
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -267,7 +289,9 @@ class _AddPersonPageState extends State<AddPersonPage> {
                                 Expanded(
                                   child: Text(
                                     _canWrite
-                                        ? '人物会先作为一个独立节点写入族谱。保存后再添加父母、配偶和子女关系。'
+                                        ? (isPaternalLine
+                                              ? '人物会先作为一个独立节点写入族谱。保存后再添加父母、配偶和子女关系。'
+                                              : '人物会写入族谱，并与所选男方建立配偶关系。')
                                         : '申请通过后，人物才会写入族谱。保存后再添加父母、配偶和子女关系。',
                                     style: const TextStyle(
                                       fontSize: 10.5,
@@ -464,26 +488,47 @@ class _AddPersonPageState extends State<AddPersonPage> {
                                 ],
                                 if (_canWrite) ...[
                                   const SizedBox(height: 13),
-                                  const _FieldLabel('父母（可选）'),
-                                  ParentPickerField(
-                                    label: '父亲',
-                                    personId: _father?.id,
-                                    personName: _father?.fullName ?? '',
-                                    onPick: (person) =>
-                                        setState(() => _father = person),
-                                    onClear: () =>
-                                        setState(() => _father = null),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  ParentPickerField(
-                                    label: '母亲',
-                                    personId: _mother?.id,
-                                    personName: _mother?.fullName ?? '',
-                                    onPick: (person) =>
-                                        setState(() => _mother = person),
-                                    onClear: () =>
-                                        setState(() => _mother = null),
-                                  ),
+                                  if (isPaternalLine) ...[
+                                    const _FieldLabel('父母（可选）'),
+                                    ParentPickerField(
+                                      label: '父亲',
+                                      personId: _father?.id,
+                                      personName: _father?.fullName ?? '',
+                                      onPick: (person) =>
+                                          setState(() => _father = person),
+                                      onClear: () =>
+                                          setState(() => _father = null),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    ParentPickerField(
+                                      label: '母亲',
+                                      personId: _mother?.id,
+                                      personName: _mother?.fullName ?? '',
+                                      onPick: (person) =>
+                                          setState(() => _mother = person),
+                                      onClear: () =>
+                                          setState(() => _mother = null),
+                                    ),
+                                  ] else ...[
+                                    const _FieldLabel('配偶（男方，可选）'),
+                                    ParentPickerField(
+                                      label: '配偶',
+                                      hint: '选择男方',
+                                      gender: 'male',
+                                      personId: _spouse?.id,
+                                      personName: _spouse?.fullName ?? '',
+                                      onPick: (person) => setState(() {
+                                        _spouse = person;
+                                        _generation = person.generationNo;
+                                        if ((person.branchId ?? '')
+                                            .isNotEmpty) {
+                                          _branchId = person.branchId;
+                                        }
+                                      }),
+                                      onClear: () =>
+                                          setState(() => _spouse = null),
+                                    ),
+                                  ],
                                 ],
                                 const SizedBox(height: 13),
                                 const _FieldLabel('生平简介'),

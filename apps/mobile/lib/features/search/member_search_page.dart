@@ -20,6 +20,9 @@ class MemberSearchPage extends StatefulWidget {
     this.selectMode = false,
     this.multiSelect = false,
     this.initialSelected = const [],
+    this.title,
+    this.gender,
+    this.excludePersonId,
   });
 
   /// When true, tapping a member returns that person to the caller instead of
@@ -29,6 +32,15 @@ class MemberSearchPage extends StatefulWidget {
   /// When true the page collects multiple members and returns a list.
   final bool multiSelect;
   final List<ApiPerson> initialSelected;
+
+  /// Optional picker title, for example "选择配偶".
+  final String? title;
+
+  /// When set, only members with this gender are listed.
+  final String? gender;
+
+  /// Hide the person being edited from the result list.
+  final String? excludePersonId;
 
   @override
   State<MemberSearchPage> createState() => _MemberSearchPageState();
@@ -81,12 +93,19 @@ class _MemberSearchPageState extends State<MemberSearchPage> {
         context,
       ).searchPersons(query: _query, generation: _generation, limit: 100);
       if (!mounted || serial != _serial) return;
-      final sorted = [...page.items]
-        ..sort((a, b) {
-          final generation = a.generationNo.compareTo(b.generationNo);
-          if (generation != 0) return generation;
-          return a.fullName.compareTo(b.fullName);
-        });
+      final sorted =
+          page.items
+              .where(
+                (person) =>
+                    (widget.gender == null || person.gender == widget.gender) &&
+                    person.id != widget.excludePersonId,
+              )
+              .toList()
+            ..sort((a, b) {
+              final generation = a.generationNo.compareTo(b.generationNo);
+              if (generation != 0) return generation;
+              return a.fullName.compareTo(b.fullName);
+            });
       setState(() {
         _results = sorted;
         _loading = false;
@@ -111,7 +130,10 @@ class _MemberSearchPageState extends State<MemberSearchPage> {
     final session = SessionScope.of(context);
     final generations = _generationsOf(session);
     final familyName = session.family?.name ?? '当前家庭';
-    final memberCount = session.family?.memberCount ?? _results.length;
+    final memberCount = widget.gender == null
+        ? session.family?.memberCount ?? _results.length
+        : _results.length;
+    final genderHint = widget.gender == 'male' ? ' · 仅显示男性' : '';
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -119,8 +141,8 @@ class _MemberSearchPageState extends State<MemberSearchPage> {
         child: Column(
           children: [
             AppPageHeader(
-              title: widget.multiSelect ? '选择成员' : '成员查询',
-              subtitle: '$familyName · 共 $memberCount 人',
+              title: widget.title ?? (widget.multiSelect ? '选择成员' : '成员查询'),
+              subtitle: '$familyName · 共 $memberCount 人$genderHint',
               actions: [
                 HeaderIconButton(
                   icon: Icons.tune_rounded,

@@ -13,6 +13,8 @@ class ParentPickerField extends StatelessWidget {
     required this.onPick,
     required this.onClear,
     this.hint = '点击选择',
+    this.gender,
+    this.excludePersonId,
   });
 
   final String label;
@@ -21,15 +23,29 @@ class ParentPickerField extends StatelessWidget {
   final ValueChanged<ApiPerson> onPick;
   final VoidCallback onClear;
   final String hint;
+  final String? gender;
+  final String? excludePersonId;
 
   Future<void> _pick(BuildContext context) async {
     final person = await Navigator.of(context).push<ApiPerson>(
       MaterialPageRoute<ApiPerson>(
-        builder: (_) => const MemberSearchPage(selectMode: true),
+        builder: (_) => MemberSearchPage(
+          selectMode: true,
+          title: '选择$label',
+          gender: gender,
+          excludePersonId: excludePersonId,
+        ),
       ),
     );
     if (person != null) onPick(person);
   }
+
+  IconData get _icon => switch (label) {
+    '父亲' => Icons.man_outlined,
+    '母亲' => Icons.woman_outlined,
+    '配偶' => Icons.favorite_border_rounded,
+    _ => Icons.person_outline_rounded,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +63,7 @@ class ParentPickerField extends StatelessWidget {
         child: Row(
           children: [
             Icon(
-              label == '父亲' ? Icons.man_outlined : Icons.woman_outlined,
+              _icon,
               size: 19,
               color: selected ? AppColors.primary : AppColors.inkMuted,
             ),

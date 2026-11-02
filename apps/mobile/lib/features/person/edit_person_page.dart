@@ -33,10 +33,14 @@ class _EditPersonPageState extends State<EditPersonPage> {
   String? _motherId;
   String _fatherName = '';
   String _motherName = '';
+  String? _spouseId;
+  String _spouseName = '';
   String? _initialFatherId;
   String? _initialMotherId;
   String? _initialFatherEdgeId;
   String? _initialMotherEdgeId;
+  String? _initialSpouseId;
+  String? _initialSpouseEdgeId;
   late final TextEditingController _birthPlace;
   late final TextEditingController _residence;
   late final TextEditingController _occupation;
@@ -79,6 +83,14 @@ class _EditPersonPageState extends State<EditPersonPage> {
         _initialMotherEdgeId = parent.edgeId;
       }
     }
+    for (final spouse in person.spouses) {
+      if (spouse.personId.isEmpty) continue;
+      _spouseId = spouse.personId;
+      _spouseName = spouse.fullName;
+      _initialSpouseId = spouse.personId;
+      _initialSpouseEdgeId = spouse.edgeId;
+      break;
+    }
     _birthPlace = TextEditingController(text: person.birthPlace);
     _residence = TextEditingController(text: person.residence);
     _occupation = TextEditingController(text: person.occupation);
@@ -89,6 +101,11 @@ class _EditPersonPageState extends State<EditPersonPage> {
     _generation = person.generationNo;
     _generationName = person.generationName;
     _branchId = person.branchId;
+    _surname.addListener(_onSurnameChanged);
+  }
+
+  void _onSurnameChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -102,8 +119,10 @@ class _EditPersonPageState extends State<EditPersonPage> {
 
   @override
   void dispose() {
+    _surname
+      ..removeListener(_onSurnameChanged)
+      ..dispose();
     for (final controller in [
-      _surname,
       _givenName,
       _courtesyName,
       _alias,
@@ -192,6 +211,35 @@ class _EditPersonPageState extends State<EditPersonPage> {
     }
   }
 
+  Future<void> _syncSpouse(
+    AppSession session, {
+    required bool asRequest,
+  }) async {
+    if (_spouseId == _initialSpouseId) return;
+    if (_initialSpouseEdgeId != null) {
+      if (asRequest) {
+        await session.createRelationshipEndRequest(
+          edgeType: 'spouse',
+          edgeId: _initialSpouseEdgeId!,
+        );
+      } else {
+        await session.deleteSpouse(_initialSpouseEdgeId!);
+      }
+    }
+    if (_spouseId == null) return;
+    if (asRequest) {
+      await session.createWriteRequest(
+        requestType: 'add_spouse',
+        payload: {'personAId': widget.person.id, 'personBId': _spouseId},
+      );
+    } else {
+      await session.addSpouse(
+        personAId: widget.person.id,
+        personBId: _spouseId!,
+      );
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_branchId == null) {
@@ -205,13 +253,15 @@ class _EditPersonPageState extends State<EditPersonPage> {
     try {
       final session = SessionScope.of(context);
       final surname = _surname.text.trim();
+      final isPaternalLine = (session.family?.surname ?? '') == surname;
+      final generationName = isPaternalLine ? _generationName : '';
       final givenName = _givenName.text.trim();
       final courtesyName = _courtesyName.text.trim();
       final alias = _alias.text.trim();
       final birthOrder = int.tryParse(_birthOrder.text.trim());
       final birth = _birth;
       final death = _lifeStatus == 'deceased' ? _death : null;
-      if (_fatherId != null && _fatherId == _motherId) {
+      if (isPaternalLine && _fatherId != null && _fatherId == _motherId) {
         setState(() {
           _submitting = false;
           _error = '父亲和母亲不能选择同一个人';
@@ -232,7 +282,7 @@ class _EditPersonPageState extends State<EditPersonPage> {
           alias: alias,
           gender: _gender,
           generationNo: _generation,
-          generationName: _generationName,
+          generationName: generationName,
           branchId: _branchId!,
           birthOrder: birthOrder,
           birth: birth,
@@ -245,7 +295,11 @@ class _EditPersonPageState extends State<EditPersonPage> {
           biography: biography,
           version: widget.person.version,
         );
-        await _syncParents(session, asRequest: false);
+        if (isPaternalLine) {
+          await _syncParents(session, asRequest: false);
+        } else {
+          await _syncSpouse(session, asRequest: false);
+        }
       } else {
         await session.createProfileRequest(
           personId: widget.person.id,
@@ -255,7 +309,7 @@ class _EditPersonPageState extends State<EditPersonPage> {
           alias: alias,
           gender: _gender,
           generationNo: _generation,
-          generationName: _generationName,
+          generationName: generationName,
           branchId: _branchId!,
           birthOrder: birthOrder,
           birth: birth,
@@ -268,7 +322,11 @@ class _EditPersonPageState extends State<EditPersonPage> {
           biography: biography,
           version: widget.person.version,
         );
-        await _syncParents(session, asRequest: true);
+        if (isPaternalLine) {
+          await _syncParents(session, asRequest: true);
+        } else {
+          await _syncSpouse(session, asRequest: true);
+        }
       }
       if (!mounted) return;
       await showDialog<void>(
@@ -298,7 +356,9 @@ class _EditPersonPageState extends State<EditPersonPage> {
   @override
   Widget build(BuildContext context) {
     final session = SessionScope.of(context);
-    final showGenerationName = session.family?.surname == _surname.text.trim();
+    final isPaternalLine =
+        (session.family?.surname ?? '') == _surname.text.trim();
+    final showGenerationName = isPaternalLine;
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -470,33 +530,56 @@ class _EditPersonPageState extends State<EditPersonPage> {
                             const SizedBox(height: 10),
                           if (_canWrite) ...[
                             const SizedBox(height: 10),
-                            ParentPickerField(
-                              label: '父亲',
-                              personId: _fatherId,
-                              personName: _fatherName,
-                              onPick: (person) => setState(() {
-                                _fatherId = person.id;
-                                _fatherName = person.fullName;
-                              }),
-                              onClear: () => setState(() {
-                                _fatherId = null;
-                                _fatherName = '';
-                              }),
-                            ),
-                            const SizedBox(height: 8),
-                            ParentPickerField(
-                              label: '母亲',
-                              personId: _motherId,
-                              personName: _motherName,
-                              onPick: (person) => setState(() {
-                                _motherId = person.id;
-                                _motherName = person.fullName;
-                              }),
-                              onClear: () => setState(() {
-                                _motherId = null;
-                                _motherName = '';
-                              }),
-                            ),
+                            if (isPaternalLine) ...[
+                              ParentPickerField(
+                                label: '父亲',
+                                personId: _fatherId,
+                                personName: _fatherName,
+                                onPick: (person) => setState(() {
+                                  _fatherId = person.id;
+                                  _fatherName = person.fullName;
+                                }),
+                                onClear: () => setState(() {
+                                  _fatherId = null;
+                                  _fatherName = '';
+                                }),
+                              ),
+                              const SizedBox(height: 8),
+                              ParentPickerField(
+                                label: '母亲',
+                                personId: _motherId,
+                                personName: _motherName,
+                                onPick: (person) => setState(() {
+                                  _motherId = person.id;
+                                  _motherName = person.fullName;
+                                }),
+                                onClear: () => setState(() {
+                                  _motherId = null;
+                                  _motherName = '';
+                                }),
+                              ),
+                            ] else ...[
+                              ParentPickerField(
+                                label: '配偶',
+                                hint: '选择男方',
+                                gender: 'male',
+                                excludePersonId: widget.person.id,
+                                personId: _spouseId,
+                                personName: _spouseName,
+                                onPick: (person) => setState(() {
+                                  _spouseId = person.id;
+                                  _spouseName = person.fullName;
+                                  _generation = person.generationNo;
+                                  if ((person.branchId ?? '').isNotEmpty) {
+                                    _branchId = person.branchId;
+                                  }
+                                }),
+                                onClear: () => setState(() {
+                                  _spouseId = null;
+                                  _spouseName = '';
+                                }),
+                              ),
+                            ],
                           ],
                           _field(
                             _birthOrder,

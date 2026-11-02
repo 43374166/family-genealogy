@@ -1,7 +1,7 @@
 ﻿name: family_tree
 description: "Family Tree Flutter app"
 publish_to: "none"
-version: 0.46.1+53
+version: 0.46.2+54
 
 environment:
   sdk: ^3.9.2
