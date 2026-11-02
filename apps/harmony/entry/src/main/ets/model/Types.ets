@@ -209,3 +209,52 @@ export interface ApiStory {
 export interface ApiStoryPage {
   items: ApiStory[];
 }
+
+export interface ApiNotification {
+  id: number;
+  kind: string;
+  title: string;
+  body: string;
+  targetType: string;
+  targetId: string;
+  isRead: boolean;
+  createdAt?: string;
+}
+
+export interface ApiNotificationPage {
+  items: ApiNotification[];
+  unreadCount: number;
+}
+
+export interface ApiEditRequest {
+  id: string;
+  requesterName: string;
+  targetPersonId?: string;
+  targetName: string;
+  requestType: string;
+  summary: string;
+  status: string;
+  reviewNote?: string;
+  submittedAt?: string;
+  reviewedAt?: string;
+}
+
+export interface ApiEditRequestPage {
+  items: ApiEditRequest[];
+}
+
+export interface ApiBindingRequest {
+  id: string;
+  requesterName: string;
+  personId: string;
+  personName: string;
+  status: string;
+  reviewNote?: string;
+  reviewerName?: string;
+  submittedAt?: string;
+  reviewedAt?: string;
+}
+
+export interface ApiBindingRequestPage {
+  items: ApiBindingRequest[];
+}

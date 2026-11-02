@@ -5,9 +5,12 @@ import {
   ApiActivityPage,
   ApiAnniversaryPage,
   ApiBranchPage,
+  ApiEditRequest,
+  ApiEditRequestPage,
   ApiFamily,
   ApiLoginResult,
   ApiMeResult,
+  ApiNotificationPage,
   ApiPerson,
   ApiPersonPage,
   ApiPhoto,
@@ -15,7 +18,9 @@ import {
   ApiProblem,
   ApiStory,
   ApiStoryPage,
-  ApiTree
+  ApiTree,
+  ApiBindingRequest,
+  ApiBindingRequestPage
 } from '../model/Types';
 
 export class ApiClient {
@@ -417,6 +422,78 @@ export class ApiClient {
     );
   }
 
+  async notifications(limit: number = 50): Promise<ApiNotificationPage> {
+    const text = await this.request(
+      http.RequestMethod.GET,
+      '/api/v1/notifications?limit=' + String(limit)
+    );
+    return JSON.parse(text) as ApiNotificationPage;
+  }
+
+  async unreadNotificationCount(): Promise<number> {
+    const text = await this.request(
+      http.RequestMethod.GET,
+      '/api/v1/notifications/unread-count'
+    );
+    const value = JSON.parse(text) as Record<string, number>;
+    return value['count'] === undefined ? 0 : value['count'];
+  }
+
+  async markNotificationRead(id: number = 0, all: boolean = false): Promise<void> {
+    const payload: NotificationReadPayload = { id: id, all: all };
+    await this.request(
+      http.RequestMethod.POST,
+      '/api/v1/notifications/read',
+      payload
+    );
+  }
+
+  async editRequests(status: string = '', mine: boolean = false): Promise<ApiEditRequestPage> {
+    let path = '/api/v1/edit-requests?limit=100';
+    if (status.length > 0) path += '&status=' + encodeURIComponent(status);
+    if (mine) path += '&mine=true';
+    const text = await this.request(http.RequestMethod.GET, path);
+    return JSON.parse(text) as ApiEditRequestPage;
+  }
+
+  async reviewEditRequest(
+    requestId: string,
+    approve: boolean,
+    note: string
+  ): Promise<ApiEditRequest> {
+    const payload: ReviewPayload = { note: note };
+    const text = await this.request(
+      http.RequestMethod.POST,
+      '/api/v1/edit-requests/' + encodeURIComponent(requestId) +
+        (approve ? '/approve' : '/reject'),
+      payload
+    );
+    return JSON.parse(text) as ApiEditRequest;
+  }
+
+  async bindingRequests(status: string = '', mine: boolean = false): Promise<ApiBindingRequestPage> {
+    let path = '/api/v1/bind-requests?limit=100';
+    if (status.length > 0) path += '&status=' + encodeURIComponent(status);
+    if (mine) path += '&mine=true';
+    const text = await this.request(http.RequestMethod.GET, path);
+    return JSON.parse(text) as ApiBindingRequestPage;
+  }
+
+  async reviewBindingRequest(
+    requestId: string,
+    approve: boolean,
+    note: string
+  ): Promise<ApiBindingRequest> {
+    const payload: ReviewPayload = { note: note };
+    const text = await this.request(
+      http.RequestMethod.POST,
+      '/api/v1/bind-requests/' + encodeURIComponent(requestId) +
+        (approve ? '/approve' : '/reject'),
+      payload
+    );
+    return JSON.parse(text) as ApiBindingRequest;
+  }
+
   async family(): Promise<ApiFamily> {
     const text = await this.request(http.RequestMethod.GET, '/api/v1/family');
     return JSON.parse(text) as ApiFamily;
@@ -432,4 +509,13 @@ interface StoryPayload {
   body: string;
   personId: string;
   photoIds: string[];
+}
+
+interface NotificationReadPayload {
+  id: number;
+  all: boolean;
+}
+
+interface ReviewPayload {
+  note: string;
 }

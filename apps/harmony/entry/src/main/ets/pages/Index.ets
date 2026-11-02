@@ -6,8 +6,11 @@ import { AuthImage } from '../components/AuthImage';
 import {
   ApiActivity,
   ApiAnniversary,
+  ApiBindingRequest,
   ApiBranch,
+  ApiEditRequest,
   ApiMeResult,
+  ApiNotification,
   ApiPerson,
   ApiPhoto,
   ApiRelative,
@@ -85,6 +88,21 @@ struct Index {
   @State private storyStatus: string = '';
   @State private storyError: string = '';
 
+  @State private inboxTab: number = 0;
+  @State private notifications: ApiNotification[] = [];
+  @State private unreadCount: number = 0;
+  @State private inboxBusy: boolean = false;
+  @State private inboxError: string = '';
+  @State private editReviews: ApiEditRequest[] = [];
+  @State private bindingReviews: ApiBindingRequest[] = [];
+  @State private reviewKind: string = '';
+  @State private reviewId: string = '';
+  @State private reviewLabel: string = '';
+  @State private reviewApprove: boolean = true;
+  @State private reviewNote: string = '';
+  @State private reviewError: string = '';
+  @State private reviewBusy: boolean = false;
+
   @State private branches: ApiBranch[] = [];
   @State private addSurname: string = '';
   @State private addGiven: string = '';
@@ -161,6 +179,7 @@ struct Index {
     this.activities = activity.items;
     const anniversary = await this.api.anniversaries();
     this.anniversaries = anniversary.items;
+    await this.refreshUnread();
   }
 
   private isHostError(message: string): boolean {
@@ -687,6 +706,114 @@ struct Index {
     }
   }
 
+  private async openInbox(): Promise<void> {
+    this.page = 'inbox';
+    this.inboxTab = 0;
+    await this.loadInbox();
+  }
+
+  private async loadInbox(): Promise<void> {
+    this.inboxBusy = true;
+    this.inboxError = '';
+    try {
+      const page = await this.api.notifications();
+      this.notifications = page.items;
+      this.unreadCount = page.unreadCount;
+      if (this.canDelete()) {
+        const edits = await this.api.editRequests('pending');
+        this.editReviews = edits.items;
+        const bindings = await this.api.bindingRequests('pending');
+        this.bindingReviews = bindings.items;
+      }
+    } catch (error) {
+      this.inboxError = this.errorText(error);
+    } finally {
+      this.inboxBusy = false;
+    }
+  }
+
+  private async refreshUnread(): Promise<void> {
+    try {
+      this.unreadCount = await this.api.unreadNotificationCount();
+    } catch (_) {
+      // A missing badge must not block the home page.
+    }
+  }
+
+  private async markAllNotificationsRead(): Promise<void> {
+    try {
+      await this.api.markNotificationRead(0, true);
+      this.unreadCount = 0;
+      this.notifications = this.notifications.map((item: ApiNotification) => {
+        item.isRead = true;
+        return item;
+      });
+      this.toast('已全部标为已读');
+    } catch (error) {
+      this.toast(this.errorText(error));
+    }
+  }
+
+  private async markNotificationRead(item: ApiNotification): Promise<void> {
+    if (!item.isRead) {
+      try {
+        await this.api.markNotificationRead(item.id, false);
+        item.isRead = true;
+        this.notifications = this.notifications.slice();
+        this.unreadCount = Math.max(0, this.unreadCount - 1);
+      } catch (error) {
+        this.toast(this.errorText(error));
+      }
+    }
+  }
+
+  private startReview(kind: string, id: string, label: string, approve: boolean): void {
+    this.reviewKind = kind;
+    this.reviewId = id;
+    this.reviewLabel = label;
+    this.reviewApprove = approve;
+    this.reviewNote = '';
+    this.reviewError = '';
+  }
+
+  private cancelReview(): void {
+    this.reviewKind = '';
+    this.reviewId = '';
+    this.reviewLabel = '';
+    this.reviewNote = '';
+    this.reviewError = '';
+  }
+
+  private async submitReview(): Promise<void> {
+    if (this.reviewBusy || this.reviewId.length === 0) return;
+    const note = this.reviewNote.trim();
+    if (!this.reviewApprove && note.length === 0) {
+      this.reviewError = '拒绝时必须填写原因';
+      return;
+    }
+    this.reviewBusy = true;
+    this.reviewError = '';
+    try {
+      if (this.reviewKind === 'edit') {
+        await this.api.reviewEditRequest(this.reviewId, this.reviewApprove, note);
+        await this.loadTree();
+        this.applyMe(await this.api.me());
+      } else {
+        await this.api.reviewBindingRequest(this.reviewId, this.reviewApprove, note);
+        await this.loadTree();
+        this.applyMe(await this.api.me());
+      }
+      const message = this.reviewApprove ? '已通过申请' : '已拒绝申请';
+      this.cancelReview();
+      await this.loadInbox();
+      this.toast(message);
+    } catch (error) {
+      this.reviewError = this.errorText(error);
+    } finally {
+      this.reviewBusy = false;
+    }
+  }
+
   private filteredPersons(): ApiPerson[] {
     if (this.tree === null) return [];
     const key = this.query.trim();
@@ -998,7 +1125,12 @@ struct Index {
           }
           Row() {
             this.QuickTile('新增成员', '录入正式档案', '#E4A636', -1)
-            this.QuickTile('我的', '账号与设置', '#6C7B82', 3)
+            this.QuickTile(
+              '消息中心',
+              this.unreadCount > 0 ? '未读 ' + String(this.unreadCount) + ' 条' : '审核与通知',
+              '#6C7B82',
+              -5
+            )
           }
         }
         .width('100%')
@@ -1154,6 +1286,8 @@ struct Index {
         this.openAlbum();
       } else if (action === -4) {
         this.openStories();
+      } else if (action === -5) {
+        this.openInbox();
       } else {
         this.tab = action;
       }
@@ -2432,6 +2566,367 @@ struct Index {
     .height('100%')
   }
 
+  @Builder
+  private InboxView() {
+    Stack() {
+      Column() {
+        Row() {
+          Button('‹')
+            .width(38)
+            .height(38)
+            .backgroundColor('#FFFFFF')
+            .fontColor('#1C2A32')
+            .fontSize(22)
+            .borderRadius(19)
+            .onClick(() => {
+              this.page = 'tabs';
+            })
+          Column({ space: 2 }) {
+            Text('消息中心')
+              .fontSize(20)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#1C2A32')
+            Text(this.unreadCount > 0 ? '未读 ' + String(this.unreadCount) + ' 条' : '暂无未读消息')
+              .fontSize(10)
+              .fontColor('#89969C')
+          }
+          .alignItems(HorizontalAlign.Start)
+          .margin({ left: 10 })
+          Blank()
+          if (this.unreadCount > 0) {
+            Button('全部已读')
+              .fontSize(11)
+              .height(32)
+              .backgroundColor('#EAF0FF')
+              .fontColor('#4E7DF4')
+              .onClick(() => {
+                this.markAllNotificationsRead();
+              })
+          }
+        }
+        .width('100%')
+        .padding({ left: 14, right: 14, top: 12, bottom: 8 })
+
+        Row({ space: 8 }) {
+          this.InboxTabButton('通知', 0)
+          if (this.canDelete()) {
+            this.InboxTabButton('审核', 1)
+          }
+        }
+        .width('100%')
+        .padding({ left: 14, right: 14, bottom: 8 })
+
+        if (this.inboxBusy) {
+          Column({ space: 10 }) {
+            LoadingProgress().width(28).height(28).color('#4E7DF4')
+            Text('正在加载...').fontSize(12).fontColor('#89969C')
+          }
+          .layoutWeight(1)
+          .justifyContent(FlexAlign.Center)
+        } else if (this.inboxError.length > 0) {
+          Column({ space: 8 }) {
+            Text(this.inboxError)
+              .fontSize(12)
+              .fontColor('#B4423D')
+            Button('重新加载')
+              .fontSize(11)
+              .height(32)
+              .backgroundColor('#EAF0FF')
+              .fontColor('#4E7DF4')
+              .onClick(() => {
+                this.loadInbox();
+              })
+          }
+          .layoutWeight(1)
+          .justifyContent(FlexAlign.Center)
+        } else if (this.inboxTab === 0) {
+          if (this.notifications.length === 0) {
+            Column({ space: 8 }) {
+              Text('暂无消息')
+                .fontSize(15)
+                .fontColor('#1C2A32')
+              Text('审核结果和新动态会显示在这里')
+                .fontSize(11)
+                .fontColor('#89969C')
+            }
+            .layoutWeight(1)
+            .justifyContent(FlexAlign.Center)
+          } else {
+            List({ space: 8 }) {
+              ForEach(this.notifications, (item: ApiNotification) => {
+                ListItem() {
+                  Row({ space: 10 }) {
+                    Column()
+                      .width(8)
+                      .height(8)
+                      .borderRadius(4)
+                      .backgroundColor(item.isRead ? '#DDE5E8' : '#B4423D')
+                    Column({ space: 3 }) {
+                      Text(item.title)
+                        .fontSize(13)
+                        .fontWeight(item.isRead ? FontWeight.Normal : FontWeight.Medium)
+                        .fontColor('#1C2A32')
+                      Text(item.body)
+                        .fontSize(11)
+                        .fontColor('#6C7B82')
+                        .maxLines(2)
+                        .textOverflow({ overflow: TextOverflow.Ellipsis })
+                      Text(item.createdAt !== undefined
+                        ? item.createdAt!.substring(0, 10) : '')
+                        .fontSize(9)
+                        .fontColor('#89969C')
+                    }
+                    .layoutWeight(1)
+                    .alignItems(HorizontalAlign.Start)
+                  }
+                  .width('100%')
+                  .padding(13)
+                  .backgroundColor(item.isRead ? '#F7F9FA' : Color.White)
+                  .borderRadius(12)
+                  .onClick(() => {
+                    this.markNotificationRead(item);
+                  })
+                }
+              }, (item: ApiNotification) => String(item.id))
+            }
+            .layoutWeight(1)
+            .padding({ left: 14, right: 14 })
+            .scrollBar(BarState.Off)
+          }
+        } else {
+          Scroll() {
+            Column({ space: 14 }) {
+              Column({ space: 8 }) {
+                Row() {
+                  Text('资料修改审核')
+                    .fontSize(14)
+                    .fontWeight(FontWeight.Bold)
+                    .fontColor('#1C2A32')
+                  Blank()
+                  Text('待审 ' + String(this.editReviews.length))
+                    .fontSize(10)
+                    .fontColor('#89969C')
+                }
+                .width('100%')
+                if (this.editReviews.length === 0) {
+                  Text('暂无待审核的资料修改')
+                    .fontSize(11)
+                    .fontColor('#89969C')
+                    .width('100%')
+                } else {
+                  ForEach(this.editReviews, (item: ApiEditRequest) => {
+                    Column({ space: 5 }) {
+                      Text(item.summary)
+                        .fontSize(12)
+                        .fontColor('#1C2A32')
+                      Text(item.requesterName + ' 提交 · ' +
+                        (item.submittedAt !== undefined
+                          ? item.submittedAt!.substring(0, 10) : ''))
+                        .fontSize(9)
+                        .fontColor('#89969C')
+                      Row({ space: 8 }) {
+                        Button('通过')
+                          .layoutWeight(1)
+                          .height(32)
+                          .fontSize(11)
+                          .backgroundColor('#E9F6EF')
+                          .fontColor('#2F8F67')
+                          .onClick(() => {
+                            this.startReview('edit', item.id, item.summary, true);
+                          })
+                        Button('拒绝')
+                          .layoutWeight(1)
+                          .height(32)
+                          .fontSize(11)
+                          .backgroundColor('#FBEEEA')
+                          .fontColor('#B4423D')
+                          .onClick(() => {
+                            this.startReview('edit', item.id, item.summary, false);
+                          })
+                      }
+                      .width('100%')
+                    }
+                    .width('100%')
+                    .padding(12)
+                    .backgroundColor(Color.White)
+                    .borderRadius(12)
+                    .alignItems(HorizontalAlign.Start)
+                  }, (item: ApiEditRequest) => item.id)
+                }
+              }
+              .width('100%')
+              .padding(14)
+              .backgroundColor(Color.White)
+              .borderRadius(14)
+              .alignItems(HorizontalAlign.Start)
+
+              Column({ space: 8 }) {
+                Row() {
+                  Text('人物绑定审核')
+                    .fontSize(14)
+                    .fontWeight(FontWeight.Bold)
+                    .fontColor('#1C2A32')
+                  Blank()
+                  Text('待审 ' + String(this.bindingReviews.length))
+                    .fontSize(10)
+                    .fontColor('#89969C')
+                }
+                .width('100%')
+                if (this.bindingReviews.length === 0) {
+                  Text('暂无待审核的绑定申请')
+                    .fontSize(11)
+                    .fontColor('#89969C')
+                    .width('100%')
+                } else {
+                  ForEach(this.bindingReviews, (item: ApiBindingRequest) => {
+                    Column({ space: 5 }) {
+                      Text(item.requesterName + ' → ' + item.personName)
+                        .fontSize(12)
+                        .fontColor('#1C2A32')
+                      Text(item.submittedAt !== undefined
+                        ? item.submittedAt!.substring(0, 10) : '')
+                        .fontSize(9)
+                        .fontColor('#89969C')
+                      Row({ space: 8 }) {
+                        Button('通过')
+                          .layoutWeight(1)
+                          .height(32)
+                          .fontSize(11)
+                          .backgroundColor('#E9F6EF')
+                          .fontColor('#2F8F67')
+                          .onClick(() => {
+                            this.startReview('binding', item.id,
+                              item.requesterName + ' → ' + item.personName, true);
+                          })
+                        Button('拒绝')
+                          .layoutWeight(1)
+                          .height(32)
+                          .fontSize(11)
+                          .backgroundColor('#FBEEEA')
+                          .fontColor('#B4423D')
+                          .onClick(() => {
+                            this.startReview('binding', item.id,
+                              item.requesterName + ' → ' + item.personName, false);
+                          })
+                      }
+                      .width('100%')
+                    }
+                    .width('100%')
+                    .padding(12)
+                    .backgroundColor(Color.White)
+                    .borderRadius(12)
+                    .alignItems(HorizontalAlign.Start)
+                  }, (item: ApiBindingRequest) => item.id)
+                }
+              }
+              .width('100%')
+              .padding(14)
+              .backgroundColor(Color.White)
+              .borderRadius(14)
+              .alignItems(HorizontalAlign.Start)
+            }
+            .width('100%')
+            .padding({ left: 14, right: 14, bottom: 24 })
+          }
+          .layoutWeight(1)
+          .scrollBar(BarState.Off)
+        }
+      }
+      .width('100%')
+      .height('100%')
+
+      if (this.reviewId.length > 0) {
+        this.ReviewSheet()
+      }
+    }
+    .width('100%')
+    .height('100%')
+  }
+
+  @Builder
+  private InboxTabButton(label: string, index: number) {
+    Button(label)
+      .layoutWeight(1)
+      .height(34)
+      .fontSize(12)
+      .backgroundColor(this.inboxTab === index ? '#4E7DF4' : '#FFFFFF')
+      .fontColor(this.inboxTab === index ? Color.White : '#6C7B82')
+      .borderRadius(8)
+      .onClick(() => {
+        this.inboxTab = index;
+      })
+  }
+
+  @Builder
+  private ReviewSheet() {
+    Stack() {
+      Column()
+        .width('100%')
+        .height('100%')
+        .backgroundColor('#00000066')
+        .onClick(() => {
+          this.cancelReview();
+        })
+      Column({ space: 10 }) {
+        Text((this.reviewApprove ? '通过：' : '拒绝：') + this.reviewLabel)
+          .fontSize(15)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#1C2A32')
+          .width('100%')
+        Text(this.reviewKind === 'edit'
+          ? '通过后会写入正式档案；拒绝时必须填写原因。'
+          : '通过后会绑定账号与人物；拒绝时必须填写原因。')
+          .fontSize(11)
+          .fontColor('#6C7B82')
+          .width('100%')
+        TextArea({
+          placeholder: this.reviewApprove ? '审核意见（可选）' : '拒绝原因（必填）',
+          text: this.reviewNote
+        })
+          .height(100)
+          .backgroundColor('#F7F9FA')
+          .borderRadius(8)
+          .fontSize(12)
+          .onChange((value: string) => {
+            this.reviewNote = value;
+          })
+        if (this.reviewError.length > 0) {
+          Text(this.reviewError)
+            .fontSize(11)
+            .fontColor('#B4423D')
+            .width('100%')
+        }
+        Row({ space: 10 }) {
+          Button('取消')
+            .layoutWeight(1)
+            .height(40)
+            .backgroundColor('#F2F5F7')
+            .fontColor('#1C2A32')
+            .onClick(() => {
+              this.cancelReview();
+            })
+          Button(this.reviewBusy ? '提交中' : '确认提交')
+            .layoutWeight(1)
+            .height(40)
+            .backgroundColor(this.reviewApprove ? '#3DA77C' : '#B4423D')
+            .fontColor(Color.White)
+            .enabled(!this.reviewBusy)
+            .onClick(() => {
+              this.submitReview();
+            })
+        }
+        .width('100%')
+      }
+      .width('100%')
+      .padding(18)
+      .backgroundColor(Color.White)
+      .borderRadius({ topLeft: 18, topRight: 18 })
+      .position({ x: 0, y: '48%' })
+    }
+    .width('100%')
+    .height('100%')
+  }
+
   build() {
     Stack() {
       if (this.booting) {
@@ -2452,6 +2947,8 @@ struct Index {
         this.StoryDetailView()
       } else if (this.page === 'storyEdit') {
         this.StoryEditView()
+      } else if (this.page === 'inbox') {
+        this.InboxView()
       } else {
         this.TabsView()
       }
