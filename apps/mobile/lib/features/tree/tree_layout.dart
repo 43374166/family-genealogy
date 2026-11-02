@@ -452,7 +452,11 @@ class _TreeLayoutBuilder {
           : '${anchor.person.id}|single';
       final group = groups.putIfAbsent(
         key,
-        () => _UnionGroup(anchor: anchor, wifeIndex: wifeIndex),
+        () => _UnionGroup(
+          anchor: anchor,
+          mother: father != null ? mother : null,
+          wifeIndex: wifeIndex,
+        ),
       );
       if (!group.children.any((item) => item.person.id == child.person.id)) {
         group.children.add(child);
@@ -477,26 +481,61 @@ class _TreeLayoutBuilder {
                   anchor.rect.width * (group.wifeIndex + 1) / (wifeCount + 1)
             : anchor.center.dx;
         final startY = anchor.rect.bottom;
+        final mother = group.mother;
+        final motherX = mother?.center.dx;
+        final motherStartY = mother?.rect.bottom;
+        final parentBottom = math.max(startY, motherStartY ?? startY);
         final childTop = children.first.rect.top;
-        final distance = math.max(20.0, childTop - startY);
+        final distance = math.max(20.0, childTop - parentBottom);
         final stagger = anchorGroups.length > 1
-            ? (groupIndex - (anchorGroups.length - 1) / 2) * 10.0
+            ? (groupIndex - (anchorGroups.length - 1) / 2) * 14.0
             : 0.0;
-        final midY = (startY + distance * 0.46 + stagger)
-            .clamp(startY + 8, childTop - 8)
+        final barY = (parentBottom + distance * 0.46 + stagger)
+            .clamp(parentBottom + 8, childTop - 8)
             .toDouble();
         unions.add(Offset(anchorX, startY));
-        for (var index = 0; index < children.length; index++) {
-          final child = children[index];
+        if (motherX != null && motherStartY != null) {
+          unions.add(Offset(motherX, motherStartY));
+        }
+
+        var barLeft = math.min(anchorX, motherX ?? anchorX);
+        var barRight = math.max(anchorX, motherX ?? anchorX);
+        for (final child in children) {
+          barLeft = math.min(barLeft, child.center.dx);
+          barRight = math.max(barRight, child.center.dx);
+        }
+
+        // Both parents drop from the centre of their own cards onto one shared
+        // sibling bar. Children then leave that bar with one vertical each.
+        edges.add(
+          TreeEdge(
+            points: [Offset(anchorX, startY), Offset(anchorX, barY)],
+            colorSlot: groupIndex,
+          ),
+        );
+        if (motherX != null && motherStartY != null) {
+          edges.add(
+            TreeEdge(
+              points: [Offset(motherX, motherStartY), Offset(motherX, barY)],
+              colorSlot: groupIndex,
+            ),
+          );
+        }
+        edges.add(
+          TreeEdge(
+            points: [Offset(barLeft, barY), Offset(barRight, barY)],
+            colorSlot: groupIndex,
+          ),
+        );
+        for (final child in children) {
           final childX = child.center.dx;
-          final path = <Offset>[
-            Offset(anchorX, startY),
-            Offset(anchorX, midY),
-            Offset(childX, midY),
-            Offset(childX, child.rect.top),
-          ];
-          edges.add(TreeEdge(points: path, colorSlot: index));
-          branches.add(Offset(childX, midY));
+          edges.add(
+            TreeEdge(
+              points: [Offset(childX, barY), Offset(childX, child.rect.top)],
+              colorSlot: groupIndex,
+            ),
+          );
+          branches.add(Offset(childX, barY));
         }
       }
     }
@@ -531,9 +570,14 @@ class _TreeLayoutBuilder {
 }
 
 class _UnionGroup {
-  _UnionGroup({required this.anchor, required this.wifeIndex});
+  _UnionGroup({
+    required this.anchor,
+    required this.mother,
+    required this.wifeIndex,
+  });
 
   final TreePersonPlacement anchor;
+  final TreePersonPlacement? mother;
   final int wifeIndex;
   final List<TreePersonPlacement> children = [];
 }

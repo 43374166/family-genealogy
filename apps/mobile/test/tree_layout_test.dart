@@ -93,11 +93,34 @@ void main() {
     expect(layout.edges, isNotEmpty);
     expect(layout.placementFor('e')!.person.fullName, '陈戊');
 
-    // One couple gets one child branch. Both parent cards share this single
-    // branch; no separate mother line is drawn.
+    // Both parents drop from the centre of their cards onto one shared sibling
+    // bar; each child has a single drop from that bar.
     final father = layout.placementFor('a')!;
     final mother = layout.placementFor('b')!;
     final child = layout.placementFor('c')!;
+
+    bool fromPoint(TreeEdge edge, Offset point) =>
+        (edge.points.first.dx - point.dx).abs() < 0.1 &&
+        (edge.points.first.dy - point.dy).abs() < 0.1;
+    expect(
+      layout.edges.any(
+        (edge) =>
+            fromPoint(edge, Offset(father.center.dx, father.rect.bottom)) &&
+            edge.points[1].dx == father.center.dx,
+      ),
+      isTrue,
+      reason: 'father line must leave the card centre',
+    );
+    expect(
+      layout.edges.any(
+        (edge) =>
+            fromPoint(edge, Offset(mother.center.dx, mother.rect.bottom)) &&
+            edge.points[1].dx == mother.center.dx,
+      ),
+      isTrue,
+      reason: 'mother line must leave the card centre',
+    );
+
     final childEdges = layout.edges
         .where(
           (edge) =>
@@ -106,12 +129,7 @@ void main() {
         )
         .toList();
     expect(childEdges.length, 1);
-    final childEdge = childEdges.single;
-    expect((childEdge.points.first.dx - father.center.dx).abs(), lessThan(0.1));
-    expect(
-      (childEdge.points.first.dy - father.rect.bottom).abs(),
-      lessThan(0.1),
-    );
+    expect(childEdges.single.points.first.dx, closeTo(child.center.dx, 0.1));
     final bridgeMidX = (father.rect.right + mother.rect.left) / 2;
     expect(
       layout.unionNodes.any(
@@ -221,17 +239,40 @@ void main() {
       expect(firstEdges.length, 1);
       expect(secondEdges.length, 1);
 
-      final firstFather = firstEdges.single;
-      final secondFather = secondEdges.single;
+      final fatherTrunks = layout.edges
+          .where(
+            (edge) =>
+                (edge.points.first.dy - husband.rect.bottom).abs() < 0.1 &&
+                edge.points.first.dx >= husband.rect.left &&
+                edge.points.first.dx <= husband.rect.right,
+          )
+          .toList();
+      expect(fatherTrunks.length, 2);
       expect(
-        (firstFather.points.first.dx - secondFather.points.first.dx).abs(),
+        (fatherTrunks[0].points.first.dx - fatherTrunks[1].points.first.dx)
+            .abs(),
         greaterThan(10),
-        reason: 'different wives need separate couple anchors',
+        reason: 'different wives need separate father anchors',
       );
+
+      for (final wife in wives) {
+        expect(
+          layout.edges.any(
+            (edge) =>
+                (edge.points.first.dx - wife.center.dx).abs() < 0.1 &&
+                (edge.points.first.dy - wife.rect.bottom).abs() < 0.1,
+          ),
+          isTrue,
+          reason: 'each mother must connect from her card centre',
+        );
+      }
+
+      final firstDrop = firstEdges.single;
+      final secondDrop = secondEdges.single;
       expect(
-        (firstFather.points[1].dy - secondFather.points[1].dy).abs(),
+        (firstDrop.points.first.dy - secondDrop.points.first.dy).abs(),
         greaterThan(0),
-        reason: 'different wives need staggered branch levels',
+        reason: 'different wives need staggered sibling bars',
       );
     },
   );
