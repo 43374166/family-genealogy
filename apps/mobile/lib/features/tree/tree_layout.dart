@@ -447,11 +447,16 @@ class _TreeLayoutBuilder {
         final index = mothers.indexOf(mother.person.id);
         if (index >= 0) wifeIndex = index;
       }
-      final key =
-          '${anchor.person.id}|${wifeIndex >= 0 ? wifeIndex : 'single'}';
+      final key = father != null
+          ? '${father.person.id}|${mother?.person.id ?? 'single'}'
+          : '${anchor.person.id}|single';
       final group = groups.putIfAbsent(
         key,
-        () => _UnionGroup(anchor: anchor, wifeIndex: wifeIndex),
+        () => _UnionGroup(
+          anchor: anchor,
+          mother: father != null ? mother : null,
+          wifeIndex: wifeIndex,
+        ),
       );
       if (!group.children.any((item) => item.person.id == child.person.id)) {
         group.children.add(child);
@@ -484,19 +489,43 @@ class _TreeLayoutBuilder {
         final midY = (startY + distance * 0.46 + stagger)
             .clamp(startY + 8, childTop - 8)
             .toDouble();
+        final mother = group.mother;
+        if (mother != null) {
+          unions.add(Offset(mother.center.dx, mother.rect.bottom));
+        }
+        unions.add(Offset(anchorX, startY));
         for (var index = 0; index < children.length; index++) {
           final child = children[index];
           final childX = child.center.dx;
-          final path = <Offset>[
+          final fatherPath = <Offset>[
             Offset(anchorX, startY),
             Offset(anchorX, midY),
             Offset(childX, midY),
             Offset(childX, child.rect.top),
           ];
-          edges.add(TreeEdge(points: path, colorSlot: index));
+          edges.add(TreeEdge(points: fatherPath, colorSlot: index));
           branches.add(Offset(childX, midY));
+
+          if (mother != null) {
+            final motherStartY = mother.rect.bottom;
+            final motherDistance = math.max(
+              20.0,
+              child.rect.top - motherStartY,
+            );
+            final motherMidY =
+                (motherStartY + motherDistance * 0.46 + stagger + 8)
+                    .clamp(motherStartY + 8, child.rect.top - 8)
+                    .toDouble();
+            final motherPath = <Offset>[
+              Offset(mother.center.dx, motherStartY),
+              Offset(mother.center.dx, motherMidY),
+              Offset(childX, motherMidY),
+              Offset(childX, child.rect.top),
+            ];
+            edges.add(TreeEdge(points: motherPath, colorSlot: index));
+            branches.add(Offset(childX, motherMidY));
+          }
         }
-        unions.add(Offset(anchorX, startY));
       }
     }
 
@@ -530,9 +559,14 @@ class _TreeLayoutBuilder {
 }
 
 class _UnionGroup {
-  _UnionGroup({required this.anchor, required this.wifeIndex});
+  _UnionGroup({
+    required this.anchor,
+    required this.mother,
+    required this.wifeIndex,
+  });
 
   final TreePersonPlacement anchor;
+  final TreePersonPlacement? mother;
   final int wifeIndex;
   final List<TreePersonPlacement> children = [];
 }

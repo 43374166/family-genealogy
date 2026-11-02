@@ -93,7 +93,8 @@ void main() {
     expect(layout.edges, isNotEmpty);
     expect(layout.placementFor('e')!.person.fullName, '陈戊');
 
-    // One couple gets one child branch, anchored on the father's card centre.
+    // Both parents give the child a connector; no line starts at the old
+    // marriage-bridge midpoint beside the mother's card.
     final father = layout.placementFor('a')!;
     final mother = layout.placementFor('b')!;
     final child = layout.placementFor('c')!;
@@ -104,13 +105,13 @@ void main() {
               (edge.points.last.dy - child.rect.top).abs() < 0.1,
         )
         .toList();
-    expect(childEdges.length, 1);
-    final childEdge = childEdges.single;
-    expect((childEdge.points.first.dx - father.center.dx).abs(), lessThan(0.1));
-    expect(
-      (childEdge.points.first.dy - father.rect.bottom).abs(),
-      lessThan(0.1),
-    );
+    expect(childEdges.length, 2);
+    for (final parent in [father, mother]) {
+      final edge = childEdges.firstWhere(
+        (item) => (item.points.first.dx - parent.center.dx).abs() < 0.1,
+      );
+      expect((edge.points.first.dy - parent.rect.bottom).abs(), lessThan(0.1));
+    }
     final bridgeMidX = (father.rect.right + mother.rect.left) / 2;
     expect(
       layout.unionNodes.any(
@@ -204,26 +205,65 @@ void main() {
       expect(wives.first.rect.left, greaterThan(husband.rect.right));
       expect(wives.last.rect.left, greaterThan(wives.first.rect.right));
 
-      TreeEdge edgeFor(String childId) {
+      List<TreeEdge> edgesFor(String childId) {
         final child = layout.placementFor(childId)!;
-        return layout.edges.firstWhere(
-          (edge) =>
-              (edge.points.last.dx - child.center.dx).abs() < 0.1 &&
-              (edge.points.last.dy - child.rect.top).abs() < 0.1,
-        );
+        return layout.edges
+            .where(
+              (edge) =>
+                  (edge.points.last.dx - child.center.dx).abs() < 0.1 &&
+                  (edge.points.last.dy - child.rect.top).abs() < 0.1,
+            )
+            .toList();
       }
 
-      final firstEdge = edgeFor('c1');
-      final secondEdge = edgeFor('c2');
+      final firstEdges = edgesFor('c1');
+      final secondEdges = edgesFor('c2');
+      expect(firstEdges.length, 2);
+      expect(secondEdges.length, 2);
+
+      TreeEdge fatherEdge(List<TreeEdge> edges) => edges.firstWhere(
+        (edge) =>
+            edge.points.first.dx >= husband.rect.left &&
+            edge.points.first.dx <= husband.rect.right,
+      );
+
+      final firstFather = fatherEdge(firstEdges);
+      final secondFather = fatherEdge(secondEdges);
       expect(
-        (firstEdge.points.first.dx - secondEdge.points.first.dx).abs(),
+        (firstFather.points.first.dx - secondFather.points.first.dx).abs(),
         greaterThan(10),
-        reason: 'different wives need separate anchors',
+        reason: 'different wives need separate father anchors',
       );
       expect(
-        (firstEdge.points[1].dy - secondEdge.points[1].dy).abs(),
+        (firstFather.points[1].dy - secondFather.points[1].dy).abs(),
         greaterThan(0),
-        reason: 'different wives need staggered branch levels',
+        reason: 'different wives need staggered father branch levels',
+      );
+      expect(
+        firstEdges.any(
+          (edge) =>
+              (edge.points.first.dx - layout.placementFor('w1')!.center.dx)
+                      .abs() <
+                  0.1 &&
+              (edge.points.first.dy - layout.placementFor('w1')!.rect.bottom)
+                      .abs() <
+                  0.1,
+        ),
+        isTrue,
+        reason: 'mother w1 must also connect to c1',
+      );
+      expect(
+        secondEdges.any(
+          (edge) =>
+              (edge.points.first.dx - layout.placementFor('w2')!.center.dx)
+                      .abs() <
+                  0.1 &&
+              (edge.points.first.dy - layout.placementFor('w2')!.rect.bottom)
+                      .abs() <
+                  0.1,
+        ),
+        isTrue,
+        reason: 'mother w2 must also connect to c2',
       );
     },
   );
