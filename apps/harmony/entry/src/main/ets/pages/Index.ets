@@ -1,4 +1,7 @@
 import { promptAction } from '@kit.ArkUI';
+import fs from '@ohos.file.fs';
+import picker from '@ohos.file.picker';
+import pasteboard from '@ohos.pasteboard';
 import { AppServices } from '../service/ApiClient';
 import { photoAccessHelper } from '@kit.MediaLibraryKit';
 import { image } from '@kit.ImageKit';
@@ -11,6 +14,10 @@ import {
   ApiEditRequest,
   ApiFamilyMergeDetail,
   ApiFamilyMergeRequest,
+  ApiImportPackage,
+  ApiImportPersonPreview,
+  ApiImportPreview,
+  ApiImportResult,
   ApiMeResult,
   ApiMergePerson,
   ApiMergePhoto,
@@ -55,6 +62,7 @@ struct Index {
   @State private familyName: string = '';
   @State private familySurname: string = '';
   @State private familyMotto: string = '';
+  @State private familyId: string = '';
   @State private memberCount: number = 0;
   @State private branchCount: number = 0;
   @State private myGeneration: string = '';
@@ -123,6 +131,22 @@ struct Index {
   @State private mergeError: string = '';
   @State private mergeSubmitting: boolean = false;
 
+  @State private dataBranches: ApiBranch[] = [];
+  @State private dataBusy: boolean = false;
+  @State private dataError: string = '';
+  @State private exportBusy: boolean = false;
+  @State private exportCode: string = '';
+  @State private exportPackage: ApiImportPackage | null = null;
+  @State private exportRootIndex: number = 0;
+  @State private importCode: string = '';
+  @State private importPreview: ApiImportPreview | null = null;
+  @State private importPreviewBusy: boolean = false;
+  @State private importBusy: boolean = false;
+  @State private importBranchIndex: number = 0;
+  @State private importGeneration: number = 1;
+  @State private importParentIndex: number = 0;
+  @State private importParentRole: string = 'father';
+
   @State private branches: ApiBranch[] = [];
   @State private addSurname: string = '';
   @State private addGiven: string = '';
@@ -173,6 +197,7 @@ struct Index {
     this.displayName = me.user.displayName;
     this.currentUserId = me.user.id;
     this.familyName = me.family.name;
+    this.familyId = me.family.id;
     this.familySurname = me.family.surname;
     this.familyMotto = me.family.motto;
     this.memberCount = me.family.memberCount;
@@ -1055,6 +1080,180 @@ struct Index {
     }
   }
 
+  private async openData(): Promise<void> {
+    this.page = 'data';
+    this.dataError = '';
+    this.dataBusy = true;
+    try {
+      const page = await this.api.branches();
+      this.dataBranches = page.items;
+    } catch (error) {
+      this.dataError = this.errorText(error);
+    } finally {
+      this.dataBusy = false;
+    }
+  }
+
+  private exportRootOptions(): SelectOption[] {
+    const options: SelectOption[] = [{ value: '选择根人物' }];
+    if (this.tree !== null) {
+      this.tree.persons.forEach((person: ApiPerson) => {
+        options.push({ value: person.fullName });
+      });
+    }
+    return options;
+  }
+
+  private exportRootId(): string {
+    if (this.exportRootIndex <= 0 || this.tree === null) return '';
+    const index = this.exportRootIndex - 1;
+    if (index >= this.tree.persons.length) return '';
+    return this.tree.persons[index].id;
+  }
+
+  private async generateImportCode(): Promise<void> {
+    const rootId = this.exportRootId();
+    if (rootId.length === 0) {
+      this.dataError = '请先选择要导出的根人物';
+      return;
+    }
+    this.exportBusy = true;
+    this.dataError = '';
+    try {
+      this.exportPackage = await this.api.createImportPackage(rootId);
+      this.exportCode = this.exportPackage.code;
+    } catch (error) {
+      this.dataError = this.errorText(error);
+    } finally {
+      this.exportBusy = false;
+    }
+  }
+
+  private async copyExportCode(): Promise<void> {
+    if (this.exportCode.length === 0) return;
+    try {
+      const data = pasteboard.createData(
+        pasteboard.MIMETYPE_TEXT_PLAIN,
+        this.exportCode
+      );
+      await pasteboard.getSystemPasteboard().setData(data);
+      this.toast('导入码已复制');
+    } catch (error) {
+      this.toast(this.errorText(error));
+    }
+  }
+
+  private async exportFamilyData(): Promise<void> {
+    if (this.exportBusy) return;
+    this.exportBusy = true;
+    this.dataError = '';
+    try {
+      const json = await this.api.exportFamilyJSON(this.familyId);
+      if (json.length === 0) {
+        throw new Error('服务器返回了空数据');
+      }
+      let baseName = this.familyName.length > 0 ? this.familyName : '家族';
+      baseName = baseName.replace(/[\\/:*?"<>|]/g, '_');
+      const filename = baseName + '_族谱数据_' + String(Date.now()) + '.json';
+      const documentPicker = new picker.DocumentViewPicker();
+      const uris = await documentPicker.save({ newFileNames: [filename] });
+      if (uris.length === 0) {
+        throw new Error('没有选择保存位置');
+      }
+      const file = fs.openSync(
+        uris[0],
+        fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC
+      );
+      try {
+        fs.writeSync(file.fd, json);
+      } finally {
+        fs.closeSync(file);
+      }
+      this.toast('家族数据已导出');
+    } catch (error) {
+      this.dataError = this.errorText(error);
+    } finally {
+      this.exportBusy = false;
+    }
+  }
+
+  private importParentOptions(): SelectOption[] {
+    const options: SelectOption[] = [{ value: '不挂靠父辈' }];
+    if (this.tree !== null) {
+      this.tree.persons.forEach((person: ApiPerson) => {
+        options.push({ value: person.fullName });
+      });
+    }
+    return options;
+  }
+
+  private importParentId(): string {
+    if (this.importParentIndex <= 0 || this.tree === null) return '';
+    const index = this.importParentIndex - 1;
+    if (index >= this.tree.persons.length) return '';
+    return this.tree.persons[index].id;
+  }
+
+  private async previewImport(): Promise<void> {
+    const code = this.importCode.trim().toUpperCase();
+    if (code.length < 6) {
+      this.dataError = '请输入有效导入码';
+      return;
+    }
+    this.importPreviewBusy = true;
+    this.dataError = '';
+    try {
+      this.importPreview = await this.api.previewImportPackage(code);
+      this.importCode = code;
+      this.importGeneration = 1;
+      this.importBranchIndex = 0;
+      this.importParentIndex = 0;
+    } catch (error) {
+      this.dataError = this.errorText(error);
+    } finally {
+      this.importPreviewBusy = false;
+    }
+  }
+
+  private async doImport(): Promise<void> {
+    const preview = this.importPreview;
+    if (preview === null || this.importBusy) return;
+    if (this.dataBranches.length === 0) {
+      this.dataError = '当前家族没有可用的家支';
+      return;
+    }
+    const branchIndex = Math.min(this.importBranchIndex, this.dataBranches.length - 1);
+    this.importBusy = true;
+    this.dataError = '';
+    try {
+      const result = await this.api.importPackage(
+        preview.code,
+        this.dataBranches[branchIndex].id,
+        Math.max(1, Math.min(99, this.importGeneration)),
+        this.importParentId(),
+        this.importParentId().length > 0 ? this.importParentRole : ''
+      );
+      await this.loadTree();
+      this.applyMe(await this.api.me());
+      this.importPreview = null;
+      AlertDialog.show({
+        title: '导入完成',
+        message: '已从 ' + result.sourceFamilyName + ' 导入 ' +
+          String(result.personCount) + ' 人，' + result.rootName +
+          ' 位于第 ' + String(result.rootGeneration) + ' 世。',
+        confirm: {
+          value: '知道了',
+          action: () => {
+          }
+        }
+      });
+    } catch (error) {
+      this.dataError = this.errorText(error);
+    } finally {
+      this.importBusy = false;
+    }
+  }
+
   private filteredPersons(): ApiPerson[] {
     if (this.tree === null) return [];
     const key = this.query.trim();
@@ -1754,6 +1953,22 @@ struct Index {
             .padding({ top: 8, bottom: 4 })
             .onClick(() => {
               this.openMerges();
+            })
+          }
+          if (this.role === 'owner') {
+            Row() {
+              Text('数据导入导出')
+                .fontSize(13)
+                .fontColor('#1C2A32')
+              Blank()
+              Text('导出 / 导入码 ›')
+                .fontSize(11)
+                .fontColor('#4E7DF4')
+            }
+            .width('100%')
+            .padding({ top: 8, bottom: 4 })
+            .onClick(() => {
+              this.openData();
             })
           }
         }
@@ -3754,6 +3969,337 @@ struct Index {
     .height('100%')
   }
 
+  @Builder
+  private DataView() {
+    Column() {
+      Row() {
+        Button('‹')
+          .width(38)
+          .height(38)
+          .backgroundColor('#FFFFFF')
+          .fontColor('#1C2A32')
+          .fontSize(22)
+          .borderRadius(19)
+          .onClick(() => {
+            this.page = 'tabs';
+            this.tab = 3;
+          })
+        Column({ space: 2 }) {
+          Text('数据导入导出')
+            .fontSize(20)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#1C2A32')
+          Text('导出备份、生成导入码或导入旁支')
+            .fontSize(10)
+            .fontColor('#89969C')
+        }
+        .alignItems(HorizontalAlign.Start)
+        .margin({ left: 10 })
+      }
+      .width('100%')
+      .padding({ left: 14, right: 14, top: 12, bottom: 8 })
+
+      Scroll() {
+        Column({ space: 12 }) {
+          Column({ space: 8 }) {
+            Text('导出完整家族数据')
+              .fontSize(14)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#1C2A32')
+              .width('100%')
+            Text('导出家族资料、家支、人物档案、亲子/配偶关系、故事和照片元数据。照片原文件不包含在 JSON 中。')
+              .fontSize(11)
+              .lineHeight(18)
+              .fontColor('#6C7B82')
+              .width('100%')
+            Button(this.exportBusy ? '正在导出...' : '选择位置并导出 JSON')
+              .width('100%')
+              .height(42)
+              .backgroundColor('#4E7DF4')
+              .fontColor(Color.White)
+              .enabled(!this.exportBusy)
+              .onClick(() => {
+                this.exportFamilyData();
+              })
+          }
+          .width('100%')
+          .padding(14)
+          .backgroundColor(Color.White)
+          .borderRadius(13)
+          .alignItems(HorizontalAlign.Start)
+
+          Column({ space: 8 }) {
+            Text('生成旁支导入码')
+              .fontSize(14)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#1C2A32')
+              .width('100%')
+            Text('选择根人物，只导出该人物及其后代、配偶和内部关系。对方导入后会生成新的人物 ID。')
+              .fontSize(11)
+              .lineHeight(18)
+              .fontColor('#6C7B82')
+              .width('100%')
+            Select(this.exportRootOptions())
+              .selected(this.exportRootIndex)
+              .value(this.exportRootOptions()[Math.min(
+                this.exportRootIndex,
+                this.exportRootOptions().length - 1
+              )].value)
+              .onSelect((index: number) => {
+                this.exportRootIndex = index;
+                this.exportPackage = null;
+                this.exportCode = '';
+              })
+              .width('100%')
+            Button(this.exportBusy ? '正在生成...' : '生成导入码')
+              .width('100%')
+              .height(40)
+              .backgroundColor('#EAF0FF')
+              .fontColor('#4E7DF4')
+              .enabled(!this.exportBusy)
+              .onClick(() => {
+                this.generateImportCode();
+              })
+            if (this.exportCode.length > 0) {
+              Column({ space: 5 }) {
+                Text('导入码')
+                  .fontSize(9)
+                  .fontColor('#89969C')
+                Text(this.exportCode)
+                  .fontSize(24)
+                  .fontWeight(FontWeight.Bold)
+                  .fontColor('#B4423D')
+                  .letterSpacing(3)
+                if (this.exportPackage !== null) {
+                  Text(this.exportPackage!.sourceFamilyName + ' · ' +
+                    this.exportPackage!.rootName + ' · ' +
+                    String(this.exportPackage!.personCount) + ' 人')
+                    .fontSize(10)
+                    .fontColor('#6C7B82')
+                  Text('有效期至 ' +
+                    (this.exportPackage!.expiresAt !== undefined
+                      ? this.exportPackage!.expiresAt!.substring(0, 10) : '—'))
+                    .fontSize(9)
+                    .fontColor('#89969C')
+                }
+                Button('复制导入码')
+                  .width('100%')
+                  .height(36)
+                  .backgroundColor('#F2F5F7')
+                  .fontColor('#1C2A32')
+                  .onClick(() => {
+                    this.copyExportCode();
+                  })
+              }
+              .width('100%')
+              .padding(12)
+              .backgroundColor('#FFF8F0')
+              .borderRadius(10)
+              .alignItems(HorizontalAlign.Start)
+            }
+          }
+          .width('100%')
+          .padding(14)
+          .backgroundColor(Color.White)
+          .borderRadius(13)
+          .alignItems(HorizontalAlign.Start)
+
+          Column({ space: 8 }) {
+            Text('导入旁支数据')
+              .fontSize(14)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#1C2A32')
+              .width('100%')
+            Text('输入对方家族生成的导入码，先预览，再选择家支和世代导入。')
+              .fontSize(11)
+              .lineHeight(18)
+              .fontColor('#6C7B82')
+              .width('100%')
+            Row({ space: 8 }) {
+              TextInput({ placeholder: '输入导入码', text: this.importCode })
+                .layoutWeight(1)
+                .height(42)
+                .backgroundColor('#F7F9FA')
+                .borderRadius(8)
+                .fontSize(13)
+                .onChange((value: string) => {
+                  this.importCode = value.toUpperCase();
+                  this.importPreview = null;
+                })
+              Button(this.importPreviewBusy ? '预览中' : '预览')
+                .height(42)
+                .fontSize(11)
+                .backgroundColor('#4E7DF4')
+                .fontColor(Color.White)
+                .enabled(!this.importPreviewBusy)
+                .onClick(() => {
+                  this.previewImport();
+                })
+            }
+            .width('100%')
+
+            if (this.importPreview !== null) {
+              Column({ space: 5 }) {
+                Text(this.importPreview!.sourceFamilyName + ' · ' +
+                  this.importPreview!.rootName)
+                  .fontSize(12)
+                  .fontWeight(FontWeight.Medium)
+                  .fontColor('#1C2A32')
+                Text(String(this.importPreview!.personCount) + ' 人 · ' +
+                  String(this.importPreview!.relationshipCount) + ' 条关系')
+                  .fontSize(10)
+                  .fontColor('#6C7B82')
+                ForEach(this.importPreview!.persons.slice(0, 8),
+                  (person: ApiImportPersonPreview) => {
+                    Text(person.fullName + ' · 第 ' +
+                      String(person.generationNo) + ' 世 · ' + person.relation)
+                      .fontSize(9)
+                      .fontColor('#89969C')
+                  }, (person: ApiImportPersonPreview) =>
+                    person.fullName + String(person.generationNo))
+                if (this.importPreview!.persons.length > 8) {
+                  Text('还有 ' + String(this.importPreview!.persons.length - 8) + ' 人...')
+                    .fontSize(9)
+                    .fontColor('#89969C')
+                }
+              }
+              .width('100%')
+              .padding(10)
+              .backgroundColor('#F7F9FA')
+              .borderRadius(8)
+              .alignItems(HorizontalAlign.Start)
+
+              if (this.dataBranches.length > 0) {
+                Select(this.dataBranches.map((branch: ApiBranch) => {
+                  const option: SelectOption = { value: branch.name };
+                  return option;
+                }))
+                  .selected(this.importBranchIndex)
+                  .value(this.dataBranches[Math.min(
+                    this.importBranchIndex,
+                    this.dataBranches.length - 1
+                  )].name)
+                  .onSelect((index: number) => {
+                    this.importBranchIndex = index;
+                  })
+                  .width('100%')
+              } else {
+                Text('当前家族没有可用家支').fontSize(10).fontColor('#B4423D')
+              }
+
+              Row({ space: 12 }) {
+                Text('根人物世代')
+                  .fontSize(12)
+                  .fontColor('#1C2A32')
+                Button('−')
+                  .width(30)
+                  .height(30)
+                  .fontSize(16)
+                  .backgroundColor('#F2F5F7')
+                  .fontColor('#1C2A32')
+                  .onClick(() => {
+                    this.importGeneration = Math.max(1, this.importGeneration - 1);
+                  })
+                Text('第 ' + String(this.importGeneration) + ' 世')
+                  .fontSize(12)
+                  .fontColor('#4E7DF4')
+                Button('+')
+                  .width(30)
+                  .height(30)
+                  .fontSize(16)
+                  .backgroundColor('#F2F5F7')
+                  .fontColor('#1C2A32')
+                  .onClick(() => {
+                    this.importGeneration = Math.min(99, this.importGeneration + 1);
+                  })
+              }
+              .width('100%')
+
+              Select(this.importParentOptions())
+                .selected(this.importParentIndex)
+                .value(this.importParentOptions()[Math.min(
+                  this.importParentIndex,
+                  this.importParentOptions().length - 1
+                )].value)
+                .onSelect((index: number) => {
+                  this.importParentIndex = index;
+                  if (index > 0 && this.tree !== null &&
+                    index - 1 < this.tree.persons.length) {
+                    this.importGeneration = Math.min(
+                      99,
+                      this.tree.persons[index - 1].generationNo + 1
+                    );
+                  }
+                })
+                .width('100%')
+
+              if (this.importParentIndex > 0) {
+                Row({ space: 8 }) {
+                  Button('作为父亲')
+                    .layoutWeight(1)
+                    .height(32)
+                    .fontSize(11)
+                    .backgroundColor(this.importParentRole === 'father'
+                      ? '#EAF0FF' : '#F2F5F7')
+                    .fontColor(this.importParentRole === 'father'
+                      ? '#4E7DF4' : '#6C7B82')
+                    .onClick(() => {
+                      this.importParentRole = 'father';
+                    })
+                  Button('作为母亲')
+                    .layoutWeight(1)
+                    .height(32)
+                    .fontSize(11)
+                    .backgroundColor(this.importParentRole === 'mother'
+                      ? '#EAF0FF' : '#F2F5F7')
+                    .fontColor(this.importParentRole === 'mother'
+                      ? '#4E7DF4' : '#6C7B82')
+                    .onClick(() => {
+                      this.importParentRole = 'mother';
+                    })
+                }
+                .width('100%')
+              }
+
+              Button(this.importBusy ? '正在导入...' : '确认导入')
+                .width('100%')
+                .height(44)
+                .backgroundColor('#3DA77C')
+                .fontColor(Color.White)
+                .enabled(!this.importBusy)
+                .onClick(() => {
+                  this.doImport();
+                })
+            }
+          }
+          .width('100%')
+          .padding(14)
+          .backgroundColor(Color.White)
+          .borderRadius(13)
+          .alignItems(HorizontalAlign.Start)
+
+          if (this.dataError.length > 0) {
+            Text(this.dataError)
+              .fontSize(11)
+              .fontColor('#B4423D')
+              .width('100%')
+          }
+          if (this.dataBusy) {
+            Text('正在加载家支...')
+              .fontSize(10)
+              .fontColor('#89969C')
+          }
+        }
+        .width('100%')
+        .padding({ left: 14, right: 14, bottom: 24 })
+      }
+      .layoutWeight(1)
+      .scrollBar(BarState.Off)
+    }
+    .width('100%')
+    .height('100%')
+  }
+
   build() {
     Stack() {
       if (this.booting) {
@@ -3780,6 +4326,8 @@ struct Index {
         this.MergesView()
       } else if (this.page === 'mergeDetail') {
         this.MergeDetailView()
+      } else if (this.page === 'data') {
+        this.DataView()
       } else {
         this.TabsView()
       }

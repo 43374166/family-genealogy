@@ -12,6 +12,9 @@ import {
   ApiFamilyMergeRequest,
   ApiFamilyMergeRequestPage,
   ApiFamilyMergeResult,
+  ApiImportPackage,
+  ApiImportPreview,
+  ApiImportResult,
   ApiLoginResult,
   ApiMeResult,
   ApiNotificationPage,
@@ -550,6 +553,55 @@ export class ApiClient {
     return JSON.parse(text) as ApiFamilyMergeResult;
   }
 
+  async exportFamilyJSON(familyId: string): Promise<string> {
+    return await this.request(
+      http.RequestMethod.GET,
+      '/api/v1/families/' + encodeURIComponent(familyId) + '/export'
+    );
+  }
+
+  async createImportPackage(rootPersonId: string): Promise<ApiImportPackage> {
+    const payload: ImportRootPayload = { rootPersonId: rootPersonId };
+    const text = await this.request(
+      http.RequestMethod.POST,
+      '/api/v1/import-packages',
+      payload
+    );
+    return JSON.parse(text) as ApiImportPackage;
+  }
+
+  async previewImportPackage(code: string): Promise<ApiImportPreview> {
+    const payload: ImportCodePayload = { code: code };
+    const text = await this.request(
+      http.RequestMethod.POST,
+      '/api/v1/import-packages/preview',
+      payload
+    );
+    return JSON.parse(text) as ApiImportPreview;
+  }
+
+  async importPackage(
+    code: string,
+    branchId: string,
+    rootGeneration: number,
+    parentId: string,
+    parentRole: string
+  ): Promise<ApiImportResult> {
+    const payload: ImportPackagePayload = {
+      code: code,
+      branchId: branchId,
+      rootGeneration: rootGeneration,
+      parentId: parentId,
+      parentRole: parentRole
+    };
+    const text = await this.request(
+      http.RequestMethod.POST,
+      '/api/v1/import-packages/import',
+      payload
+    );
+    return JSON.parse(text) as ApiImportResult;
+  }
+
   async family(): Promise<ApiFamily> {
     const text = await this.request(http.RequestMethod.GET, '/api/v1/family');
     return JSON.parse(text) as ApiFamily;
@@ -584,4 +636,20 @@ interface MergeApprovePayload {
   startGeneration: number;
   attachParentId: string;
   note: string;
+}
+
+interface ImportRootPayload {
+  rootPersonId: string;
+}
+
+interface ImportCodePayload {
+  code: string;
+}
+
+interface ImportPackagePayload {
+  code: string;
+  branchId: string;
+  rootGeneration: number;
+  parentId: string;
+  parentRole: string;
 }

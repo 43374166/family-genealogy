@@ -329,3 +329,35 @@ export interface ApiFamilyMergeResult {
   importedPhotos: number;
   sourceArchived: boolean;
 }
+
+export interface ApiImportPackage {
+  code: string;
+  sourceFamilyName: string;
+  rootName: string;
+  personCount: number;
+  relationshipCount: number;
+  expiresAt?: string;
+}
+
+export interface ApiImportPersonPreview {
+  fullName: string;
+  generationNo: number;
+  relation: string;
+}
+
+export interface ApiImportPreview {
+  code: string;
+  sourceFamilyName: string;
+  rootName: string;
+  personCount: number;
+  relationshipCount: number;
+  expiresAt?: string;
+  persons: ApiImportPersonPreview[];
+}
+
+export interface ApiImportResult {
+  sourceFamilyName: string;
+  personCount: number;
+  rootName: string;
+  rootGeneration: number;
+}
