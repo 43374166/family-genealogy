@@ -16,6 +16,7 @@ import {
 import { PersonBox, TreeLayoutBuilder, TreeLayoutResult } from '../model/TreeLayout';
 
 const DEFAULT_SERVER: string = 'https://family.fishdream.xyz:10443';
+const LAN_SERVER: string = 'http://192.168.1.36:10080/family-api';
 
 PersistentStorage.persistProp('familytree_token', '');
 PersistentStorage.persistProp('familytree_server', DEFAULT_SERVER);
@@ -36,6 +37,7 @@ struct Index {
   @State private loginName: string = 'linglei';
   @State private password: string = '';
   @State private serverDraft: string = DEFAULT_SERVER;
+  @State private serverMode: number = 0;
 
   @State private displayName: string = '';
   @State private role: string = '';
@@ -81,6 +83,7 @@ struct Index {
 
   aboutToAppear(): void {
     this.serverDraft = this.savedServer;
+    this.serverMode = this.savedServer === LAN_SERVER ? 1 : 0;
     if (this.token.length > 0) {
       this.api.setSession(this.savedServer, this.token);
       this.bootstrap();
@@ -144,23 +147,49 @@ struct Index {
     this.anniversaries = anniversary.items;
   }
 
+  private isHostError(message: string): boolean {
+    return message.includes('主机') || message.includes('host') ||
+      message.includes('Host') || message.includes('解析') ||
+      message.includes('resolve');
+  }
+
+  private async loginWith(server: string): Promise<void> {
+    this.api.setServer(server);
+    const result = await this.api.login(this.loginName, this.password);
+    this.token = result.token;
+    this.serverDraft = server;
+    this.savedServer = server;
+    this.serverMode = server === LAN_SERVER ? 1 : 0;
+    this.api.setSession(server, result.token);
+    this.applyMe(await this.api.me());
+    await this.loadTree();
+    await this.loadHome();
+    this.loggedIn = true;
+    this.password = '';
+  }
+
   private async doLogin(): Promise<void> {
     if (this.busy) return;
     this.busy = true;
     this.error = '';
     try {
-      this.api.setServer(this.serverDraft);
-      const result = await this.api.login(this.loginName, this.password);
-      this.token = result.token;
-      this.savedServer = this.serverDraft;
-      this.api.setSession(this.serverDraft, result.token);
-      this.applyMe(await this.api.me());
-      await this.loadTree();
-      await this.loadHome();
-      this.loggedIn = true;
-      this.password = '';
+      await this.loginWith(this.serverDraft);
     } catch (error) {
-      this.error = this.errorText(error);
+      const firstMessage = this.errorText(error);
+      // The public domain currently has an IPv6-only DNS record. On networks
+      // without IPv6 HarmonyOS reports "could not resolve host". Fall back to
+      // the LAN HTTP endpoint so the same credentials can still log in at home.
+      if (this.serverDraft !== LAN_SERVER && this.isHostError(firstMessage)) {
+        try {
+          await this.loginWith(LAN_SERVER);
+          this.toast('已切换到家庭局域网登录');
+          return;
+        } catch (lanError) {
+          this.error = firstMessage + '；局域网登录也失败：' + this.errorText(lanError);
+          return;
+        }
+      }
+      this.error = firstMessage;
     } finally {
       this.busy = false;
     }
@@ -604,6 +633,33 @@ struct Index {
               .onChange((value: string) => {
                 this.serverDraft = value;
               })
+            Row({ space: 8 }) {
+              Button('线上服务器')
+                .layoutWeight(1)
+                .height(34)
+                .fontSize(11)
+                .backgroundColor(this.serverMode === 0 ? '#EAF0FF' : '#F2F5F7')
+                .fontColor(this.serverMode === 0 ? '#4E7DF4' : '#6C7B82')
+                .onClick(() => {
+                  this.serverMode = 0;
+                  this.serverDraft = DEFAULT_SERVER;
+                })
+              Button('家庭局域网')
+                .layoutWeight(1)
+                .height(34)
+                .fontSize(11)
+                .backgroundColor(this.serverMode === 1 ? '#EAF0FF' : '#F2F5F7')
+                .fontColor(this.serverMode === 1 ? '#4E7DF4' : '#6C7B82')
+                .onClick(() => {
+                  this.serverMode = 1;
+                  this.serverDraft = LAN_SERVER;
+                })
+            }
+            .width('100%')
+            Text('线上域名目前只有 IPv6；提示找不到主机时，请切到“家庭局域网”')
+              .fontSize(10)
+              .fontColor('#89969C')
+              .width('100%')
             if (this.error.length > 0) {
               Text(this.error)
                 .fontSize(12)

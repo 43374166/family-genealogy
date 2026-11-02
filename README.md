@@ -166,6 +166,10 @@ hvigorw.bat --mode module -p module=entry@default -p product=default -p buildMod
 生成签名后即可通过 `hdc install` 安装。完整说明见
 [apps/harmony/README.md](apps/harmony/README.md)。
 
+> 线上域名目前只解析到 IPv6。没有 IPv6 的设备登录时若提示“找不到请求主机名字”，
+> 请在登录页切到“家庭局域网”（`http://192.168.1.36:10080/family-api`，仅内网可访问），
+> 客户端也会在解析失败时自动回退一次。
+
 ## iOS 云端打包（无签名）
 
 Android 显示名为「家族族谱」；iOS 本机签名流程要求 ASCII 应用名，因此使用
