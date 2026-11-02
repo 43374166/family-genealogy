@@ -15,9 +15,12 @@ class GenerationNamesPage extends StatefulWidget {
 }
 
 class _GenerationNamesPageState extends State<GenerationNamesPage> {
-  final List<_GenerationRow> _rows = [];
+  final TextEditingController _poem = TextEditingController();
+  final List<String> _chars = [];
+  final List<TextEditingController> _fieldControllers = [];
   bool _started = false;
   bool _saving = false;
+  bool _syncing = false;
   String? _error;
 
   @override
@@ -27,56 +30,103 @@ class _GenerationNamesPageState extends State<GenerationNamesPage> {
     _started = true;
     final existing = SessionScope.of(context).generationNames;
     final maxGeneration = existing.isEmpty
-        ? 5
+        ? 0
         : existing
               .map((item) => item.generationNo)
               .reduce((a, b) => a > b ? a : b);
-    final limit = maxGeneration < 5 ? 5 : maxGeneration;
-    final byGeneration = {
-      for (final item in existing) item.generationNo: item.name,
-    };
-    for (var generation = 1; generation <= limit; generation++) {
-      _rows.add(
-        _GenerationRow(
-          generation: generation,
-          controller: TextEditingController(
-            text: byGeneration[generation] ?? '',
-          ),
-        ),
-      );
+    if (maxGeneration > 0) {
+      for (var i = 1; i <= maxGeneration; i++) {
+        _chars.add('');
+      }
+      for (final item in existing) {
+        if (item.generationNo >= 1 && item.generationNo <= _chars.length) {
+          _chars[item.generationNo - 1] = item.name;
+        }
+      }
+      while (_chars.isNotEmpty && _chars.last.isEmpty) {
+        _chars.removeLast();
+      }
     }
+    _poem.text = _formatPoem(_chars);
+    _rebuildFieldControllers();
   }
 
   @override
   void dispose() {
-    for (final row in _rows) {
-      row.controller.dispose();
+    _poem.dispose();
+    for (final controller in _fieldControllers) {
+      controller.dispose();
     }
     super.dispose();
   }
 
-  void _addGeneration() {
-    if (_rows.length >= 99) return;
+  String _formatPoem(List<String> chars) {
+    const perLine = 14; // Two seven-character phrases per row.
+    final buffer = StringBuffer();
+    for (var i = 0; i < chars.length; i += perLine) {
+      if (i > 0) buffer.write('\n');
+      final end = (i + perLine < chars.length) ? i + perLine : chars.length;
+      buffer.write(chars.sublist(i, end).join());
+    }
+    return buffer.toString();
+  }
+
+  List<String> _parsePoem(String text) {
+    final matches = RegExp(r'[\u4e00-\u9fffA-Za-z0-9]').allMatches(text);
+    return matches
+        .map((match) => match.group(0)!)
+        .take(99)
+        .toList(growable: true);
+  }
+
+  void _rebuildFieldControllers() {
+    final retired = List<TextEditingController>.from(_fieldControllers);
+    _fieldControllers.clear();
+    for (final char in _chars) {
+      _fieldControllers.add(TextEditingController(text: char));
+    }
+    if (retired.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        for (final controller in retired) {
+          controller.dispose();
+        }
+      });
+    }
+  }
+
+  void _onPoemChanged(String text) {
+    if (_syncing) return;
+    final parsed = _parsePoem(text);
     setState(() {
-      _rows.add(
-        _GenerationRow(
-          generation: _rows.length + 1,
-          controller: TextEditingController(),
-        ),
-      );
+      _chars
+        ..clear()
+        ..addAll(parsed);
+      _rebuildFieldControllers();
     });
+  }
+
+  void _onCharChanged(int index, String value) {
+    if (_syncing) return;
+    _syncing = true;
+    setState(() => _chars[index] = value);
+    final formatted = _formatPoem(_chars);
+    _poem.value = TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+    _syncing = false;
   }
 
   Future<void> _save() async {
     final items = <ApiGenerationName>[];
-    for (final row in _rows) {
-      final name = row.controller.text.trim();
+    for (var i = 0; i < _chars.length; i++) {
+      final name = _chars[i].trim();
       if (name.isEmpty) continue;
-      if (name.runes.length > 20) {
-        setState(() => _error = '第${row.generation}世的字辈不能超过 20 个字');
-        return;
-      }
-      items.add(ApiGenerationName(generationNo: row.generation, name: name));
+      items.add(ApiGenerationName(generationNo: i + 1, name: name));
+    }
+    if (items.isEmpty) {
+      setState(() => _error = '请先输入字辈诗或至少一个字的字辈');
+      return;
     }
     setState(() {
       _saving = true;
@@ -100,44 +150,145 @@ class _GenerationNamesPageState extends State<GenerationNamesPage> {
 
   @override
   Widget build(BuildContext context) {
+    final columns = (_chars.length + 6) ~/ 7;
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         bottom: false,
         child: Column(
           children: [
-            const AppPageHeader(title: '字辈', subtitle: '按世代记录家族字辈'),
+            AppPageHeader(
+              title: '字辈',
+              subtitle: '输入字辈诗，自动解析成世代',
+              leading: IconButton(
+                onPressed: _saving ? null : _save,
+                tooltip: '保存字辈',
+                icon: const Icon(Icons.save_outlined, color: AppColors.primary),
+              ),
+            ),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(18, 6, 18, 26),
+                padding: const EdgeInsets.fromLTRB(18, 4, 18, 26),
                 children: [
-                  const SoftCard(
-                    padding: EdgeInsets.all(15),
-                    child: Text(
-                      '字辈按“第几世”对应，例如第 1 世“永”、第 2 世“远”。\n'
-                      '添加或修改人物时选择字辈，会自动对应到该世代；如果选错世代，会提示你确认。',
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        height: 1.75,
-                        color: AppColors.inkSoft,
-                      ),
+                  SoftCard(
+                    padding: const EdgeInsets.fromLTRB(15, 13, 15, 10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          '字辈诗',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          '按原文输入，标点和换行会自动忽略；一般每行两句，每句七字。',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            height: 1.5,
+                            color: AppColors.inkMuted,
+                          ),
+                        ),
+                        const SizedBox(height: 9),
+                        TextField(
+                          controller: _poem,
+                          minLines: 4,
+                          maxLines: 4,
+                          onChanged: _onPoemChanged,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            height: 1.7,
+                            letterSpacing: 1.5,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: '例如：\n永怀先祖德，远绍旧家风\n忠厚传家久，诗书继世长',
+                            hintStyle: const TextStyle(
+                              fontSize: 12,
+                              height: 1.7,
+                              letterSpacing: 0,
+                              color: AppColors.inkMuted,
+                            ),
+                            filled: true,
+                            fillColor: AppColors.background,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '已解析 ${_chars.length} 字 · $columns 列',
+                          style: const TextStyle(
+                            fontSize: 10.5,
+                            color: AppColors.inkMuted,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 14),
-                  for (final row in _rows) ...[
-                    _GenerationField(
-                      generation: row.generation,
-                      controller: row.controller,
+                  if (_chars.isNotEmpty) ...[
+                    const Text(
+                      '字辈排列',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SoftCard(
+                      padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            for (var column = 0; column < columns; column++)
+                              _CharacterColumn(
+                                index: column,
+                                chars: _columnChars(column),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  const Text(
+                    '逐世字辈',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    '这里只改单个字，上方字辈诗会自动同步。',
+                    style: TextStyle(fontSize: 10.5, color: AppColors.inkMuted),
+                  ),
+                  const SizedBox(height: 10),
+                  for (var i = 0; i < _chars.length; i++) ...[
+                    _GenerationCharField(
+                      generation: i + 1,
+                      controller: _fieldControllers[i],
+                      onChanged: (value) => _onCharChanged(i, value),
                     ),
                     const SizedBox(height: 8),
                   ],
-                  OutlinedButton.icon(
-                    onPressed: _addGeneration,
-                    icon: const Icon(Icons.add_rounded, size: 18),
-                    label: const Text('增加下一世'),
-                  ),
+                  if (_chars.isEmpty)
+                    const SoftCard(
+                      padding: EdgeInsets.all(16),
+                      child: Text(
+                        '输入字辈诗后，会在这里自动生成每一世的输入框。',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          height: 1.6,
+                          color: AppColors.inkMuted,
+                        ),
+                      ),
+                    ),
                   if (_error != null) ...[
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
                     Text(
                       _error!,
                       style: const TextStyle(
@@ -175,20 +326,68 @@ class _GenerationNamesPageState extends State<GenerationNamesPage> {
       ),
     );
   }
+
+  List<String> _columnChars(int column) {
+    final start = column * 7;
+    final end = (start + 7 < _chars.length) ? start + 7 : _chars.length;
+    if (start >= _chars.length) return const [];
+    return _chars.sublist(start, end);
+  }
 }
 
-class _GenerationRow {
-  _GenerationRow({required this.generation, required this.controller});
+class _CharacterColumn extends StatelessWidget {
+  const _CharacterColumn({required this.index, required this.chars});
+
+  final int index;
+  final List<String> chars;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 42,
+      child: Column(
+        children: [
+          Text(
+            '${index + 1}',
+            style: const TextStyle(fontSize: 9, color: AppColors.inkMuted),
+          ),
+          const SizedBox(height: 4),
+          for (var row = 0; row < 7; row++)
+            Container(
+              width: 34,
+              height: 32,
+              margin: const EdgeInsets.only(bottom: 4),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: row < chars.length
+                    ? AppColors.surfaceWarm
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(7),
+              ),
+              child: Text(
+                row < chars.length ? chars[row] : '',
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GenerationCharField extends StatelessWidget {
+  const _GenerationCharField({
+    required this.generation,
+    required this.controller,
+    required this.onChanged,
+  });
 
   final int generation;
   final TextEditingController controller;
-}
-
-class _GenerationField extends StatelessWidget {
-  const _GenerationField({required this.generation, required this.controller});
-
-  final int generation;
-  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -208,17 +407,18 @@ class _GenerationField extends StatelessWidget {
         Expanded(
           child: TextField(
             controller: controller,
-            maxLength: 20,
-            textInputAction: TextInputAction.next,
+            maxLength: 1,
+            onChanged: onChanged,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             decoration: InputDecoration(
-              hintText: '例如：永',
               counterText: '',
+              isDense: true,
               filled: true,
               fillColor: AppColors.surface,
-              isDense: true,
               contentPadding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 13,
+                horizontal: 12,
+                vertical: 11,
               ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(13),

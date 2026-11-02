@@ -9,6 +9,7 @@ class AppPageHeader extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.actions = const [],
+    this.leading,
     this.showBack = true,
     this.padding = const EdgeInsets.fromLTRB(20, 8, 20, 8),
   });
@@ -16,6 +17,7 @@ class AppPageHeader extends StatelessWidget {
   final String title;
   final String? subtitle;
   final List<Widget> actions;
+  final Widget? leading;
   final bool showBack;
   final EdgeInsetsGeometry padding;
 
@@ -30,6 +32,7 @@ class AppPageHeader extends StatelessWidget {
           else
             const SizedBox(width: 2),
           if (showBack) const SizedBox(width: 10),
+          if (leading != null) ...[leading!, const SizedBox(width: 8)],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
