@@ -223,6 +223,23 @@ class ApiBindingRequestPage {
   }
 }
 
+class ApiGenerationNameSet {
+  const ApiGenerationNameSet({required this.items, required this.poem});
+
+  final List<ApiGenerationName> items;
+  final String poem;
+
+  factory ApiGenerationNameSet.fromJson(Map<String, dynamic> json) {
+    return ApiGenerationNameSet(
+      items: (json['items'] as List<dynamic>? ?? [])
+          .whereType<Map<String, dynamic>>()
+          .map(ApiGenerationName.fromJson)
+          .toList(),
+      poem: _string(json['poem']),
+    );
+  }
+}
+
 class ApiGenerationName {
   const ApiGenerationName({required this.generationNo, required this.name});
 
@@ -727,6 +744,7 @@ class ApiPerson {
     required this.gender,
     required this.generationNo,
     required this.generationLabel,
+    this.generationName = '',
     this.birthOrder,
     this.branchId,
     this.birth,
@@ -754,6 +772,7 @@ class ApiPerson {
   final String gender;
   final int generationNo;
   final String generationLabel;
+  final String generationName;
   final int? birthOrder;
   final String? branchId;
   final ApiPartialDate? birth;
@@ -785,6 +804,7 @@ class ApiPerson {
       gender: _string(json['gender'], fallback: 'unknown'),
       generationNo: _int(json['generationNo']),
       generationLabel: _string(json['generationLabel']),
+      generationName: _string(json['generationName']),
       birthOrder: _nullableInt(json['birthOrder']),
       branchId: _nullableString(json['branchId']),
       birth: _date(json['birth']),
@@ -816,7 +836,9 @@ class ApiPerson {
       name: fullName,
       gender: gender == 'female' ? Gender.female : Gender.male,
       generation: generationNo,
-      generationName: generationName,
+      generationName: generationName.isNotEmpty
+          ? generationName
+          : this.generationName,
       aliases: aliases,
       birthYear: birth?.year,
       deathYear: death?.year,

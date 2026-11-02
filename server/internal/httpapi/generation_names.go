@@ -18,11 +18,17 @@ func (a *API) listGenerationNames(w http.ResponseWriter, r *http.Request) {
 		a.writeAccessError(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+	poem, err := a.Store.GenerationPoem(r.Context(), principal.Family.ID)
+	if err != nil {
+		a.writeAccessError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items, "poem": poem})
 }
 
 type generationNamesPayload struct {
 	Items []model.GenerationName `json:"items"`
+	Poem  string                 `json:"poem"`
 }
 
 func (a *API) replaceGenerationNames(w http.ResponseWriter, r *http.Request) {
@@ -66,11 +72,16 @@ func (a *API) replaceGenerationNames(w http.ResponseWriter, r *http.Request) {
 		seen[item.GenerationNo] = true
 		items = append(items, item)
 	}
+	poem := strings.TrimSpace(payload.Poem)
+	if len([]rune(poem)) > 2000 {
+		writeProblem(w, r, http.StatusUnprocessableEntity, "POEM_TOO_LONG", "generation poem is too long")
+		return
+	}
 	if err := a.Store.ReplaceGenerationNames(
-		r.Context(), principal.Family.ID, principal.User.ID, items, auditMeta(r),
+		r.Context(), principal.Family.ID, principal.User.ID, items, poem, auditMeta(r),
 	); err != nil {
 		a.writeAccessError(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+	writeJSON(w, http.StatusOK, map[string]any{"items": items, "poem": poem})
 }

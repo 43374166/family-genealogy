@@ -25,6 +25,10 @@ func (s *Store) ExportFamily(ctx context.Context, familyID string) (*model.Famil
 	if err != nil {
 		return nil, err
 	}
+	generationPoem, err := s.GenerationPoem(ctx, familyID)
+	if err != nil {
+		return nil, err
+	}
 	persons := make([]model.Person, 0, len(tree.Persons))
 	for _, summary := range tree.Persons {
 		person, err := s.GetPerson(ctx, familyID, summary.ID)
@@ -43,7 +47,8 @@ func (s *Store) ExportFamily(ctx context.Context, familyID string) (*model.Famil
 	}
 	return &model.FamilyExport{
 		Version: 1, ExportedAt: time.Now().UTC(),
-		Family: *family, Branches: branches, GenerationNames: generationNames, Persons: persons,
+		Family: *family, Branches: branches, GenerationNames: generationNames,
+		GenerationPoem: generationPoem, Persons: persons,
 		ParentChild: tree.ParentChild, Spouses: tree.Spouses,
 		Stories: stories, Photos: photos,
 	}, nil

@@ -35,9 +35,21 @@ func (s *Store) ListGenerationNames(
 	return items, nil
 }
 
+func (s *Store) GenerationPoem(
+	ctx context.Context, familyID string,
+) (string, error) {
+	var poem string
+	if err := s.db.QueryRowContext(ctx, `
+		SELECT generation_poem FROM families WHERE id = ?`, familyID,
+	).Scan(&poem); err != nil {
+		return "", fmt.Errorf("load generation poem: %w", err)
+	}
+	return poem, nil
+}
+
 func (s *Store) ReplaceGenerationNames(
 	ctx context.Context, familyID, actorUserID string,
-	items []model.GenerationName, meta AuditMeta,
+	items []model.GenerationName, poem string, meta AuditMeta,
 ) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -58,6 +70,12 @@ func (s *Store) ReplaceGenerationNames(
 	); err != nil {
 		return fmt.Errorf("clear generation names: %w", err)
 	}
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE families SET generation_poem = ? WHERE id = ?`,
+		poem, familyID,
+	); err != nil {
+		return fmt.Errorf("save generation poem: %w", err)
+	}
 	for _, item := range items {
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO family_generation_names
@@ -68,7 +86,7 @@ func (s *Store) ReplaceGenerationNames(
 			return fmt.Errorf("insert generation name: %w", err)
 		}
 	}
-	after, _ := json.Marshal(items)
+	after, _ := json.Marshal(map[string]any{"items": items, "poem": poem})
 	if err := insertAudit(ctx, tx, familyID, actorUserID,
 		"family.generation_names_updated", "family", familyID,
 		"", beforeJSON, after, meta,

@@ -28,6 +28,7 @@ class _AddPersonPageState extends State<AddPersonPage> {
   ApiPerson? _father;
   ApiPerson? _mother;
   String _lifeStatus = 'living';
+  String _generationName = '';
 
   List<ApiBranch> _branches = const [];
   String? _branchId;
@@ -117,6 +118,7 @@ class _AddPersonPageState extends State<AddPersonPage> {
           givenName: givenName,
           gender: _gender,
           generationNo: _generation,
+          generationName: _generationName,
           branchId: _branchId!,
           birthOrder: birthOrder,
           birth: birth,
@@ -162,6 +164,7 @@ class _AddPersonPageState extends State<AddPersonPage> {
             'givenName': givenName,
             'gender': _gender,
             'generationNo': _generation,
+            'generationName': _generationName,
             'branchId': _branchId,
             'birthOrder': birthOrder,
             ...?birth?.toJson(prefix: 'birth'),
@@ -355,8 +358,9 @@ class _AddPersonPageState extends State<AddPersonPage> {
                                           const SizedBox(height: 10),
                                           GenerationNamePicker(
                                             currentGeneration: _generation,
-                                            onChanged: (value) => setState(
-                                              () => _generation = value,
+                                            currentName: _generationName,
+                                            onChanged: (item) => setState(
+                                              () => _generationName = item.name,
                                             ),
                                           ),
                                         ],

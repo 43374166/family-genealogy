@@ -16,6 +16,7 @@ type createPersonPayload struct {
 	Alias            string `json:"alias"`
 	Gender           string `json:"gender"`
 	GenerationNo     int    `json:"generationNo"`
+	GenerationName   string `json:"generationName"`
 	BranchID         string `json:"branchId"`
 	BirthOrder       *int   `json:"birthOrder"`
 	BirthYear        *int   `json:"birthYear"`
@@ -94,7 +95,8 @@ func (a *API) createPerson(w http.ResponseWriter, r *http.Request) {
 			Surname: payload.Surname, GivenName: payload.GivenName,
 			CourtesyName: payload.CourtesyName, Alias: payload.Alias,
 			Gender: payload.Gender, GenerationNo: payload.GenerationNo,
-			BranchID: payload.BranchID, BirthOrder: payload.BirthOrder,
+			GenerationName: payload.GenerationName,
+			BranchID:       payload.BranchID, BirthOrder: payload.BirthOrder,
 			BirthYear: payload.BirthYear, BirthMonth: payload.BirthMonth,
 			BirthDay: payload.BirthDay, BirthCalendar: payload.BirthCalendar,
 			BirthIsLeapMonth: payload.BirthIsLeapMonth,
@@ -235,6 +237,9 @@ func validateNewPerson(payload createPersonPayload) error {
 	}
 	if payload.GenerationNo < 1 || payload.GenerationNo > 99 {
 		return errors.New("generationNo must be between 1 and 99")
+	}
+	if len([]rune(payload.GenerationName)) > 20 {
+		return errors.New("generationName is too long")
 	}
 	if payload.BranchID == "" {
 		return errors.New("branchId is required")

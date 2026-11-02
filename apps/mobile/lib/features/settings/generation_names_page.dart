@@ -28,7 +28,8 @@ class _GenerationNamesPageState extends State<GenerationNamesPage> {
     super.didChangeDependencies();
     if (_started) return;
     _started = true;
-    final existing = SessionScope.of(context).generationNames;
+    final session = SessionScope.of(context);
+    final existing = session.generationNames;
     final maxGeneration = existing.isEmpty
         ? 0
         : existing
@@ -47,7 +48,9 @@ class _GenerationNamesPageState extends State<GenerationNamesPage> {
         _chars.removeLast();
       }
     }
-    _poem.text = _formatPoem(_chars);
+    _poem.text = session.generationPoem.isNotEmpty
+        ? session.generationPoem
+        : _formatPoem(_chars);
     _rebuildFieldControllers();
   }
 
@@ -105,14 +108,31 @@ class _GenerationNamesPageState extends State<GenerationNamesPage> {
     });
   }
 
+  String _replaceNthCharacter(String text, int index, String replacement) {
+    final matches = RegExp(
+      r'[\u4e00-\u9fffA-Za-z0-9]',
+    ).allMatches(text).toList();
+    if (index < 0 || index >= matches.length) return text;
+    final buffer = StringBuffer();
+    var cursor = 0;
+    for (var i = 0; i < matches.length; i++) {
+      final match = matches[i];
+      buffer.write(text.substring(cursor, match.start));
+      buffer.write(i == index ? replacement : match.group(0));
+      cursor = match.end;
+    }
+    buffer.write(text.substring(cursor));
+    return buffer.toString();
+  }
+
   void _onCharChanged(int index, String value) {
     if (_syncing) return;
     _syncing = true;
     setState(() => _chars[index] = value);
-    final formatted = _formatPoem(_chars);
+    final updated = _replaceNthCharacter(_poem.text, index, value);
     _poem.value = TextEditingValue(
-      text: formatted,
-      selection: TextSelection.collapsed(offset: formatted.length),
+      text: updated,
+      selection: TextSelection.collapsed(offset: updated.length),
     );
     _syncing = false;
   }
@@ -133,7 +153,9 @@ class _GenerationNamesPageState extends State<GenerationNamesPage> {
       _error = null;
     });
     try {
-      await SessionScope.of(context).saveGenerationNames(items);
+      await SessionScope.of(
+        context,
+      ).saveGenerationNames(items, poem: _poem.text.trim());
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -160,11 +182,23 @@ class _GenerationNamesPageState extends State<GenerationNamesPage> {
             AppPageHeader(
               title: '字辈',
               subtitle: '输入字辈诗，自动解析成世代',
-              leading: IconButton(
-                onPressed: _saving ? null : _save,
-                tooltip: '保存字辈',
-                icon: const Icon(Icons.save_outlined, color: AppColors.primary),
-              ),
+              actions: [
+                IconButton(
+                  onPressed: _saving ? null : _save,
+                  tooltip: '保存字辈',
+                  iconSize: 18,
+                  padding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                  constraints: const BoxConstraints(
+                    minWidth: 34,
+                    minHeight: 34,
+                  ),
+                  icon: const Icon(
+                    Icons.save_outlined,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ],
             ),
             Expanded(
               child: ListView(

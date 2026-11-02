@@ -612,6 +612,7 @@ class ApiClient {
     required String givenName,
     required String gender,
     required int generationNo,
+    String generationName = '',
     required String branchId,
     int? birthOrder,
     ApiPartialDate? birth,
@@ -627,6 +628,7 @@ class ApiClient {
         'givenName': givenName,
         'gender': gender,
         'generationNo': generationNo,
+        'generationName': generationName,
         'branchId': branchId,
         'birthOrder': birthOrder,
         ...?birth?.toJson(prefix: 'birth'),
@@ -673,6 +675,7 @@ class ApiClient {
     required String alias,
     required String gender,
     required int generationNo,
+    String generationName = '',
     required String branchId,
     int? birthOrder,
     ApiPartialDate? birth,
@@ -695,6 +698,7 @@ class ApiClient {
         'alias': alias,
         'gender': gender,
         'generationNo': generationNo,
+        'generationName': generationName,
         'branchId': branchId,
         'birthOrder': birthOrder,
         ...?birth?.toJson(prefix: 'birth'),
@@ -725,26 +729,24 @@ class ApiClient {
     );
   }
 
-  Future<List<ApiGenerationName>> generationNames() async {
+  Future<ApiGenerationNameSet> generationNames() async {
     final body = await _request('GET', '/api/v1/generation-names');
-    return (body['items'] as List<dynamic>? ?? [])
-        .whereType<Map<String, dynamic>>()
-        .map(ApiGenerationName.fromJson)
-        .toList();
+    return ApiGenerationNameSet.fromJson(body);
   }
 
-  Future<List<ApiGenerationName>> saveGenerationNames(
-    List<ApiGenerationName> items,
-  ) async {
+  Future<ApiGenerationNameSet> saveGenerationNames(
+    List<ApiGenerationName> items, {
+    String poem = '',
+  }) async {
     final body = await _request(
       'PUT',
       '/api/v1/generation-names',
-      body: {'items': items.map((item) => item.toJson()).toList()},
+      body: {
+        'items': items.map((item) => item.toJson()).toList(),
+        'poem': poem,
+      },
     );
-    return (body['items'] as List<dynamic>? ?? [])
-        .whereType<Map<String, dynamic>>()
-        .map(ApiGenerationName.fromJson)
-        .toList();
+    return ApiGenerationNameSet.fromJson(body);
   }
 
   Future<List<ApiAnniversary>> anniversaries({int days = 60}) async {
@@ -805,6 +807,7 @@ class ApiClient {
     required String alias,
     required String gender,
     required int generationNo,
+    String generationName = '',
     required String branchId,
     int? birthOrder,
     ApiPartialDate? birth,
@@ -828,6 +831,7 @@ class ApiClient {
         'alias': alias,
         'gender': gender,
         'generationNo': generationNo,
+        'generationName': generationName,
         'branchId': branchId,
         'birthOrder': birthOrder,
         ...?birth?.toJson(prefix: 'birth'),

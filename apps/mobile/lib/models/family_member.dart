@@ -70,7 +70,7 @@ class FamilyMember {
 
   static String generationLabelFor(int generation, {String name = ''}) {
     final label = '第${_chineseNumber(generation)}世';
-    return name.isEmpty ? label : '$label（$name）';
+    return name.isEmpty ? label : '$label($name)';
   }
 
   String get lifespan {

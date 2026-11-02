@@ -47,6 +47,7 @@ class _EditPersonPageState extends State<EditPersonPage> {
   late String _gender;
   late String _lifeStatus;
   late int _generation;
+  String _generationName = '';
   bool _loadingBranches = true;
   bool _submitting = false;
   bool _started = false;
@@ -85,6 +86,7 @@ class _EditPersonPageState extends State<EditPersonPage> {
     _gender = person.gender;
     _lifeStatus = person.lifeStatus;
     _generation = person.generationNo;
+    _generationName = person.generationName;
     _branchId = person.branchId;
   }
 
@@ -204,6 +206,7 @@ class _EditPersonPageState extends State<EditPersonPage> {
           alias: alias,
           gender: _gender,
           generationNo: _generation,
+          generationName: _generationName,
           branchId: _branchId!,
           birthOrder: birthOrder,
           birth: birth,
@@ -225,6 +228,7 @@ class _EditPersonPageState extends State<EditPersonPage> {
           alias: alias,
           gender: _gender,
           generationNo: _generation,
+          generationName: _generationName,
           branchId: _branchId!,
           birthOrder: birthOrder,
           birth: birth,
@@ -351,8 +355,9 @@ class _EditPersonPageState extends State<EditPersonPage> {
                           const SizedBox(height: 10),
                           GenerationNamePicker(
                             currentGeneration: _generation,
-                            onChanged: (value) {
-                              setState(() => _generation = value);
+                            currentName: _generationName,
+                            onChanged: (item) {
+                              setState(() => _generationName = item.name);
                             },
                           ),
                           const SizedBox(height: 12),

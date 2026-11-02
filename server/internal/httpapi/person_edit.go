@@ -15,6 +15,7 @@ type updatePersonPayload struct {
 	Alias            string `json:"alias"`
 	Gender           string `json:"gender"`
 	GenerationNo     int    `json:"generationNo"`
+	GenerationName   string `json:"generationName"`
 	BranchID         string `json:"branchId"`
 	BirthOrder       *int   `json:"birthOrder"`
 	BirthYear        *int   `json:"birthYear"`
@@ -65,7 +66,8 @@ func (a *API) updatePerson(w http.ResponseWriter, r *http.Request) {
 		Surname: payload.Surname, GivenName: payload.GivenName,
 		CourtesyName: payload.CourtesyName, Alias: payload.Alias,
 		Gender: payload.Gender, GenerationNo: payload.GenerationNo,
-		BranchID: payload.BranchID, BirthOrder: payload.BirthOrder,
+		GenerationName: payload.GenerationName,
+		BranchID:       payload.BranchID, BirthOrder: payload.BirthOrder,
 		BirthYear: payload.BirthYear, Biography: payload.Biography,
 	}); err != nil {
 		writeProblem(w, r, http.StatusUnprocessableEntity, "INVALID_PERSON", err.Error())
@@ -109,7 +111,8 @@ func (a *API) updatePerson(w http.ResponseWriter, r *http.Request) {
 			Surname: payload.Surname, GivenName: payload.GivenName,
 			CourtesyName: payload.CourtesyName, Alias: payload.Alias,
 			Gender: payload.Gender, GenerationNo: payload.GenerationNo,
-			BranchID: payload.BranchID, BirthOrder: payload.BirthOrder,
+			GenerationName: payload.GenerationName,
+			BranchID:       payload.BranchID, BirthOrder: payload.BirthOrder,
 			BirthYear: payload.BirthYear, BirthMonth: payload.BirthMonth,
 			BirthDay: payload.BirthDay, BirthCalendar: payload.BirthCalendar,
 			BirthIsLeapMonth: payload.BirthIsLeapMonth,

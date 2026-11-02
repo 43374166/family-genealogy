@@ -66,6 +66,7 @@ type PersonSummary struct {
 	Alias           string       `json:"alias,omitempty"`
 	Gender          string       `json:"gender"`
 	GenerationNo    int          `json:"generationNo"`
+	GenerationName  string       `json:"generationName,omitempty"`
 	GenerationLabel string       `json:"generationLabel"`
 	BirthOrder      *int         `json:"birthOrder,omitempty"`
 	BranchID        *string      `json:"branchId,omitempty"`
@@ -171,6 +172,7 @@ type FamilyExport struct {
 	Family          Family            `json:"family"`
 	Branches        []Branch          `json:"branches"`
 	GenerationNames []GenerationName  `json:"generationNames"`
+	GenerationPoem  string            `json:"generationPoem"`
 	Persons         []Person          `json:"persons"`
 	ParentChild     []ParentChildEdge `json:"parentChild"`
 	Spouses         []SpouseEdge      `json:"spouses"`

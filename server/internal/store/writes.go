@@ -26,6 +26,7 @@ type NewPerson struct {
 	Alias            string `json:"alias,omitempty"`
 	Gender           string `json:"gender"`
 	GenerationNo     int    `json:"generationNo"`
+	GenerationName   string `json:"generationName,omitempty"`
 	BranchID         string `json:"branchId"`
 	BirthOrder       *int   `json:"birthOrder,omitempty"`
 	BirthYear        *int   `json:"birthYear,omitempty"`
@@ -106,14 +107,14 @@ func (s *Store) CreatePerson(
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO persons
 			(id, family_id, branch_id, surname, given_name, courtesy_name, alias,
-			 gender, generation_no, birth_order, birth_year, birth_month, birth_day,
+			 gender, generation_no, generation_name, birth_order, birth_year, birth_month, birth_day,
 			 birth_calendar, birth_is_leap_month, birth_date_text,
 			 death_year, death_month, death_day, death_calendar, death_is_leap_month,
 			 death_date_text, life_status, biography)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		personID, familyID, input.BranchID, input.Surname, input.GivenName,
 		input.CourtesyName, input.Alias, input.Gender, input.GenerationNo,
-		input.BirthOrder, birthYear, birthMonth, birthDay,
+		input.GenerationName, input.BirthOrder, birthYear, birthMonth, birthDay,
 		birthDate.calendar, birthDate.leap, birthDate.text,
 		deathYear, deathMonth, deathDay, deathDate.calendar, deathDate.leap,
 		deathDate.text, lifeStatus, input.Biography,

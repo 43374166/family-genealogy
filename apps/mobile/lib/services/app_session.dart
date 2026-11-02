@@ -19,6 +19,7 @@ class AppSession extends ChangeNotifier {
   ApiTree? _tree;
   ApiFamily? _family;
   List<ApiGenerationName> _generationNames = const [];
+  String _generationPoem = '';
   List<ApiFamilyMembership> _families = const [];
   bool _loading = false;
   bool _restoring = false;
@@ -215,6 +216,7 @@ class AppSession extends ChangeNotifier {
     required String alias,
     required String gender,
     required int generationNo,
+    String generationName = '',
     required String branchId,
     int? birthOrder,
     ApiPartialDate? birth,
@@ -238,6 +240,7 @@ class AppSession extends ChangeNotifier {
       alias: alias,
       gender: gender,
       generationNo: generationNo,
+      generationName: generationName,
       branchId: branchId,
       birthOrder: birthOrder,
       birth: birth,
@@ -311,6 +314,7 @@ class AppSession extends ChangeNotifier {
     required String alias,
     required String gender,
     required int generationNo,
+    String generationName = '',
     required String branchId,
     int? birthOrder,
     ApiPartialDate? birth,
@@ -334,6 +338,7 @@ class AppSession extends ChangeNotifier {
       alias: alias,
       gender: gender,
       generationNo: generationNo,
+      generationName: generationName,
       branchId: branchId,
       birthOrder: birthOrder,
       birth: birth,
@@ -908,13 +913,17 @@ class AppSession extends ChangeNotifier {
 
   Future<void> _loadGenerationNames() async {
     try {
-      _generationNames = await _api.generationNames();
+      final set = await _api.generationNames();
+      _generationNames = set.items;
+      _generationPoem = set.poem;
     } on ApiException {
       _generationNames = const [];
+      _generationPoem = '';
     }
   }
 
   List<ApiGenerationName> get generationNames => _generationNames;
+  String get generationPoem => _generationPoem;
 
   String generationNameFor(int generationNo) {
     for (final item in _generationNames) {
@@ -929,11 +938,16 @@ class AppSession extends ChangeNotifier {
         name: generationNameFor(generationNo),
       );
 
-  Future<void> saveGenerationNames(List<ApiGenerationName> items) async {
+  Future<void> saveGenerationNames(
+    List<ApiGenerationName> items, {
+    String poem = '',
+  }) async {
     if (!isAuthenticated) {
       throw const ApiException('登录状态已失效，请重新登录');
     }
-    _generationNames = await _api.saveGenerationNames(items);
+    final set = await _api.saveGenerationNames(items, poem: poem);
+    _generationNames = set.items;
+    _generationPoem = set.poem;
     await refreshTree();
     notifyListeners();
   }
@@ -943,6 +957,7 @@ class AppSession extends ChangeNotifier {
     required String givenName,
     required String gender,
     required int generationNo,
+    String generationName = '',
     required String branchId,
     int? birthOrder,
     ApiPartialDate? birth,
@@ -958,6 +973,7 @@ class AppSession extends ChangeNotifier {
       givenName: givenName,
       gender: gender,
       generationNo: generationNo,
+      generationName: generationName,
       branchId: branchId,
       birthOrder: birthOrder,
       birth: birth,
@@ -1027,7 +1043,9 @@ class AppSession extends ChangeNotifier {
         .map(
           (person) => person.toFamilyMember(
             currentTree.familyId,
-            generationName: generationNameFor(person.generationNo),
+            generationName: person.generationName.isNotEmpty
+                ? person.generationName
+                : generationNameFor(person.generationNo),
           ),
         )
         .toList(growable: false);

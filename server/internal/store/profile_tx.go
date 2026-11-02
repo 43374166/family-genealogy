@@ -135,7 +135,7 @@ func (s *Store) updatePersonTx(
 	if _, err := tx.ExecContext(ctx, `
 		UPDATE persons
 		SET surname = ?, given_name = ?, courtesy_name = ?, alias = ?,
-		    gender = ?, generation_no = ?, branch_id = ?, birth_order = ?,
+		    gender = ?, generation_no = ?, generation_name = ?, branch_id = ?, birth_order = ?,
 		    birth_year = ?, birth_month = ?, birth_day = ?,
 		    birth_calendar = ?, birth_is_leap_month = ?, birth_date_text = ?,
 		    death_year = ?, death_month = ?, death_day = ?,
@@ -144,7 +144,7 @@ func (s *Store) updatePersonTx(
 		    education = ?, biography = ?, version = version + 1
 		WHERE id = ? AND family_id = ? AND version = ?`,
 		input.Surname, input.GivenName, input.CourtesyName, input.Alias,
-		input.Gender, input.GenerationNo, input.BranchID, birthOrder,
+		input.Gender, input.GenerationNo, input.GenerationName, input.BranchID, birthOrder,
 		birthYear, birthMonth, birthDay,
 		birthDate.calendar, birthDate.leap, birthDate.text,
 		deathYear, deathMonth, deathDay,

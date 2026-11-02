@@ -8,11 +8,13 @@ class GenerationNamePicker extends StatefulWidget {
   const GenerationNamePicker({
     super.key,
     required this.currentGeneration,
+    this.currentName = '',
     required this.onChanged,
   });
 
   final int currentGeneration;
-  final ValueChanged<int> onChanged;
+  final String currentName;
+  final ValueChanged<ApiGenerationName> onChanged;
 
   @override
   State<GenerationNamePicker> createState() => _GenerationNamePickerState();
@@ -33,13 +35,20 @@ class _GenerationNamePickerState extends State<GenerationNamePicker> {
   @override
   void didUpdateWidget(covariant GenerationNamePicker oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.currentGeneration != widget.currentGeneration) {
+    if (oldWidget.currentGeneration != widget.currentGeneration ||
+        oldWidget.currentName != widget.currentName) {
       _syncSelection();
     }
   }
 
   void _syncSelection() {
     final names = SessionScope.of(context).generationNames;
+    for (final item in names) {
+      if (widget.currentName.isNotEmpty && item.name == widget.currentName) {
+        _selected = item.generationNo;
+        return;
+      }
+    }
     _selected =
         names.any((item) => item.generationNo == widget.currentGeneration)
         ? widget.currentGeneration
@@ -54,23 +63,31 @@ class _GenerationNamePickerState extends State<GenerationNamePicker> {
       builder: (_) => _GenerationGridDialog(names: names, selected: _selected),
     );
     if (generation == null || !mounted) return;
-    await _select(generation);
+    ApiGenerationName? selected;
+    for (final item in names) {
+      if (item.generationNo == generation) {
+        selected = item;
+        break;
+      }
+    }
+    if (selected == null) return;
+    await _select(selected);
   }
 
-  Future<void> _select(int generation) async {
-    if (generation == widget.currentGeneration) {
-      setState(() => _selected = generation);
+  Future<void> _select(ApiGenerationName item) async {
+    if (item.generationNo == widget.currentGeneration &&
+        (widget.currentName.isEmpty || widget.currentName == item.name)) {
+      setState(() => _selected = item.generationNo);
+      widget.onChanged(item);
       return;
     }
-    final session = SessionScope.of(context);
-    final name = session.generationNameFor(generation);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('字辈与世代不一致'),
         content: Text(
-          '「$name」属于第$generation世，当前人物是第${widget.currentGeneration}世。\n\n'
-          '是否把人物改到第$generation世？',
+          '「${item.name}」是第${item.generationNo}世的字辈，当前人物是第${widget.currentGeneration}世。\n\n'
+          '字辈可能选错了，仍要使用「${item.name}」吗？',
           style: const TextStyle(fontSize: 12.5, height: 1.7),
         ),
         actions: [
@@ -80,17 +97,17 @@ class _GenerationNamePickerState extends State<GenerationNamePicker> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('切换到该世'),
+            child: const Text('仍然使用'),
           ),
         ],
       ),
     );
     if (!mounted) return;
     if (confirmed == true) {
-      setState(() => _selected = generation);
-      widget.onChanged(generation);
+      setState(() => _selected = item.generationNo);
+      widget.onChanged(item);
     } else {
-      setState(() => _selected = widget.currentGeneration);
+      setState(_syncSelection);
     }
   }
 
@@ -105,7 +122,7 @@ class _GenerationNamePickerState extends State<GenerationNamePicker> {
             : null);
     final value = selected == null
         ? '未设置'
-        : session.generationLabelFor(selected);
+        : session.generationNameFor(selected);
     return InkWell(
       onTap: names.isEmpty ? null : _pick,
       borderRadius: BorderRadius.circular(14),

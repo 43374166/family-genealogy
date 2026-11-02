@@ -20,7 +20,7 @@ type PersonFilter struct {
 
 const personSummaryColumns = `
 	p.id, p.full_name, p.surname, p.given_name, p.courtesy_name, p.alias,
-	p.gender, p.generation_no, p.birth_order, p.branch_id,
+	p.gender, p.generation_no, p.generation_name, p.birth_order, p.branch_id,
 	p.birth_year, p.birth_month, p.birth_day, p.birth_calendar, p.birth_is_leap_month, p.birth_date_text,
 	p.death_year, p.death_month, p.death_day, p.death_calendar, p.death_is_leap_month, p.death_date_text,
 	p.life_status, p.status, p.version, (p.avatar_object_key IS NOT NULL)`
@@ -41,7 +41,7 @@ func scanPersonSummary(scanner rowScanner) (*model.PersonSummary, error) {
 	err := scanner.Scan(
 		&person.ID, &person.FullName, &person.Surname, &person.GivenName,
 		&person.CourtesyName, &person.Alias, &person.Gender,
-		&person.GenerationNo, &birthOrder, &branchID,
+		&person.GenerationNo, &person.GenerationName, &birthOrder, &branchID,
 		&birthYear, &birthMonth, &birthDay, &birthCalendar, &birthLeap, &birthText,
 		&deathYear, &deathMonth, &deathDay, &deathCalendar, &deathLeap, &deathText,
 		&person.LifeStatus, &person.Status, &person.Version, &person.HasAvatar,
@@ -57,10 +57,18 @@ func scanPersonSummary(scanner rowScanner) (*model.PersonSummary, error) {
 		v := int(birthOrder.Int64)
 		person.BirthOrder = &v
 	}
-	person.GenerationLabel = model.GenerationLabel(person.GenerationNo)
+	person.GenerationLabel = generationLabel(person.GenerationNo, person.GenerationName)
 	person.Birth = buildPartialDate(birthYear, birthMonth, birthDay, birthCalendar, birthLeap, birthText)
 	person.Death = buildPartialDate(deathYear, deathMonth, deathDay, deathCalendar, deathLeap, deathText)
 	return &person, nil
+}
+
+func generationLabel(generationNo int, name string) string {
+	label := model.GenerationLabel(generationNo)
+	if name == "" {
+		return label
+	}
+	return label + "(" + name + ")"
 }
 
 func buildPartialDate(year, month, day sql.NullInt64, calendar string, leap bool, text string) *model.PartialDate {
@@ -152,7 +160,7 @@ func (s *Store) GetPerson(ctx context.Context, familyID, personID string) (*mode
 	err := row.Scan(
 		&person.ID, &person.FullName, &person.Surname, &person.GivenName,
 		&person.CourtesyName, &person.Alias, &person.Gender,
-		&person.GenerationNo, &birthOrder, &branchID,
+		&person.GenerationNo, &person.GenerationName, &birthOrder, &branchID,
 		&birthYear, &birthMonth, &birthDay, &birthCalendar, &birthLeap, &birthText,
 		&deathYear, &deathMonth, &deathDay, &deathCalendar, &deathLeap, &deathText,
 		&person.LifeStatus, &person.Status, &person.Version, &person.HasAvatar,
@@ -173,7 +181,7 @@ func (s *Store) GetPerson(ctx context.Context, familyID, personID string) (*mode
 		v := int(birthOrder.Int64)
 		person.BirthOrder = &v
 	}
-	person.GenerationLabel = model.GenerationLabel(person.GenerationNo)
+	person.GenerationLabel = generationLabel(person.GenerationNo, person.GenerationName)
 	person.Birth = buildPartialDate(birthYear, birthMonth, birthDay, birthCalendar, birthLeap, birthText)
 	person.Death = buildPartialDate(deathYear, deathMonth, deathDay, deathCalendar, deathLeap, deathText)
 
