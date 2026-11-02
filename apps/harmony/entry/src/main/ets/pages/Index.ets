@@ -57,6 +57,27 @@ struct Index {
   @State private password: string = '';
   @State private serverDraft: string = DEFAULT_SERVER;
   @State private serverMode: number = 0;
+  @State private authPage: string = 'login';
+  @State private authBusy: boolean = false;
+  @State private authError: string = '';
+
+  @State private phoneLoginPhone: string = '';
+  @State private phoneLoginCode: string = '';
+  @State private phoneCodeSent: boolean = false;
+
+  @State private regLoginName: string = '';
+  @State private regDisplayName: string = '';
+  @State private regPassword: string = '';
+  @State private regConfirm: string = '';
+  @State private regInviteCode: string = '';
+  @State private regFamilyName: string = '';
+  @State private regSurname: string = '';
+  @State private regPhone: string = '';
+  @State private regAcceptTerms: boolean = false;
+
+  @State private resetLoginName: string = '';
+  @State private resetRecoveryCode: string = '';
+  @State private resetNewPassword: string = '';
 
   @State private displayName: string = '';
   @State private currentUserId: string = '';
@@ -174,6 +195,11 @@ struct Index {
   @State private accountOldPassword: string = '';
   @State private accountNewPassword: string = '';
   @State private accountDeletePassword: string = '';
+  @State private bindPhoneNumber: string = '';
+  @State private bindPhoneCode: string = '';
+  @State private recoveryCodeDisplay: string = '';
+  @State private archiveConfirmName: string = '';
+  @State private archivePassword: string = '';
 
   @State private branches: ApiBranch[] = [];
   @State private addSurname: string = '';
@@ -303,6 +329,138 @@ struct Index {
       this.error = firstMessage;
     } finally {
       this.busy = false;
+    }
+  }
+
+  private async completeAuthenticatedSession(server: string, token: string): Promise<void> {
+    this.token = token;
+    this.serverDraft = server;
+    this.savedServer = server;
+    this.serverMode = server === LAN_SERVER ? 1 : 0;
+    this.api.setSession(server, token);
+    this.applyMe(await this.api.me());
+    await this.loadTree();
+    await this.loadHome();
+    this.loggedIn = true;
+    this.authPage = 'login';
+    this.password = '';
+    this.authError = '';
+  }
+
+  private async doRegister(): Promise<void> {
+    if (this.authBusy) return;
+    if (this.regLoginName.trim().length === 0 ||
+      this.regDisplayName.trim().length === 0) {
+      this.authError = '请填写登录名和显示名';
+      return;
+    }
+    if (this.regPassword.length < 8) {
+      this.authError = '密码至少 8 位';
+      return;
+    }
+    if (this.regPassword !== this.regConfirm) {
+      this.authError = '两次密码不一致';
+      return;
+    }
+    if (!this.regAcceptTerms) {
+      this.authError = '请先同意用户协议和隐私政策';
+      return;
+    }
+    this.authBusy = true;
+    this.authError = '';
+    try {
+      this.api.setServer(this.serverDraft);
+      await this.api.register(
+        this.regLoginName.trim(),
+        this.regPassword,
+        this.regDisplayName.trim(),
+        this.regInviteCode.trim().toUpperCase(),
+        this.regPhone.trim(),
+        this.regFamilyName.trim(),
+        this.regSurname.trim(),
+        true
+      );
+      const result = await this.api.login(
+        this.regLoginName.trim(),
+        this.regPassword
+      );
+      await this.completeAuthenticatedSession(this.serverDraft, result.token);
+      this.toast('注册成功，已进入家族');
+    } catch (error) {
+      this.authError = this.errorText(error);
+    } finally {
+      this.authBusy = false;
+    }
+  }
+
+  private async sendPhoneLoginCode(): Promise<void> {
+    const phone = this.phoneLoginPhone.trim();
+    if (!phone.startsWith('+') || phone.length < 8) {
+      this.authError = '请使用国际格式手机号，例如 +8613800000000';
+      return;
+    }
+    this.authBusy = true;
+    this.authError = '';
+    try {
+      this.api.setServer(this.serverDraft);
+      await this.api.sendLoginCode(phone);
+      this.phoneCodeSent = true;
+      this.toast('验证码已发送');
+    } catch (error) {
+      this.authError = this.errorText(error);
+    } finally {
+      this.authBusy = false;
+    }
+  }
+
+  private async doPhoneLogin(): Promise<void> {
+    if (this.authBusy) return;
+    if (this.phoneLoginCode.trim().length !== 6) {
+      this.authError = '请输入 6 位验证码';
+      return;
+    }
+    this.authBusy = true;
+    this.authError = '';
+    try {
+      this.api.setServer(this.serverDraft);
+      const result = await this.api.loginWithPhone(
+        this.phoneLoginPhone.trim(),
+        this.phoneLoginCode.trim()
+      );
+      await this.completeAuthenticatedSession(this.serverDraft, result.token);
+      this.toast('手机号登录成功');
+    } catch (error) {
+      this.authError = this.errorText(error);
+    } finally {
+      this.authBusy = false;
+    }
+  }
+
+  private async doResetPassword(): Promise<void> {
+    if (this.authBusy) return;
+    if (this.resetLoginName.trim().length === 0 ||
+      this.resetRecoveryCode.trim().length === 0 ||
+      this.resetNewPassword.length < 8) {
+      this.authError = '请填写登录名、找回码和至少 8 位的新密码';
+      return;
+    }
+    this.authBusy = true;
+    this.authError = '';
+    try {
+      this.api.setServer(this.serverDraft);
+      await this.api.resetPassword(
+        this.resetLoginName.trim(),
+        this.resetRecoveryCode.trim(),
+        this.resetNewPassword
+      );
+      this.loginName = this.resetLoginName.trim();
+      this.authPage = 'login';
+      this.authError = '';
+      this.toast('密码已重置，请用新密码登录');
+    } catch (error) {
+      this.authError = this.errorText(error);
+    } finally {
+      this.authBusy = false;
     }
   }
 
@@ -1514,6 +1672,138 @@ struct Index {
     }
   }
 
+  private async sendBindPhoneCode(): Promise<void> {
+    const phone = this.bindPhoneNumber.trim();
+    if (!phone.startsWith('+') || phone.length < 8) {
+      this.familyCenterError = '请使用国际格式手机号，例如 +8613800000000';
+      return;
+    }
+    this.familyCenterBusy = true;
+    this.familyCenterError = '';
+    try {
+      await this.api.sendBindCode(phone);
+      this.toast('验证码已发送');
+    } catch (error) {
+      this.familyCenterError = this.errorText(error);
+    } finally {
+      this.familyCenterBusy = false;
+    }
+  }
+
+  private async bindMyPhone(): Promise<void> {
+    const phone = this.bindPhoneNumber.trim();
+    const code = this.bindPhoneCode.trim();
+    if (!phone.startsWith('+') || code.length !== 6) {
+      this.familyCenterError = '请填写国际格式手机号和 6 位验证码';
+      return;
+    }
+    this.familyCenterBusy = true;
+    this.familyCenterError = '';
+    try {
+      await this.api.bindPhone(phone, code);
+      this.bindPhoneCode = '';
+      this.toast('手机号已绑定');
+    } catch (error) {
+      this.familyCenterError = this.errorText(error);
+    } finally {
+      this.familyCenterBusy = false;
+    }
+  }
+
+  private async generateRecoveryCode(): Promise<void> {
+    this.familyCenterBusy = true;
+    this.familyCenterError = '';
+    try {
+      this.recoveryCodeDisplay = await this.api.createRecoveryCode();
+      await this.copyText(this.recoveryCodeDisplay);
+      this.toast('找回码已生成并复制，请妥善保存');
+    } catch (error) {
+      this.familyCenterError = this.errorText(error);
+    } finally {
+      this.familyCenterBusy = false;
+    }
+  }
+
+  private confirmTransferOwner(account: ApiFamilyAccount): void {
+    AlertDialog.show({
+      title: '转让族长',
+      message: '确定把族长转让给 ' + account.displayName +
+        ' 吗？转让后你将变为管理员，此操作不可撤销。',
+      primaryButton: {
+        value: '取消',
+        action: () => {
+        }
+      },
+      secondaryButton: {
+        value: '确认转让',
+        fontColor: '#B4423D',
+        action: () => {
+          this.transferOwnerTo(account.userId);
+        }
+      }
+    });
+  }
+
+  private async transferOwnerTo(userId: string): Promise<void> {
+    this.familyCenterBusy = true;
+    this.familyCenterError = '';
+    try {
+      await this.api.transferOwner(this.familyId, userId);
+      this.applyMe(await this.api.me());
+      await this.loadFamilyCenter();
+      this.toast('族长已转让');
+    } catch (error) {
+      this.familyCenterError = this.errorText(error);
+    } finally {
+      this.familyCenterBusy = false;
+    }
+  }
+
+  private confirmArchiveFamily(): void {
+    if (this.archiveConfirmName.trim() !== this.familyName) {
+      this.familyCenterError = '请输入完整家族名称以确认';
+      return;
+    }
+    if (this.archivePassword.length === 0) {
+      this.familyCenterError = '请输入登录密码';
+      return;
+    }
+    AlertDialog.show({
+      title: '归档并注销',
+      message: '归档当前家族会同时删除你的账号，所有成员将失去这个家族。此操作不可撤销。',
+      primaryButton: {
+        value: '取消',
+        action: () => {
+        }
+      },
+      secondaryButton: {
+        value: '确认归档',
+        fontColor: '#B4423D',
+        action: () => {
+          this.archiveFamilyNow();
+        }
+      }
+    });
+  }
+
+  private async archiveFamilyNow(): Promise<void> {
+    this.familyCenterBusy = true;
+    this.familyCenterError = '';
+    try {
+      await this.api.archiveFamily(
+        this.familyId,
+        this.archivePassword,
+        this.archiveConfirmName.trim()
+      );
+      this.logout();
+      this.toast('家族已归档，账号已注销');
+    } catch (error) {
+      this.familyCenterError = this.errorText(error);
+    } finally {
+      this.familyCenterBusy = false;
+    }
+  }
+
   private filteredPersons(): ApiPerson[] {
     if (this.tree === null) return [];
     const key = this.query.trim();
@@ -1692,6 +1982,31 @@ struct Index {
               .onClick(() => {
                 this.doLogin();
               })
+            Row({ space: 14 }) {
+              Text('注册账号')
+                .fontSize(11)
+                .fontColor('#4E7DF4')
+                .onClick(() => {
+                  this.authError = '';
+                  this.authPage = 'register';
+                })
+              Text('手机验证码登录')
+                .fontSize(11)
+                .fontColor('#4E7DF4')
+                .onClick(() => {
+                  this.authError = '';
+                  this.authPage = 'phone';
+                })
+              Text('找回密码')
+                .fontSize(11)
+                .fontColor('#4E7DF4')
+                .onClick(() => {
+                  this.authError = '';
+                  this.authPage = 'reset';
+                })
+            }
+            .width('100%')
+            .justifyContent(FlexAlign.Center)
             Text('演示账号：linglei / Demo#2026')
               .fontSize(11)
               .fontColor('#89969C')
@@ -1706,6 +2021,332 @@ struct Index {
         }
         .width('100%')
         .padding({ left: 22, right: 22, bottom: 28 })
+      }
+      .width('100%')
+      .height('100%')
+    }
+    .width('100%')
+    .height('100%')
+  }
+
+  @Builder
+  private AuthBackTitle(title: string, subtitle: string) {
+    Row() {
+      Button('‹')
+        .width(38)
+        .height(38)
+        .backgroundColor('#FFFFFF')
+        .fontColor('#1C2A32')
+        .fontSize(22)
+        .borderRadius(19)
+        .onClick(() => {
+          this.authError = '';
+          this.authPage = 'login';
+        })
+      Column({ space: 2 }) {
+        Text(title)
+          .fontSize(22)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#1C2A32')
+        Text(subtitle)
+          .fontSize(10)
+          .fontColor('#89969C')
+      }
+      .alignItems(HorizontalAlign.Start)
+      .margin({ left: 10 })
+    }
+    .width('100%')
+    .padding({ left: 14, right: 14, top: 12, bottom: 8 })
+  }
+
+  @Builder
+  private RegisterView() {
+    Stack() {
+      Image($r('app.media.hero_ink'))
+        .width('100%')
+        .height('100%')
+        .objectFit(ImageFit.Cover)
+        .opacity(0.5)
+      Column()
+        .width('100%')
+        .height('100%')
+        .backgroundColor('#C8FFFFFF')
+      Column() {
+        this.AuthBackTitle('注册账号', '创建账号，或使用邀请码加入已有家族')
+        Scroll() {
+          Column({ space: 10 }) {
+            TextInput({ placeholder: '服务器地址', text: this.serverDraft })
+              .height(44)
+              .backgroundColor('#F7F9FA')
+              .borderRadius(9)
+              .fontSize(12)
+              .onChange((value: string) => {
+                this.serverDraft = value;
+              })
+            TextInput({ placeholder: '登录名（英文或数字）', text: this.regLoginName })
+              .height(44)
+              .backgroundColor('#F7F9FA')
+              .borderRadius(9)
+              .fontSize(13)
+              .onChange((value: string) => {
+                this.regLoginName = value;
+              })
+            TextInput({ placeholder: '显示名，例如：凌磊', text: this.regDisplayName })
+              .height(44)
+              .backgroundColor('#F7F9FA')
+              .borderRadius(9)
+              .fontSize(13)
+              .onChange((value: string) => {
+                this.regDisplayName = value;
+              })
+            TextInput({ placeholder: '密码（至少 8 位）', text: this.regPassword })
+              .height(44)
+              .type(InputType.Password)
+              .backgroundColor('#F7F9FA')
+              .borderRadius(9)
+              .fontSize(13)
+              .onChange((value: string) => {
+                this.regPassword = value;
+              })
+            TextInput({ placeholder: '确认密码', text: this.regConfirm })
+              .height(44)
+              .type(InputType.Password)
+              .backgroundColor('#F7F9FA')
+              .borderRadius(9)
+              .fontSize(13)
+              .onChange((value: string) => {
+                this.regConfirm = value;
+              })
+            TextInput({ placeholder: '手机号（可选，+8613800000000）', text: this.regPhone })
+              .height(44)
+              .backgroundColor('#F7F9FA')
+              .borderRadius(9)
+              .fontSize(12)
+              .onChange((value: string) => {
+                this.regPhone = value;
+              })
+            TextInput({ placeholder: '邀请码（可选）', text: this.regInviteCode })
+              .height(44)
+              .backgroundColor('#F7F9FA')
+              .borderRadius(9)
+              .fontSize(12)
+              .onChange((value: string) => {
+                this.regInviteCode = value.toUpperCase();
+              })
+            TextInput({ placeholder: '新家族名称（无邀请码时可选）', text: this.regFamilyName })
+              .height(44)
+              .backgroundColor('#F7F9FA')
+              .borderRadius(9)
+              .fontSize(12)
+              .onChange((value: string) => {
+                this.regFamilyName = value;
+              })
+            TextInput({ placeholder: '姓氏（无邀请码时可选）', text: this.regSurname })
+              .height(44)
+              .backgroundColor('#F7F9FA')
+              .borderRadius(9)
+              .fontSize(12)
+              .onChange((value: string) => {
+                this.regSurname = value;
+              })
+            Row({ space: 7 }) {
+              Checkbox({ name: 'terms' })
+                .select(this.regAcceptTerms)
+                .selectedColor('#4E7DF4')
+                .onChange((value: boolean) => {
+                  this.regAcceptTerms = value;
+                })
+              Text('我已阅读并同意《用户协议》和《隐私政策》')
+                .fontSize(10)
+                .fontColor('#6C7B82')
+                .layoutWeight(1)
+            }
+            .width('100%')
+            if (this.authError.length > 0) {
+              Text(this.authError)
+                .fontSize(11)
+                .fontColor('#B4423D')
+                .width('100%')
+            }
+            Button(this.authBusy ? '正在注册...' : '注册并进入家族')
+              .width('100%')
+              .height(46)
+              .backgroundColor('#4E7DF4')
+              .fontColor(Color.White)
+              .enabled(!this.authBusy)
+              .onClick(() => {
+                this.doRegister();
+              })
+          }
+          .width('100%')
+          .padding(18)
+          .backgroundColor('#F2FFFFFF')
+          .borderRadius(16)
+        }
+        .layoutWeight(1)
+        .padding({ left: 20, right: 20, bottom: 20 })
+      }
+      .width('100%')
+      .height('100%')
+    }
+    .width('100%')
+    .height('100%')
+  }
+
+  @Builder
+  private PhoneLoginView() {
+    Stack() {
+      Image($r('app.media.hero_ink'))
+        .width('100%')
+        .height('100%')
+        .objectFit(ImageFit.Cover)
+        .opacity(0.5)
+      Column()
+        .width('100%')
+        .height('100%')
+        .backgroundColor('#C8FFFFFF')
+      Column() {
+        this.AuthBackTitle('手机验证码登录', '使用已绑定手机号登录')
+        Column({ space: 10 }) {
+          TextInput({ placeholder: '服务器地址', text: this.serverDraft })
+            .height(44)
+            .backgroundColor('#F7F9FA')
+            .borderRadius(9)
+            .fontSize(12)
+            .onChange((value: string) => {
+              this.serverDraft = value;
+            })
+          TextInput({ placeholder: '手机号，例如 +8613800000000', text: this.phoneLoginPhone })
+            .height(44)
+            .backgroundColor('#F7F9FA')
+            .borderRadius(9)
+            .fontSize(13)
+            .onChange((value: string) => {
+              this.phoneLoginPhone = value;
+            })
+          Row({ space: 8 }) {
+            TextInput({ placeholder: '6 位验证码', text: this.phoneLoginCode })
+              .layoutWeight(1)
+              .height(44)
+              .backgroundColor('#F7F9FA')
+              .borderRadius(9)
+              .fontSize(13)
+              .onChange((value: string) => {
+                this.phoneLoginCode = value;
+              })
+            Button(this.phoneCodeSent ? '重新发送' : '发送验证码')
+              .height(44)
+              .fontSize(10)
+              .backgroundColor('#EAF0FF')
+              .fontColor('#4E7DF4')
+              .onClick(() => {
+                this.sendPhoneLoginCode();
+              })
+          }
+          .width('100%')
+          if (this.authError.length > 0) {
+            Text(this.authError)
+              .fontSize(11)
+              .fontColor('#B4423D')
+              .width('100%')
+          }
+          Button(this.authBusy ? '正在登录...' : '登录')
+            .width('100%')
+            .height(46)
+            .backgroundColor('#4E7DF4')
+            .fontColor(Color.White)
+            .enabled(!this.authBusy)
+            .onClick(() => {
+              this.doPhoneLogin();
+            })
+        }
+        .width('100%')
+        .padding(18)
+        .backgroundColor('#F2FFFFFF')
+        .borderRadius(16)
+        .width('90%')
+      }
+      .width('100%')
+      .height('100%')
+    }
+    .width('100%')
+    .height('100%')
+  }
+
+  @Builder
+  private ResetPasswordView() {
+    Stack() {
+      Image($r('app.media.hero_ink'))
+        .width('100%')
+        .height('100%')
+        .objectFit(ImageFit.Cover)
+        .opacity(0.5)
+      Column()
+        .width('100%')
+        .height('100%')
+        .backgroundColor('#C8FFFFFF')
+      Column() {
+        this.AuthBackTitle('找回密码', '使用登录名和一次性找回码重置密码')
+        Column({ space: 10 }) {
+          TextInput({ placeholder: '服务器地址', text: this.serverDraft })
+            .height(44)
+            .backgroundColor('#F7F9FA')
+            .borderRadius(9)
+            .fontSize(12)
+            .onChange((value: string) => {
+              this.serverDraft = value;
+            })
+          TextInput({ placeholder: '登录名', text: this.resetLoginName })
+            .height(44)
+            .backgroundColor('#F7F9FA')
+            .borderRadius(9)
+            .fontSize(13)
+            .onChange((value: string) => {
+              this.resetLoginName = value;
+            })
+          TextInput({ placeholder: '找回码', text: this.resetRecoveryCode })
+            .height(44)
+            .backgroundColor('#F7F9FA')
+            .borderRadius(9)
+            .fontSize(13)
+            .onChange((value: string) => {
+              this.resetRecoveryCode = value;
+            })
+          TextInput({ placeholder: '新密码（至少 8 位）', text: this.resetNewPassword })
+            .height(44)
+            .type(InputType.Password)
+            .backgroundColor('#F7F9FA')
+            .borderRadius(9)
+            .fontSize(13)
+            .onChange((value: string) => {
+              this.resetNewPassword = value;
+            })
+          Text('找回码可在登录后“账号与家庭—账号安全”中生成，只能使用一次。')
+            .fontSize(10)
+            .lineHeight(16)
+            .fontColor('#89969C')
+            .width('100%')
+          if (this.authError.length > 0) {
+            Text(this.authError)
+              .fontSize(11)
+              .fontColor('#B4423D')
+              .width('100%')
+          }
+          Button(this.authBusy ? '正在重置...' : '重置密码')
+            .width('100%')
+            .height(46)
+            .backgroundColor('#4E7DF4')
+            .fontColor(Color.White)
+            .enabled(!this.authBusy)
+            .onClick(() => {
+              this.doResetPassword();
+            })
+        }
+        .width('100%')
+        .padding(18)
+        .backgroundColor('#F2FFFFFF')
+        .borderRadius(16)
+        .width('90%')
       }
       .width('100%')
       .height('100%')
@@ -5750,6 +6391,14 @@ struct Index {
                     account.role === 'admin' ? '管理员' : '成员')
                     .fontSize(9)
                     .fontColor('#4E7DF4')
+                  if (this.role === 'owner' && account.role !== 'owner') {
+                    Text('转让')
+                      .fontSize(9)
+                      .fontColor('#B7791F')
+                      .onClick(() => {
+                        this.confirmTransferOwner(account);
+                      })
+                  }
                   Text(account.personName.length > 0 ? account.personName : '未绑定')
                     .fontSize(9)
                     .fontColor('#89969C')
@@ -5798,6 +6447,70 @@ struct Index {
               .onClick(() => {
                 this.changeAccountPassword();
               })
+            Text('绑定手机号')
+              .fontSize(11)
+              .fontWeight(FontWeight.Medium)
+              .fontColor('#1C2A32')
+              .width('100%')
+              .margin({ top: 4 })
+            TextInput({ placeholder: '手机号，例如 +8613800000000', text: this.bindPhoneNumber })
+              .height(40)
+              .backgroundColor('#F7F9FA')
+              .borderRadius(8)
+              .fontSize(12)
+              .onChange((value: string) => {
+                this.bindPhoneNumber = value;
+              })
+            Row({ space: 8 }) {
+              TextInput({ placeholder: '6 位验证码', text: this.bindPhoneCode })
+                .layoutWeight(1)
+                .height(40)
+                .backgroundColor('#F7F9FA')
+                .borderRadius(8)
+                .fontSize(12)
+                .onChange((value: string) => {
+                  this.bindPhoneCode = value;
+                })
+              Button('发送')
+                .height(40)
+                .fontSize(10)
+                .backgroundColor('#EAF0FF')
+                .fontColor('#4E7DF4')
+                .onClick(() => {
+                  this.sendBindPhoneCode();
+                })
+            }
+            .width('100%')
+            Button('绑定手机号')
+              .width('100%')
+              .height(38)
+              .fontSize(11)
+              .backgroundColor('#E8F6EF')
+              .fontColor('#2F8F67')
+              .onClick(() => {
+                this.bindMyPhone();
+              })
+            Button('生成一次性找回码')
+              .width('100%')
+              .height(38)
+              .fontSize(11)
+              .backgroundColor('#FFF4DF')
+              .fontColor('#B7791F')
+              .onClick(() => {
+                this.generateRecoveryCode();
+              })
+            if (this.recoveryCodeDisplay.length > 0) {
+              Text(this.recoveryCodeDisplay)
+                .fontSize(18)
+                .fontWeight(FontWeight.Bold)
+                .fontColor('#B4423D')
+                .letterSpacing(2)
+                .width('100%')
+                .textAlign(TextAlign.Center)
+                .padding(8)
+                .backgroundColor('#FFF8F0')
+                .borderRadius(8)
+            }
             TextInput({ placeholder: '输入密码以注销账号', text: this.accountDeletePassword })
               .height(40)
               .type(InputType.Password)
@@ -5816,6 +6529,40 @@ struct Index {
               .onClick(() => {
                 this.confirmDeleteAccount();
               })
+            if (this.role === 'owner') {
+              Text('归档当前家族（同时注销账号）')
+                .fontSize(11)
+                .fontWeight(FontWeight.Medium)
+                .fontColor('#B4423D')
+                .width('100%')
+                .margin({ top: 8 })
+              TextInput({ placeholder: '输入家族全名确认', text: this.archiveConfirmName })
+                .height(40)
+                .backgroundColor('#FBEEEA')
+                .borderRadius(8)
+                .fontSize(12)
+                .onChange((value: string) => {
+                  this.archiveConfirmName = value;
+                })
+              TextInput({ placeholder: '登录密码', text: this.archivePassword })
+                .height(40)
+                .type(InputType.Password)
+                .backgroundColor('#FBEEEA')
+                .borderRadius(8)
+                .fontSize(12)
+                .onChange((value: string) => {
+                  this.archivePassword = value;
+                })
+              Button('归档家族并注销账号')
+                .width('100%')
+                .height(38)
+                .fontSize(11)
+                .backgroundColor('#B4423D')
+                .fontColor(Color.White)
+                .onClick(() => {
+                  this.confirmArchiveFamily();
+                })
+            }
           }
           .width('100%')
           .padding(14)
@@ -5845,7 +6592,15 @@ struct Index {
       if (this.booting) {
         this.LoadingView()
       } else if (!this.loggedIn) {
-        this.LoginView()
+        if (this.authPage === 'register') {
+          this.RegisterView()
+        } else if (this.authPage === 'phone') {
+          this.PhoneLoginView()
+        } else if (this.authPage === 'reset') {
+          this.ResetPasswordView()
+        } else {
+          this.LoginView()
+        }
       } else if (this.page === 'detail') {
         this.DetailView()
       } else if (this.page === 'add') {

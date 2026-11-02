@@ -401,3 +401,8 @@ export interface ApiInvite {
 export interface ApiInvitePage {
   items: ApiInvite[];
 }
+
+export interface ApiRegistration {
+  user: ApiUser;
+  family: ApiFamily;
+}

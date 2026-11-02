@@ -28,6 +28,7 @@ import {
   ApiPhoto,
   ApiPhotoPage,
   ApiProblem,
+  ApiRegistration,
   ApiStory,
   ApiStoryPage,
   ApiTree,
@@ -695,6 +696,122 @@ export class ApiClient {
     return JSON.parse(text) as ApiFamilyAccountPage;
   }
 
+  async register(
+    loginName: string,
+    password: string,
+    displayName: string,
+    inviteCode: string,
+    phone: string,
+    familyName: string,
+    surname: string,
+    acceptTerms: boolean
+  ): Promise<ApiRegistration> {
+    const payload: RegisterPayload = {
+      loginName: loginName,
+      password: password,
+      displayName: displayName,
+      inviteCode: inviteCode,
+      phone: phone,
+      familyName: familyName,
+      surname: surname,
+      acceptTerms: acceptTerms
+    };
+    const text = await this.request(
+      http.RequestMethod.POST,
+      '/api/v1/auth/register',
+      payload
+    );
+    return JSON.parse(text) as ApiRegistration;
+  }
+
+  async sendLoginCode(phone: string): Promise<void> {
+    const payload: PhonePayload = { phone: phone };
+    await this.request(
+      http.RequestMethod.POST,
+      '/api/v1/auth/sms/send',
+      payload
+    );
+  }
+
+  async loginWithPhone(phone: string, code: string): Promise<ApiLoginResult> {
+    const payload: PhoneCodePayload = { phone: phone, code: code };
+    const text = await this.request(
+      http.RequestMethod.POST,
+      '/api/v1/auth/sms/login',
+      payload
+    );
+    return JSON.parse(text) as ApiLoginResult;
+  }
+
+  async resetPassword(
+    loginName: string,
+    recoveryCode: string,
+    newPassword: string
+  ): Promise<void> {
+    const payload: ResetPasswordPayload = {
+      loginName: loginName,
+      recoveryCode: recoveryCode,
+      newPassword: newPassword
+    };
+    await this.request(
+      http.RequestMethod.POST,
+      '/api/v1/auth/reset-password',
+      payload
+    );
+  }
+
+  async createRecoveryCode(): Promise<string> {
+    const text = await this.request(
+      http.RequestMethod.POST,
+      '/api/v1/auth/recovery-code'
+    );
+    const value = JSON.parse(text) as RecoveryCodeResult;
+    return value.code === undefined ? '' : value.code;
+  }
+
+  async sendBindCode(phone: string): Promise<void> {
+    const payload: PhonePayload = { phone: phone };
+    await this.request(
+      http.RequestMethod.POST,
+      '/api/v1/auth/phone/send',
+      payload
+    );
+  }
+
+  async bindPhone(phone: string, code: string): Promise<void> {
+    const payload: PhoneCodePayload = { phone: phone, code: code };
+    await this.request(
+      http.RequestMethod.POST,
+      '/api/v1/auth/phone/bind',
+      payload
+    );
+  }
+
+  async transferOwner(familyId: string, userId: string): Promise<void> {
+    const payload: TransferOwnerPayload = { userId: userId };
+    await this.request(
+      http.RequestMethod.POST,
+      '/api/v1/families/' + encodeURIComponent(familyId) + '/transfer-owner',
+      payload
+    );
+  }
+
+  async archiveFamily(
+    familyId: string,
+    password: string,
+    confirmName: string
+  ): Promise<void> {
+    const payload: ArchiveFamilyPayload = {
+      password: password,
+      confirmName: confirmName
+    };
+    await this.request(
+      http.RequestMethod.POST,
+      '/api/v1/families/' + encodeURIComponent(familyId) + '/archive',
+      payload
+    );
+  }
+
   async family(): Promise<ApiFamily> {
     const text = await this.request(http.RequestMethod.GET, '/api/v1/family');
     return JSON.parse(text) as ApiFamily;
@@ -776,4 +893,43 @@ interface CreateInvitePayload {
   role: string;
   maxUses: number;
   expiresInDays: number;
+}
+
+interface RegisterPayload {
+  loginName: string;
+  password: string;
+  displayName: string;
+  inviteCode: string;
+  phone: string;
+  familyName: string;
+  surname: string;
+  acceptTerms: boolean;
+}
+
+interface PhonePayload {
+  phone: string;
+}
+
+interface PhoneCodePayload {
+  phone: string;
+  code: string;
+}
+
+interface ResetPasswordPayload {
+  loginName: string;
+  recoveryCode: string;
+  newPassword: string;
+}
+
+interface RecoveryCodeResult {
+  code?: string;
+}
+
+interface TransferOwnerPayload {
+  userId: string;
+}
+
+interface ArchiveFamilyPayload {
+  password: string;
+  confirmName: string;
 }
