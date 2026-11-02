@@ -74,6 +74,7 @@ struct Index {
   @State private query: string = '';
   @State private selected: ApiPerson | null = null;
   @State private detailBusy: boolean = false;
+  @State private personPhotos: ApiPhoto[] = [];
 
   @State private albumPhotos: ApiPhoto[] = [];
   @State private albumBusy: boolean = false;
@@ -308,6 +309,13 @@ struct Index {
     this.error = '';
     try {
       this.selected = await this.api.person(personId);
+      this.personPhotos = [];
+      try {
+        const photos = await this.api.photos(personId);
+        this.personPhotos = photos.items;
+      } catch (_) {
+        // The profile is still usable if the photo list is unavailable.
+      }
     } catch (error) {
       this.error = this.errorText(error);
     } finally {
@@ -432,6 +440,18 @@ struct Index {
 
   private openMembers(): void {
     this.page = 'members';
+  }
+
+  private openAlbumForPerson(personId: string): void {
+    if (this.tree !== null) {
+      const index = this.tree.persons.findIndex(
+        (person: ApiPerson) => person.id === personId
+      );
+      if (index >= 0) {
+        this.albumFilterIndex = index + 1;
+      }
+    }
+    this.openAlbum();
   }
 
   private albumPersonId(): string {
@@ -2138,8 +2158,9 @@ struct Index {
       Row() {
         Column({ space: 2 }) {
           Text('族谱树')
-            .fontSize(24)
+            .fontSize(22)
             .fontWeight(FontWeight.Bold)
+            .fontFamily('serif')
             .fontColor('#1C2A32')
           Text(this.familyName + ' · 共 ' + this.memberCount + ' 人')
             .fontSize(11)
@@ -2147,20 +2168,27 @@ struct Index {
         }
         .alignItems(HorizontalAlign.Start)
         Blank()
-        Button('刷新')
-          .fontSize(11)
-          .height(30)
-          .backgroundColor('#EAF0FF')
-          .fontColor('#4E7DF4')
+        Button('↻')
+          .width(36)
+          .height(36)
+          .fontSize(17)
+          .backgroundColor('#FFFFFF')
+          .fontColor('#1C2A32')
+          .border({ width: 1, color: '#FFFFFFCC' })
+          .borderRadius(18)
+          .shadow({ radius: 12, color: '#0A20323B', offsetY: 4 })
           .onClick(() => {
             this.refreshAll();
           })
-        Button('新增')
-          .fontSize(11)
-          .height(30)
-          .margin({ left: 6 })
+        Button('＋')
+          .width(36)
+          .height(36)
+          .fontSize(20)
+          .margin({ left: 8 })
           .backgroundColor('#4E7DF4')
           .fontColor(Color.White)
+          .borderRadius(18)
+          .shadow({ radius: 12, color: '#4E7DF440', offsetY: 4 })
           .onClick(() => {
             this.openAdd();
           })
@@ -2530,9 +2558,9 @@ struct Index {
       } else {
         Scroll() {
           Column({ space: 12 }) {
-            Column({ space: 10 }) {
-              Row({ space: 14 }) {
-                Stack() {
+            Column({ space: 13 }) {
+              Row({ space: 16 }) {
+                Stack({ alignContent: Alignment.BottomEnd }) {
                   if (this.selected!.hasAvatar === true) {
                     AuthImage({
                       path: '/api/v1/persons/' + this.selected!.id +
@@ -2541,38 +2569,82 @@ struct Index {
                     })
                   } else {
                     Text(this.selected!.fullName.substring(0, 1))
-                      .width(86)
-                      .height(86)
+                      .width(92)
+                      .height(112)
                       .textAlign(TextAlign.Center)
-                      .fontSize(30)
+                      .fontSize(34)
                       .fontWeight(FontWeight.Bold)
                       .fontColor('#B4423D')
                       .backgroundColor('#FBEEEA')
                       .borderRadius(18)
                   }
+                  if (this.canEditAvatar()) {
+                    Text('＋')
+                      .width(26)
+                      .height(26)
+                      .textAlign(TextAlign.Center)
+                      .fontSize(15)
+                      .fontColor('#54646D')
+                      .backgroundColor(Color.White)
+                      .borderRadius(13)
+                      .border({ width: 1, color: '#ECF0F1' })
+                      .margin({ right: -4, bottom: -4 })
+                      .onClick(() => {
+                        this.pickAvatar();
+                      })
+                  }
                 }
-                .width(86)
-                .height(86)
+                .width(92)
+                .height(112)
 
-                Column({ space: 5 }) {
-                  Text(this.selected!.fullName)
-                    .fontSize(28)
-                    .fontWeight(FontWeight.Bold)
-                    .fontFamily('serif')
-                    .fontColor('#1C2A32')
-                  Row({ space: 8 }) {
+                Column({ space: 7 }) {
+                  Row({ space: 7 }) {
+                    Text(this.selected!.fullName)
+                      .fontSize(28)
+                      .fontWeight(FontWeight.Bold)
+                      .fontFamily('serif')
+                      .fontColor('#1C2A32')
+                      .letterSpacing(1)
                     Text(this.selected!.generationLabel)
-                      .fontSize(10)
+                      .fontSize(9)
                       .fontColor('#4E7DF4')
                       .backgroundColor('#EAF0FF')
-                      .padding({ left: 8, right: 8, top: 3, bottom: 3 })
-                      .borderRadius(8)
+                      .padding({ left: 7, right: 7, top: 3, bottom: 3 })
+                      .borderRadius(7)
+                  }
+                  .width('100%')
+                  Text(this.selected!.occupation !== undefined &&
+                    this.selected!.occupation!.length > 0
+                    ? this.selected!.occupation! : '家族成员')
+                    .fontSize(12)
+                    .fontColor('#54646D')
+                  Row({ space: 6 }) {
                     Text(this.selected!.lifeStatus === 'living' ? '在世' : '已故')
-                      .fontSize(10)
-                      .fontColor(this.selected!.lifeStatus === 'living' ? '#3DA77C' : '#89969C')
-                      .backgroundColor(this.selected!.lifeStatus === 'living' ? '#E9F6EF' : '#EDF2F5')
-                      .padding({ left: 8, right: 8, top: 3, bottom: 3 })
-                      .borderRadius(8)
+                      .fontSize(9)
+                      .fontColor(this.selected!.lifeStatus === 'living'
+                        ? '#2F8F67' : '#89969C')
+                      .backgroundColor(this.selected!.lifeStatus === 'living'
+                        ? '#E8F6EF' : '#EDF2F5')
+                      .padding({ left: 7, right: 7, top: 2, bottom: 2 })
+                      .borderRadius(6)
+                    if (this.selected!.courtesyName !== undefined &&
+                      this.selected!.courtesyName!.length > 0) {
+                      Text('字 ' + this.selected!.courtesyName!)
+                        .fontSize(9)
+                        .fontColor('#B4423D')
+                        .backgroundColor('#FBEEEA')
+                        .padding({ left: 7, right: 7, top: 2, bottom: 2 })
+                        .borderRadius(6)
+                    }
+                    if (this.selected!.alias !== undefined &&
+                      this.selected!.alias!.length > 0) {
+                      Text('号 ' + this.selected!.alias!)
+                        .fontSize(9)
+                        .fontColor('#B7791F')
+                        .backgroundColor('#FFF4DF')
+                        .padding({ left: 7, right: 7, top: 2, bottom: 2 })
+                        .borderRadius(6)
+                    }
                   }
                 }
                 .alignItems(HorizontalAlign.Start)
@@ -2580,21 +2652,75 @@ struct Index {
               }
               .width('100%')
 
+              Row() {
+                Column({ space: 2 }) {
+                  Text('生卒')
+                    .fontSize(9)
+                    .fontColor('#89969C')
+                  Text(this.selected!.birth !== undefined &&
+                    this.selected!.birth!.text !== undefined
+                    ? this.selected!.birth!.text : '未记录')
+                    .fontSize(11)
+                    .fontColor('#1C2A32')
+                    .maxLines(1)
+                }
+                .layoutWeight(1)
+                .alignItems(HorizontalAlign.Start)
+                Column()
+                  .width(1)
+                  .height(28)
+                  .backgroundColor('#DDE5E8')
+                Column({ space: 2 }) {
+                  Text('籍贯')
+                    .fontSize(9)
+                    .fontColor('#89969C')
+                  Text(this.selected!.birthPlace !== undefined &&
+                    this.selected!.birthPlace!.length > 0
+                    ? this.selected!.birthPlace! : '未记录')
+                    .fontSize(11)
+                    .fontColor('#1C2A32')
+                    .maxLines(1)
+                    .textOverflow({ overflow: TextOverflow.Ellipsis })
+                }
+                .layoutWeight(1)
+                .padding({ left: 12 })
+                .alignItems(HorizontalAlign.Start)
+                Column()
+                  .width(1)
+                  .height(28)
+                  .backgroundColor('#DDE5E8')
+                Column({ space: 2 }) {
+                  Text('世代')
+                    .fontSize(9)
+                    .fontColor('#89969C')
+                  Text(this.selected!.generationLabel)
+                    .fontSize(11)
+                    .fontColor('#1C2A32')
+                }
+                .layoutWeight(1)
+                .padding({ left: 12 })
+                .alignItems(HorizontalAlign.Start)
+              }
+              .width('100%')
+              .padding({ left: 13, right: 13, top: 10, bottom: 10 })
+              .backgroundColor('#94FFFFFF')
+              .borderRadius(9)
+
               if (this.canEditAvatar()) {
                 Row({ space: 8 }) {
                   Button(this.selected!.hasAvatar === true ? '更换头像' : '设置头像')
-                    .fontSize(11)
-                    .height(32)
-                    .backgroundColor('#EAF0FF')
+                    .fontSize(10)
+                    .height(28)
+                    .backgroundColor('#FFFFFFB8')
                     .fontColor('#4E7DF4')
                     .onClick(() => {
                       this.pickAvatar();
                     })
                   if (this.selected!.hasAvatar === true) {
                     Button('移除头像')
-                      .fontSize(11)
-                      .height(32)
-                      .backgroundColor('#FBEEEA')
+                      .fontSize(10)
+                      .height(28)
+                      .backgroundColor('#FFFFFFB8')
                       .fontColor('#B4423D')
                       .onClick(() => {
                         this.confirmDeleteAvatar();
@@ -2603,23 +2729,66 @@ struct Index {
                 }
                 .width('100%')
               }
-
-              Text('生卒：' + (this.selected!.birth !== undefined && this.selected!.birth!.text !== undefined
-                ? this.selected!.birth!.text : '未记录'))
-                .fontSize(12)
-                .fontColor('#6C7B82')
-              Text('籍贯：' + (this.selected!.birthPlace !== undefined && this.selected!.birthPlace!.length > 0
-                ? this.selected!.birthPlace! : '未记录'))
-                .fontSize(12)
-                .fontColor('#6C7B82')
             }
             .width('100%')
             .alignItems(HorizontalAlign.Start)
-            .padding(18)
+            .padding({ left: 20, right: 20, top: 22, bottom: 19 })
+            .linearGradient({
+              angle: 135,
+              colors: [['#F6F3E9', 0.0], ['#E7EFF0', 1.0]]
+            })
+            .borderRadius(17)
+            .border({ width: 1, color: Color.White })
+            .shadow({ radius: 24, color: '#0A20323B', offsetY: 8 })
+
+            Column({ space: 8 }) {
+              Row({ space: 8 }) {
+                Column()
+                  .width(3)
+                  .height(15)
+                  .backgroundColor('#4E7DF4')
+                  .borderRadius(3)
+                Text('照片')
+                  .fontSize(16)
+                  .fontWeight(FontWeight.Bold)
+                  .fontColor('#1C2A32')
+                Blank()
+                Text(this.personPhotos.length > 0 ? '全部 ›' : '添加 ›')
+                  .fontSize(11)
+                  .fontColor('#89969C')
+                  .onClick(() => {
+                    this.openAlbumForPerson(this.selected!.id);
+                  })
+              }
+              .width('100%')
+              if (this.personPhotos.length === 0) {
+                Text('还没有关联照片')
+                  .fontSize(11)
+                  .fontColor('#89969C')
+              } else {
+                Row({ space: 8 }) {
+                  ForEach(this.personPhotos.slice(0, 4), (photo: ApiPhoto) => {
+                    Stack() {
+                      AuthImage({
+                        path: '/api/v1/photos/' + photo.id + '/content',
+                        radius: 9
+                      })
+                    }
+                    .width(68)
+                    .height(68)
+                    .onClick(() => {
+                      this.openAlbumForPerson(this.selected!.id);
+                    })
+                  }, (photo: ApiPhoto) => photo.id)
+                }
+                .width('100%')
+              }
+            }
+            .width('100%')
+            .padding(14)
             .backgroundColor(Color.White)
             .borderRadius(15)
-            .border({ width: 1, color: '#FFFFFFCC' })
-            .shadow({ radius: 24, color: '#0A20323B', offsetY: 8 })
+            .alignItems(HorizontalAlign.Start)
 
             this.RelationSection('父母', this.selected!.parents)
             this.RelationSection('配偶', this.selected!.spouses)
@@ -2657,10 +2826,18 @@ struct Index {
   @Builder
   private RelationSection(title: string, relations: ApiRelative[] | undefined) {
     Column({ space: 8 }) {
-      Text(title)
-        .fontSize(14)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#1C2A32')
+      Row({ space: 8 }) {
+        Column()
+          .width(3)
+          .height(15)
+          .backgroundColor('#4E7DF4')
+          .borderRadius(3)
+        Text(title)
+          .fontSize(16)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#1C2A32')
+      }
+      .width('100%')
       if (relations === undefined || relations.length === 0) {
         Text('未记录')
           .fontSize(11)
