@@ -30,7 +30,8 @@ import {
   ApiPhoto,
   ApiRelative,
   ApiStory,
-  ApiTree
+  ApiTree,
+  UpdatePersonPayload
 } from '../model/Types';
 import { PersonBox, TreeLayoutBuilder, TreeLayoutResult } from '../model/TreeLayout';
 
@@ -110,6 +111,27 @@ struct Index {
   @State private selected: ApiPerson | null = null;
   @State private detailBusy: boolean = false;
   @State private personPhotos: ApiPhoto[] = [];
+  @State private relationTypeIndex: number = 0;
+  @State private relationPersonIndex: number = 0;
+  @State private relationBusy: boolean = false;
+  @State private relationError: string = '';
+  @State private editSurname: string = '';
+  @State private editGivenName: string = '';
+  @State private editCourtesyName: string = '';
+  @State private editAlias: string = '';
+  @State private editGender: string = 'male';
+  @State private editGeneration: string = '1';
+  @State private editBranchIndex: number = 0;
+  @State private editLifeStatus: string = 'living';
+  @State private editBirthYear: string = '';
+  @State private editBirthPlace: string = '';
+  @State private editResidence: string = '';
+  @State private editOccupation: string = '';
+  @State private editEducation: string = '';
+  @State private editBiography: string = '';
+  @State private editVersion: number = 1;
+  @State private editBusy: boolean = false;
+  @State private editError: string = '';
 
   @State private albumPhotos: ApiPhoto[] = [];
   @State private albumBusy: boolean = false;
@@ -774,6 +796,238 @@ struct Index {
       this.toast('头像已移除');
     } catch (error) {
       this.toast(this.errorText(error));
+    }
+  }
+
+  private confirmDeleteRelation(item: ApiRelative, group: string): void {
+    const canWrite = this.canDelete();
+    const edgeType = group === '配偶' ? 'spouse' : 'parent_child';
+    AlertDialog.show({
+      title: canWrite ? '删除亲属关系' : '申请删除亲属关系',
+      message: canWrite
+        ? '确定删除与 ' + item.fullName + ' 的' + item.relation + '关系吗？只删除关系，不删除人物。'
+        : '提交删除与 ' + item.fullName + ' 的' + item.relation +
+          '关系的申请，等待族长或管理员审核。',
+      primaryButton: {
+        value: '取消',
+        action: () => {
+        }
+      },
+      secondaryButton: {
+        value: canWrite ? '删除关系' : '提交申请',
+        fontColor: '#B4423D',
+        action: () => {
+          this.deleteRelation(item, group, edgeType, canWrite);
+        }
+      }
+    });
+  }
+
+  private async deleteRelation(
+    item: ApiRelative,
+    group: string,
+    edgeType: string,
+    canWrite: boolean
+  ): Promise<void> {
+    try {
+      if (canWrite) {
+        if (edgeType === 'spouse') {
+          await this.api.deleteSpouse(item.edgeId);
+        } else {
+          await this.api.deleteParentChild(item.edgeId);
+        }
+        await this.loadTree();
+        await this.openPerson(item.personId);
+        this.toast('关系已删除');
+      } else {
+        await this.api.createRelationshipEndRequest(edgeType, item.edgeId);
+        this.toast('关系纠错申请已提交');
+      }
+    } catch (error) {
+      this.toast(this.errorText(error));
+    }
+  }
+
+  private openAddRelation(): void {
+    this.relationTypeIndex = 0;
+    this.relationPersonIndex = 0;
+    this.relationError = '';
+    this.page = 'addRelation';
+  }
+
+  private relationPersonOptions(): SelectOption[] {
+    const options: SelectOption[] = [{ value: '选择人物' }];
+    if (this.tree !== null) {
+      this.tree.persons.forEach((person: ApiPerson) => {
+        if (this.selected === null || person.id !== this.selected.id) {
+          options.push({ value: person.fullName + ' · ' + person.generationLabel });
+        }
+      });
+    }
+    return options;
+  }
+
+  private relationTargetId(): string {
+    if (this.tree === null || this.relationPersonIndex <= 0) return '';
+    const filtered = this.tree.persons.filter((person: ApiPerson) =>
+      this.selected === null || person.id !== this.selected.id
+    );
+    const index = this.relationPersonIndex - 1;
+    return index < filtered.length ? filtered[index].id : '';
+  }
+
+  private async addRelation(): Promise<void> {
+    if (this.selected === null || this.relationBusy) return;
+    const targetId = this.relationTargetId();
+    if (targetId.length === 0) {
+      this.relationError = '请选择关联人物';
+      return;
+    }
+    this.relationBusy = true;
+    this.relationError = '';
+    try {
+      if (this.relationTypeIndex === 2) {
+        await this.api.addSpouse(this.selected.id, targetId);
+      } else if (this.relationTypeIndex === 3) {
+        await this.api.addParentChild(
+          this.selected.id,
+          targetId,
+          this.selected.gender === 'female' ? 'mother' : 'father'
+        );
+      } else {
+        await this.api.addParentChild(
+          targetId,
+          this.selected.id,
+          this.relationTypeIndex === 1 ? 'mother' : 'father'
+        );
+      }
+      const personId = this.selected.id;
+      await this.loadTree();
+      await this.openPerson(personId);
+      this.page = 'detail';
+      this.toast('亲属关系已添加');
+    } catch (error) {
+      this.relationError = this.errorText(error);
+    } finally {
+      this.relationBusy = false;
+    }
+  }
+
+  private confirmBindPerson(): void {
+    const person = this.selected;
+    if (person === null) return;
+    AlertDialog.show({
+      title: '绑定族谱人物',
+      message: '确定把自己绑定为“' + person.fullName +
+        '”吗？提交后需要族长或管理员审核。',
+      primaryButton: {
+        value: '取消',
+        action: () => {
+        }
+      },
+      secondaryButton: {
+        value: '提交申请',
+        action: () => {
+          this.bindToPerson(person.id);
+        }
+      }
+    });
+  }
+
+  private async bindToPerson(personId: string): Promise<void> {
+    try {
+      await this.api.createBindingRequest(personId);
+      this.toast('绑定申请已提交');
+    } catch (error) {
+      this.toast(this.errorText(error));
+    }
+  }
+
+  private async openEditPerson(): Promise<void> {
+    const person = this.selected;
+    if (person === null) return;
+    this.editSurname = person.surname;
+    this.editGivenName = person.givenName;
+    this.editCourtesyName = person.courtesyName === undefined ? '' : person.courtesyName!;
+    this.editAlias = person.alias === undefined ? '' : person.alias!;
+    this.editGender = person.gender;
+    this.editGeneration = String(person.generationNo);
+    this.editLifeStatus = person.lifeStatus;
+    this.editBirthYear = person.birth !== undefined && person.birth!.year !== undefined
+      ? String(person.birth!.year) : '';
+    this.editBirthPlace = person.birthPlace === undefined ? '' : person.birthPlace!;
+    this.editResidence = person.residence === undefined ? '' : person.residence!;
+    this.editOccupation = person.occupation === undefined ? '' : person.occupation!;
+    this.editEducation = person.education === undefined ? '' : person.education!;
+    this.editBiography = person.biography === undefined ? '' : person.biography!;
+    this.editVersion = person.version;
+    this.editError = '';
+    this.page = 'editPerson';
+    try {
+      const page = await this.api.branches();
+      this.dataBranches = page.items;
+      this.editBranchIndex = 0;
+      if (person.branchId !== undefined) {
+        const index = page.items.findIndex(
+          (branch: ApiBranch) => branch.id === person.branchId
+        );
+        if (index >= 0) this.editBranchIndex = index;
+      }
+    } catch (_) {
+      // Keep an empty branch list; save will report the problem.
+    }
+  }
+
+  private async saveEditedPerson(): Promise<void> {
+    const person = this.selected;
+    if (person === null || this.editBusy) return;
+    const generation = Number(this.editGeneration);
+    if (this.editSurname.trim().length === 0 ||
+      this.editGivenName.trim().length === 0 ||
+      !Number.isInteger(generation) || generation < 1 || generation > 99) {
+      this.editError = '请填写姓、名和 1-99 的世代';
+      return;
+    }
+    if (this.dataBranches.length === 0) {
+      this.editError = '没有可用家支';
+      return;
+    }
+    const branchIndex = Math.min(this.editBranchIndex, this.dataBranches.length - 1);
+    const birthYear = Number(this.editBirthYear);
+    const payload: UpdatePersonPayload = {
+      surname: this.editSurname.trim(),
+      givenName: this.editGivenName.trim(),
+      courtesyName: this.editCourtesyName.trim(),
+      alias: this.editAlias.trim(),
+      gender: this.editGender,
+      generationNo: generation,
+      generationName: person.generationName === undefined ? '' : person.generationName!,
+      branchId: this.dataBranches[branchIndex].id,
+      birthCalendar: 'solar',
+      deathCalendar: 'solar',
+      lifeStatus: this.editLifeStatus,
+      birthPlace: this.editBirthPlace.trim(),
+      residence: this.editResidence.trim(),
+      occupation: this.editOccupation.trim(),
+      education: this.editEducation.trim(),
+      biography: this.editBiography.trim(),
+      version: this.editVersion
+    };
+    if (this.editBirthYear.trim().length > 0 && Number.isFinite(birthYear)) {
+      payload.birthYear = birthYear;
+    }
+    this.editBusy = true;
+    this.editError = '';
+    try {
+      const updated = await this.api.updatePerson(person.id, payload);
+      this.selected = updated;
+      await this.loadTree();
+      this.page = 'detail';
+      this.toast('人物资料已更新');
+    } catch (error) {
+      this.editError = this.errorText(error);
+    } finally {
+      this.editBusy = false;
     }
   }
 
@@ -3964,6 +4218,44 @@ struct Index {
             .borderRadius(15)
             .alignItems(HorizontalAlign.Start)
 
+            if (this.canDelete() || this.linkedPersonId.length === 0) {
+              Row({ space: 8 }) {
+                if (this.canDelete()) {
+                  Button('编辑资料')
+                    .layoutWeight(1)
+                    .height(38)
+                    .fontSize(11)
+                    .backgroundColor('#FFFFFF')
+                    .fontColor('#1C2A32')
+                    .border({ width: 1, color: '#ECF0F1' })
+                    .onClick(() => {
+                      this.openEditPerson();
+                    })
+                  Button('添加亲属')
+                    .layoutWeight(1)
+                    .height(38)
+                    .fontSize(11)
+                    .backgroundColor('#EAF0FF')
+                    .fontColor('#4E7DF4')
+                    .onClick(() => {
+                      this.openAddRelation();
+                    })
+                }
+                if (this.linkedPersonId.length === 0) {
+                  Button('绑定为此人物')
+                    .layoutWeight(1)
+                    .height(38)
+                    .fontSize(11)
+                    .backgroundColor('#FFF4DF')
+                    .fontColor('#B7791F')
+                    .onClick(() => {
+                      this.confirmBindPerson();
+                    })
+                }
+              }
+              .width('100%')
+            }
+
             this.RelationSection('父母', this.selected!.parents)
             this.RelationSection('配偶', this.selected!.spouses)
             this.RelationSection('子女', this.selected!.children)
@@ -4026,16 +4318,25 @@ struct Index {
             Text(item.fullName)
               .fontSize(13)
               .fontColor('#1C2A32')
+              .onClick(() => {
+                this.openPerson(item.personId);
+              })
             Blank()
+            if (item.edgeId.length > 0) {
+              Text('×')
+                .fontSize(16)
+                .fontColor('#C1CBCF')
+                .padding({ left: 8, right: 8 })
+                .onClick(() => {
+                  this.confirmDeleteRelation(item, title);
+                })
+            }
             Text('›')
               .fontSize(17)
               .fontColor('#C1CBCF')
           }
           .width('100%')
           .padding({ top: 6, bottom: 6 })
-          .onClick(() => {
-            this.openPerson(item.personId);
-          })
         }, (item: ApiRelative) => item.personId + item.relation)
       }
     }
@@ -4044,6 +4345,307 @@ struct Index {
     .padding(16)
     .backgroundColor(Color.White)
     .borderRadius(15)
+  }
+
+  @Builder
+  private EditPersonView() {
+    Column() {
+      Row() {
+        Button('‹')
+          .width(38)
+          .height(38)
+          .backgroundColor('#FFFFFF')
+          .fontColor('#1C2A32')
+          .fontSize(22)
+          .borderRadius(19)
+          .onClick(() => {
+            this.page = 'detail';
+          })
+        Text('编辑人物资料')
+          .fontSize(19)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#1C2A32')
+          .margin({ left: 12 })
+        Blank()
+        Button(this.editBusy ? '保存中' : '保存')
+          .fontSize(11)
+          .height(32)
+          .backgroundColor('#4E7DF4')
+          .fontColor(Color.White)
+          .enabled(!this.editBusy)
+          .onClick(() => {
+            this.saveEditedPerson();
+          })
+      }
+      .width('100%')
+      .padding({ left: 14, right: 14, top: 12, bottom: 8 })
+
+      Scroll() {
+        Column({ space: 10 }) {
+          TextInput({ placeholder: '姓', text: this.editSurname })
+            .height(44)
+            .backgroundColor('#F7F9FA')
+            .borderRadius(8)
+            .fontSize(13)
+            .onChange((value: string) => {
+              this.editSurname = value;
+            })
+          TextInput({ placeholder: '名', text: this.editGivenName })
+            .height(44)
+            .backgroundColor('#F7F9FA')
+            .borderRadius(8)
+            .fontSize(13)
+            .onChange((value: string) => {
+              this.editGivenName = value;
+            })
+          TextInput({ placeholder: '字（可选）', text: this.editCourtesyName })
+            .height(44)
+            .backgroundColor('#F7F9FA')
+            .borderRadius(8)
+            .fontSize(13)
+            .onChange((value: string) => {
+              this.editCourtesyName = value;
+            })
+          TextInput({ placeholder: '号（可选）', text: this.editAlias })
+            .height(44)
+            .backgroundColor('#F7F9FA')
+            .borderRadius(8)
+            .fontSize(13)
+            .onChange((value: string) => {
+              this.editAlias = value;
+            })
+          Row({ space: 10 }) {
+            Button('男')
+              .layoutWeight(1)
+              .height(38)
+              .backgroundColor(this.editGender === 'male' ? '#4E7DF4' : '#F2F5F7')
+              .fontColor(this.editGender === 'male' ? Color.White : '#1C2A32')
+              .onClick(() => {
+                this.editGender = 'male';
+              })
+            Button('女')
+              .layoutWeight(1)
+              .height(38)
+              .backgroundColor(this.editGender === 'female' ? '#B45D5A' : '#F2F5F7')
+              .fontColor(this.editGender === 'female' ? Color.White : '#1C2A32')
+              .onClick(() => {
+                this.editGender = 'female';
+              })
+          }
+          .width('100%')
+          TextInput({ placeholder: '世代（数字）', text: this.editGeneration })
+            .height(44)
+            .type(InputType.Number)
+            .backgroundColor('#F7F9FA')
+            .borderRadius(8)
+            .fontSize(13)
+            .onChange((value: string) => {
+              this.editGeneration = value;
+            })
+          if (this.dataBranches.length > 0) {
+            Select(this.dataBranches.map((branch: ApiBranch) => {
+              const option: SelectOption = { value: branch.name };
+              return option;
+            }))
+              .selected(this.editBranchIndex)
+              .value(this.dataBranches[Math.min(
+                this.editBranchIndex,
+                this.dataBranches.length - 1
+              )].name)
+              .onSelect((index: number) => {
+                this.editBranchIndex = index;
+              })
+              .width('100%')
+          }
+          Row({ space: 10 }) {
+            Button('在世')
+              .layoutWeight(1)
+              .height(36)
+              .backgroundColor(this.editLifeStatus === 'living' ? '#E8F6EF' : '#F2F5F7')
+              .fontColor(this.editLifeStatus === 'living' ? '#2F8F67' : '#89969C')
+              .onClick(() => {
+                this.editLifeStatus = 'living';
+              })
+            Button('已故')
+              .layoutWeight(1)
+              .height(36)
+              .backgroundColor(this.editLifeStatus !== 'living' ? '#EDF2F5' : '#F2F5F7')
+              .fontColor(this.editLifeStatus !== 'living' ? '#6C7B82' : '#89969C')
+              .onClick(() => {
+                this.editLifeStatus = 'deceased';
+              })
+          }
+          .width('100%')
+          TextInput({ placeholder: '出生年份（可选）', text: this.editBirthYear })
+            .height(44)
+            .type(InputType.Number)
+            .backgroundColor('#F7F9FA')
+            .borderRadius(8)
+            .fontSize(13)
+            .onChange((value: string) => {
+              this.editBirthYear = value;
+            })
+          TextInput({ placeholder: '籍贯', text: this.editBirthPlace })
+            .height(44)
+            .backgroundColor('#F7F9FA')
+            .borderRadius(8)
+            .fontSize(13)
+            .onChange((value: string) => {
+              this.editBirthPlace = value;
+            })
+          TextInput({ placeholder: '现居地', text: this.editResidence })
+            .height(44)
+            .backgroundColor('#F7F9FA')
+            .borderRadius(8)
+            .fontSize(13)
+            .onChange((value: string) => {
+              this.editResidence = value;
+            })
+          TextInput({ placeholder: '职业', text: this.editOccupation })
+            .height(44)
+            .backgroundColor('#F7F9FA')
+            .borderRadius(8)
+            .fontSize(13)
+            .onChange((value: string) => {
+              this.editOccupation = value;
+            })
+          TextInput({ placeholder: '教育', text: this.editEducation })
+            .height(44)
+            .backgroundColor('#F7F9FA')
+            .borderRadius(8)
+            .fontSize(13)
+            .onChange((value: string) => {
+              this.editEducation = value;
+            })
+          TextArea({ placeholder: '生平简介', text: this.editBiography })
+            .height(160)
+            .backgroundColor('#F7F9FA')
+            .borderRadius(8)
+            .fontSize(12)
+            .onChange((value: string) => {
+              this.editBiography = value;
+            })
+          if (this.editError.length > 0) {
+            Text(this.editError)
+              .fontSize(11)
+              .fontColor('#B4423D')
+              .width('100%')
+          }
+        }
+        .width('100%')
+        .padding({ left: 14, right: 14, bottom: 24 })
+      }
+      .layoutWeight(1)
+      .scrollBar(BarState.Off)
+    }
+    .width('100%')
+    .height('100%')
+  }
+
+  @Builder
+  private AddRelationView() {
+    Column() {
+      Row() {
+        Button('‹')
+          .width(38)
+          .height(38)
+          .backgroundColor('#FFFFFF')
+          .fontColor('#1C2A32')
+          .fontSize(22)
+          .borderRadius(19)
+          .onClick(() => {
+            this.page = 'detail';
+          })
+        Text('添加亲属')
+          .fontSize(19)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#1C2A32')
+          .margin({ left: 12 })
+      }
+      .width('100%')
+      .padding({ left: 14, right: 14, top: 12, bottom: 8 })
+
+      Scroll() {
+        Column({ space: 12 }) {
+          Column({ space: 4 }) {
+            Text('为 ' + (this.selected !== null ? this.selected!.fullName : '') + ' 添加：')
+              .fontSize(13)
+              .fontColor('#1C2A32')
+              .width('100%')
+            Text('添加后族谱树和人物档案会立即刷新。')
+              .fontSize(10)
+              .fontColor('#89969C')
+              .width('100%')
+          }
+          .width('100%')
+          .padding(14)
+          .backgroundColor(Color.White)
+          .borderRadius(13)
+          .alignItems(HorizontalAlign.Start)
+
+          Column({ space: 10 }) {
+            Text('关系类型')
+              .fontSize(12)
+              .fontWeight(FontWeight.Medium)
+              .fontColor('#1C2A32')
+              .width('100%')
+            Select([
+              { value: '父亲' },
+              { value: '母亲' },
+              { value: '配偶' },
+              { value: '子女' }
+            ])
+              .selected(this.relationTypeIndex)
+              .value(['父亲', '母亲', '配偶', '子女'][this.relationTypeIndex])
+              .onSelect((index: number) => {
+                this.relationTypeIndex = index;
+              })
+              .width('100%')
+            Text('关联人物')
+              .fontSize(12)
+              .fontWeight(FontWeight.Medium)
+              .fontColor('#1C2A32')
+              .width('100%')
+            Select(this.relationPersonOptions())
+              .selected(this.relationPersonIndex)
+              .value(this.relationPersonOptions()[Math.min(
+                this.relationPersonIndex,
+                this.relationPersonOptions().length - 1
+              )].value)
+              .onSelect((index: number) => {
+                this.relationPersonIndex = index;
+              })
+              .width('100%')
+            if (this.relationError.length > 0) {
+              Text(this.relationError)
+                .fontSize(11)
+                .fontColor('#B4423D')
+                .width('100%')
+            }
+            Button(this.relationBusy ? '正在保存...' : '保存关系')
+              .width('100%')
+              .height(44)
+              .backgroundColor('#4E7DF4')
+              .fontColor(Color.White)
+              .enabled(!this.relationBusy)
+              .onClick(() => {
+                this.addRelation();
+              })
+          }
+          .width('100%')
+          .padding(16)
+          .backgroundColor(Color.White)
+          .borderRadius(13)
+          .alignItems(HorizontalAlign.Start)
+        }
+        .width('100%')
+        .padding({ left: 14, right: 14, bottom: 24 })
+      }
+      .layoutWeight(1)
+      .scrollBar(BarState.Off)
+    }
+    .width('100%')
+    .height('100%')
   }
 
   @Builder
@@ -6611,6 +7213,10 @@ struct Index {
         this.MembersView()
       } else if (this.page === 'avatar') {
         this.AvatarCropView()
+      } else if (this.page === 'addRelation') {
+        this.AddRelationView()
+      } else if (this.page === 'editPerson') {
+        this.EditPersonView()
       } else if (this.page === 'stories') {
         this.StoriesView()
       } else if (this.page === 'storyDetail') {

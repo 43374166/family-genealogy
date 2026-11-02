@@ -33,7 +33,8 @@ import {
   ApiStoryPage,
   ApiTree,
   ApiBindingRequest,
-  ApiBindingRequestPage
+  ApiBindingRequestPage,
+  UpdatePersonPayload
 } from '../model/Types';
 
 export class ApiClient {
@@ -812,6 +813,82 @@ export class ApiClient {
     );
   }
 
+  async updatePerson(
+    personId: string,
+    payload: UpdatePersonPayload
+  ): Promise<ApiPerson> {
+    const text = await this.request(
+      http.RequestMethod.PATCH,
+      '/api/v1/persons/' + encodeURIComponent(personId),
+      payload
+    );
+    return JSON.parse(text) as ApiPerson;
+  }
+
+  async addParentChild(
+    parentId: string,
+    childId: string,
+    parentRole: string
+  ): Promise<void> {
+    const payload: ParentChildPayload = {
+      parentId: parentId,
+      childId: childId,
+      parentRole: parentRole
+    };
+    await this.request(
+      http.RequestMethod.POST,
+      '/api/v1/relationships/parent-child',
+      payload
+    );
+  }
+
+  async addSpouse(personAId: string, personBId: string): Promise<void> {
+    const payload: SpousePayload = {
+      personAId: personAId,
+      personBId: personBId
+    };
+    await this.request(
+      http.RequestMethod.POST,
+      '/api/v1/relationships/spouse',
+      payload
+    );
+  }
+
+  async deleteParentChild(edgeId: string): Promise<void> {
+    await this.request(
+      http.RequestMethod.DELETE,
+      '/api/v1/relationships/parent-child/' + encodeURIComponent(edgeId)
+    );
+  }
+
+  async deleteSpouse(edgeId: string): Promise<void> {
+    await this.request(
+      http.RequestMethod.DELETE,
+      '/api/v1/relationships/spouse/' + encodeURIComponent(edgeId)
+    );
+  }
+
+  async createRelationshipEndRequest(edgeType: string, edgeId: string): Promise<void> {
+    const payload: RelationshipEndPayload = {
+      edgeType: edgeType,
+      edgeId: edgeId
+    };
+    await this.request(
+      http.RequestMethod.POST,
+      '/api/v1/edit-requests/relationship-end',
+      payload
+    );
+  }
+
+  async createBindingRequest(personId: string): Promise<void> {
+    const payload: BindingPayload = { personId: personId };
+    await this.request(
+      http.RequestMethod.POST,
+      '/api/v1/bind-requests',
+      payload
+    );
+  }
+
   async family(): Promise<ApiFamily> {
     const text = await this.request(http.RequestMethod.GET, '/api/v1/family');
     return JSON.parse(text) as ApiFamily;
@@ -932,4 +1009,24 @@ interface TransferOwnerPayload {
 interface ArchiveFamilyPayload {
   password: string;
   confirmName: string;
+}
+
+interface ParentChildPayload {
+  parentId: string;
+  childId: string;
+  parentRole: string;
+}
+
+interface SpousePayload {
+  personAId: string;
+  personBId: string;
+}
+
+interface RelationshipEndPayload {
+  edgeType: string;
+  edgeId: string;
+}
+
+interface BindingPayload {
+  personId: string;
 }

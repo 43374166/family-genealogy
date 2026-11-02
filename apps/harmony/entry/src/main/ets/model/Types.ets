@@ -406,3 +406,29 @@ export interface ApiRegistration {
   user: ApiUser;
   family: ApiFamily;
 }
+
+export interface UpdatePersonPayload {
+  surname: string;
+  givenName: string;
+  courtesyName: string;
+  alias: string;
+  gender: string;
+  generationNo: number;
+  generationName: string;
+  branchId: string;
+  birthYear?: number;
+  birthMonth?: number;
+  birthDay?: number;
+  birthCalendar: string;
+  deathYear?: number;
+  deathMonth?: number;
+  deathDay?: number;
+  deathCalendar: string;
+  lifeStatus: string;
+  birthPlace: string;
+  residence: string;
+  occupation: string;
+  education: string;
+  biography: string;
+  version: number;
+}
