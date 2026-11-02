@@ -77,6 +77,45 @@ class _ApiPersonDetailPageState extends State<ApiPersonDetailPage> {
     }
   }
 
+  Future<void> _deletePerson(ApiPerson person) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('删除人物'),
+        content: Text(
+          '确定从族谱中删除 ${person.fullName} 吗？\n\n'
+          '该人物的父母、配偶、子女关系会一并结束，账号绑定和照片人物标记会解除。'
+          '族谱中不再显示，但操作历史会保留。此操作不可撤销。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.cinnabar),
+            child: const Text('删除人物'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await SessionScope.of(context).deletePerson(person.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('人物已从族谱删除')));
+      Navigator.of(context).pop(true);
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    }
+  }
+
   Future<void> _deleteRelation(ApiRelative relative, String group) async {
     final canWrite = SessionScope.of(context).canWrite;
     final confirmed = await showDialog<bool>(
@@ -184,6 +223,15 @@ class _ApiPersonDetailPageState extends State<ApiPersonDetailPage> {
                   icon: const Icon(
                     Icons.photo_camera_outlined,
                     color: AppColors.inkSoft,
+                  ),
+                ),
+              if (person != null && session.canWrite)
+                IconButton(
+                  tooltip: '删除人物',
+                  onPressed: () => _deletePerson(person),
+                  icon: const Icon(
+                    Icons.delete_outline_rounded,
+                    color: AppColors.cinnabar,
                   ),
                 ),
             ],

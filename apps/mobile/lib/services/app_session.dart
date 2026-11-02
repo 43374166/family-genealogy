@@ -257,6 +257,15 @@ class AppSession extends ChangeNotifier {
     return person;
   }
 
+  Future<void> deletePerson(String personId) async {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    await _api.deletePerson(personId);
+    await refreshTree();
+    await refreshMe();
+  }
+
   Future<void> deleteParentChild(String edgeId) async {
     if (!isAuthenticated) {
       throw const ApiException('登录状态已失效，请重新登录');

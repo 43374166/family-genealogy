@@ -128,4 +128,46 @@ func TestWriteAPI(t *testing.T) {
 	if len(person.Parents) != 1 || len(person.Spouses) != 1 || person.Version != 3 {
 		t.Fatalf("unexpected new person: %+v", person)
 	}
+
+	response = doJSON(t, http.DefaultClient, http.MethodDelete,
+		server.URL+"/api/v1/persons/"+firstID, "", login.Token)
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("archive person status = %d, body = %s", response.StatusCode, readBody(t, response))
+	}
+
+	response = doJSON(t, http.DefaultClient, http.MethodGet,
+		server.URL+"/api/v1/persons/"+firstID, "", login.Token)
+	if response.StatusCode != http.StatusNotFound {
+		t.Fatalf("archived person status = %d, want 404", response.StatusCode)
+	}
+
+	response = doJSON(t, http.DefaultClient, http.MethodGet,
+		server.URL+"/api/v1/persons/"+secondID, "", login.Token)
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("get spouse after archive status = %d", response.StatusCode)
+	}
+	var spouse struct {
+		Spouses []any `json:"spouses"`
+	}
+	decodeBody(t, response, &spouse)
+	if len(spouse.Spouses) != 0 {
+		t.Fatalf("spouse relationship should end after archive: %+v", spouse.Spouses)
+	}
+
+	response = doJSON(t, http.DefaultClient, http.MethodGet,
+		server.URL+"/api/v1/tree", "", login.Token)
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("tree after archive status = %d", response.StatusCode)
+	}
+	var tree struct {
+		Persons []struct {
+			ID string `json:"id"`
+		} `json:"persons"`
+	}
+	decodeBody(t, response, &tree)
+	for _, item := range tree.Persons {
+		if item.ID == firstID {
+			t.Fatalf("archived person is still in tree")
+		}
+	}
 }

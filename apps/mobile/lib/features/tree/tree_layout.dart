@@ -98,6 +98,7 @@ class _TreeLayoutBuilder {
   final Map<int, double> rowHeightByGeneration = {};
   final Map<String, TreePersonPlacement> placementsById = {};
   final Map<_Unit, double> _subtreeWidthCache = {};
+  final Map<String, List<String>> _spouseIds = {};
 
   static const double _contentLeft = 80;
   static const double _top = 28;
@@ -165,7 +166,7 @@ class _TreeLayoutBuilder {
   }
 
   void _buildUnits() {
-    final spouseOf = <String, String>{};
+    _spouseIds.clear();
     for (final edge in tree.spouses) {
       // Spouse status is married/widowed/divorced/unknown. Only an explicitly
       // divorced pair should be placed apart.
@@ -175,8 +176,11 @@ class _TreeLayoutBuilder {
       if (a == null || b == null || a.generationNo != b.generationNo) {
         continue;
       }
-      spouseOf.putIfAbsent(a.id, () => b.id);
-      spouseOf.putIfAbsent(b.id, () => a.id);
+      (_spouseIds[a.id] ??= []).add(b.id);
+      (_spouseIds[b.id] ??= []).add(a.id);
+    }
+    for (final ids in _spouseIds.values) {
+      ids.sort((a, b) => _comparePeople(persons[a]!, persons[b]!));
     }
 
     final used = <String>{};
@@ -187,28 +191,58 @@ class _TreeLayoutBuilder {
               .where((person) => person.generationNo == generation)
               .toList()
             ..sort(_comparePeople);
-      for (final person in people) {
-        if (!used.add(person.id)) continue;
-        final members = <ApiPerson>[person];
-        final spouseId = spouseOf[person.id];
-        final spouse = spouseId == null ? null : persons[spouseId];
-        if (spouse != null &&
-            spouse.generationNo == generation &&
-            used.add(spouse.id)) {
-          members.add(spouse);
-        }
-        members.sort((a, b) {
-          final aHasParent = _hasParent(a.id);
-          final bHasParent = _hasParent(b.id);
-          if (aHasParent != bHasParent) return aHasParent ? -1 : 1;
-          if (a.gender != b.gender) return a.gender == 'male' ? -1 : 1;
-          return _comparePeople(a, b);
-        });
+
+      void addUnit(List<ApiPerson> members) {
         final unit = _Unit(members: members, generation: generation);
         unit.width =
             members.length * _cardWidth(generation) +
             (members.length - 1) * _memberGap;
         units.add(unit);
+      }
+
+      // A husband with several wives should keep all wives beside him. The
+      // wives are sorted by birth order, not split into separate units.
+      for (final person in people) {
+        if (person.gender != 'male' || used.contains(person.id)) continue;
+        final wives = (_spouseIds[person.id] ?? const <String>[])
+            .map((id) => persons[id])
+            .whereType<ApiPerson>()
+            .where(
+              (spouse) =>
+                  spouse.generationNo == generation &&
+                  !used.contains(spouse.id),
+            )
+            .toList();
+        if (wives.isEmpty) continue;
+        final members = [person, ...wives];
+        used.addAll(members.map((person) => person.id));
+        addUnit(members);
+      }
+
+      for (final person in people) {
+        if (!used.add(person.id)) continue;
+        final members = <ApiPerson>[person];
+        for (final spouseId in _spouseIds[person.id] ?? const <String>[]) {
+          final spouse = persons[spouseId];
+          if (spouse == null ||
+              spouse.generationNo != generation ||
+              used.contains(spouse.id)) {
+            continue;
+          }
+          used.add(spouse.id);
+          members.add(spouse);
+          break;
+        }
+        if (members.length == 2 &&
+            members.first.gender != 'male' &&
+            members.last.gender == 'male') {
+          final first = members.first;
+          final last = members.last;
+          members
+            ..clear()
+            ..addAll([last, first]);
+        }
+        addUnit(members);
       }
       units.sort((a, b) => _comparePeople(a.members.first, b.members.first));
       unitsByGeneration[generation] = units;
@@ -227,10 +261,6 @@ class _TreeLayoutBuilder {
       parentUnit.children.add(childUnit);
       childUnit.parents.add(parentUnit);
     }
-  }
-
-  bool _hasParent(String personId) {
-    return tree.parentChild.any((edge) => edge.childId == personId);
   }
 
   /// A child with two parents normally has both parents in one couple unit.
@@ -356,46 +386,118 @@ class _TreeLayoutBuilder {
     final unions = <Offset>[];
     final branches = <Offset>[];
 
-    // Each person's line starts at the horizontal centre of their own card.
-    // The old spouse bridge used to hang a line from the gap beside the wife's
-    // card; keeping one connector per parent removes that stray line.
-    final childrenByParent = <String, List<TreePersonPlacement>>{};
+    // A child belongs to one marriage, not merely to one parent. Grouping by
+    // father + mother keeps children of different wives on separate branches.
+    final edgesByChild = <String, List<ApiParentChildEdge>>{};
     for (final edge in tree.parentChild) {
-      final parent = placementsById[edge.parentId];
-      final child = placementsById[edge.childId];
-      if (parent == null || child == null) continue;
-      if (parent.generation >= child.generation) continue;
-      final children = childrenByParent.putIfAbsent(
-        parent.person.id,
-        () => <TreePersonPlacement>[],
+      edgesByChild.putIfAbsent(edge.childId, () => []).add(edge);
+    }
+
+    // Include ex-wives too: a divorced or remarried wife's children still need
+    // their own branch, even though the wife is placed in a separate unit.
+    final mothersByFather = <String, List<String>>{};
+    for (final entry in edgesByChild.entries) {
+      ApiParentChildEdge? fatherEdge;
+      ApiParentChildEdge? motherEdge;
+      for (final edge in entry.value) {
+        if (edge.parentRole == 'father') fatherEdge ??= edge;
+        if (edge.parentRole == 'mother') motherEdge ??= edge;
+      }
+      if (fatherEdge == null || motherEdge == null) continue;
+      if (!placementsById.containsKey(fatherEdge.parentId) ||
+          !placementsById.containsKey(motherEdge.parentId)) {
+        continue;
+      }
+      final mothers = mothersByFather.putIfAbsent(
+        fatherEdge.parentId,
+        () => <String>[],
       );
-      if (!children.any((item) => item.person.id == child.person.id)) {
-        children.add(child);
+      if (!mothers.contains(motherEdge.parentId)) {
+        mothers.add(motherEdge.parentId);
+      }
+    }
+    for (final mothers in mothersByFather.values) {
+      mothers.sort((a, b) => _comparePeople(persons[a]!, persons[b]!));
+    }
+
+    final groups = <String, _UnionGroup>{};
+    for (final entry in edgesByChild.entries) {
+      final child = placementsById[entry.key];
+      if (child == null) continue;
+
+      TreePersonPlacement? father;
+      TreePersonPlacement? mother;
+      TreePersonPlacement? fallback;
+      for (final edge in entry.value) {
+        final parent = placementsById[edge.parentId];
+        if (parent == null || parent.generation >= child.generation) continue;
+        fallback ??= parent;
+        if (edge.parentRole == 'father') {
+          father ??= parent;
+        } else if (edge.parentRole == 'mother') {
+          mother ??= parent;
+        }
+      }
+      final anchor = father ?? mother ?? fallback;
+      if (anchor == null) continue;
+
+      var wifeIndex = -1;
+      if (father != null && mother != null) {
+        final mothers = mothersByFather[father.person.id] ?? const <String>[];
+        final index = mothers.indexOf(mother.person.id);
+        if (index >= 0) wifeIndex = index;
+      }
+      final key =
+          '${anchor.person.id}|${wifeIndex >= 0 ? wifeIndex : 'single'}';
+      final group = groups.putIfAbsent(
+        key,
+        () => _UnionGroup(anchor: anchor, wifeIndex: wifeIndex),
+      );
+      if (!group.children.any((item) => item.person.id == child.person.id)) {
+        group.children.add(child);
       }
     }
 
-    for (final entry in childrenByParent.entries) {
-      final parent = placementsById[entry.key]!;
-      final children = entry.value
-        ..sort((a, b) => a.center.dx.compareTo(b.center.dx));
-      final anchorX = parent.center.dx;
-      final startY = parent.rect.bottom;
-      for (var index = 0; index < children.length; index++) {
-        final child = children[index];
-        final childX = child.center.dx;
-        final childTop = child.rect.top;
+    final groupsByAnchor = <String, List<_UnionGroup>>{};
+    for (final group in groups.values) {
+      groupsByAnchor.putIfAbsent(group.anchor.person.id, () => []).add(group);
+    }
+    for (final anchorGroups in groupsByAnchor.values) {
+      anchorGroups.sort((a, b) => a.wifeIndex.compareTo(b.wifeIndex));
+      final anchor = anchorGroups.first.anchor;
+      final wifeCount = mothersByFather[anchor.person.id]?.length ?? 1;
+      for (var groupIndex = 0; groupIndex < anchorGroups.length; groupIndex++) {
+        final group = anchorGroups[groupIndex];
+        final children = group.children
+          ..sort((a, b) => a.center.dx.compareTo(b.center.dx));
+        if (children.isEmpty) continue;
+        final anchorX = wifeCount > 1 && group.wifeIndex >= 0
+            ? anchor.rect.left +
+                  anchor.rect.width * (group.wifeIndex + 1) / (wifeCount + 1)
+            : anchor.center.dx;
+        final startY = anchor.rect.bottom;
+        final childTop = children.first.rect.top;
         final distance = math.max(20.0, childTop - startY);
-        final midY = startY + distance * 0.46;
-        final path = <Offset>[
-          Offset(anchorX, startY),
-          Offset(anchorX, midY),
-          Offset(childX, midY),
-          Offset(childX, childTop),
-        ];
-        edges.add(TreeEdge(points: path, colorSlot: index));
-        branches.add(Offset(childX, midY));
+        final stagger = anchorGroups.length > 1
+            ? (groupIndex - (anchorGroups.length - 1) / 2) * 10.0
+            : 0.0;
+        final midY = (startY + distance * 0.46 + stagger)
+            .clamp(startY + 8, childTop - 8)
+            .toDouble();
+        for (var index = 0; index < children.length; index++) {
+          final child = children[index];
+          final childX = child.center.dx;
+          final path = <Offset>[
+            Offset(anchorX, startY),
+            Offset(anchorX, midY),
+            Offset(childX, midY),
+            Offset(childX, child.rect.top),
+          ];
+          edges.add(TreeEdge(points: path, colorSlot: index));
+          branches.add(Offset(childX, midY));
+        }
+        unions.add(Offset(anchorX, startY));
       }
-      unions.add(Offset(anchorX, startY));
     }
 
     return _TreeGeometry(
@@ -425,6 +527,14 @@ class _TreeLayoutBuilder {
     }
     return result;
   }
+}
+
+class _UnionGroup {
+  _UnionGroup({required this.anchor, required this.wifeIndex});
+
+  final TreePersonPlacement anchor;
+  final int wifeIndex;
+  final List<TreePersonPlacement> children = [];
 }
 
 class _TreeGeometry {

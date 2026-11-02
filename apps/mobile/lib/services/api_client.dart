@@ -814,6 +814,13 @@ class ApiClient {
     return ApiPerson.fromJson(body);
   }
 
+  Future<void> deletePerson(String personId) async {
+    await _request(
+      'DELETE',
+      '/api/v1/persons/${Uri.encodeComponent(personId)}',
+    );
+  }
+
   Future<void> deleteParentChild(String edgeId) async {
     await _request(
       'DELETE',

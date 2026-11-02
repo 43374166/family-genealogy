@@ -9,7 +9,7 @@ import (
 )
 
 func (s *Store) PersonBranch(ctx context.Context, familyID, personID string) (string, error) {
-	var branchID string
+	var branchID sql.NullString
 	err := s.db.QueryRowContext(ctx, `
 		SELECT branch_id FROM persons
 		WHERE family_id = ? AND id = ? AND status = 'active'`,
@@ -21,7 +21,7 @@ func (s *Store) PersonBranch(ctx context.Context, familyID, personID string) (st
 	if err != nil {
 		return "", fmt.Errorf("lookup person branch: %w", err)
 	}
-	return branchID, nil
+	return branchID.String, nil
 }
 
 func (s *Store) CanAdminAccessBranch(

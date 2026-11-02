@@ -3,13 +3,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:family_tree/features/tree/tree_layout.dart';
 import 'package:family_tree/services/api_models.dart';
 
-ApiPerson _person(String id, String name, int generation) {
+ApiPerson _person(String id, String name, int generation, {String? gender}) {
   return ApiPerson.fromJson({
     'id': id,
     'fullName': name,
     'surname': name.substring(0, 1),
     'givenName': name.substring(1),
-    'gender': id == 'b' || id == 'd' || id == 'f' ? 'female' : 'male',
+    'gender':
+        gender ?? (id == 'b' || id == 'd' || id == 'f' ? 'female' : 'male'),
     'generationNo': generation,
     'generationLabel': '第$generation世',
     'lifeStatus': 'living',
@@ -92,9 +93,7 @@ void main() {
     expect(layout.edges, isNotEmpty);
     expect(layout.placementFor('e')!.person.fullName, '陈戊');
 
-    // A child with two parents gets one line centred on each parent's card.
-    // No line is allowed to start at the old marriage-bridge midpoint beside
-    // the mother's card.
+    // One couple gets one child branch, anchored on the father's card centre.
     final father = layout.placementFor('a')!;
     final mother = layout.placementFor('b')!;
     final child = layout.placementFor('c')!;
@@ -105,13 +104,13 @@ void main() {
               (edge.points.last.dy - child.rect.top).abs() < 0.1,
         )
         .toList();
-    expect(childEdges.length, 2);
-    for (final parent in [father, mother]) {
-      final edge = childEdges.firstWhere(
-        (item) => (item.points.first.dx - parent.center.dx).abs() < 0.1,
-      );
-      expect((edge.points.first.dy - parent.rect.bottom).abs(), lessThan(0.1));
-    }
+    expect(childEdges.length, 1);
+    final childEdge = childEdges.single;
+    expect((childEdge.points.first.dx - father.center.dx).abs(), lessThan(0.1));
+    expect(
+      (childEdge.points.first.dy - father.rect.bottom).abs(),
+      lessThan(0.1),
+    );
     final bridgeMidX = (father.rect.right + mother.rect.left) / 2;
     expect(
       layout.unionNodes.any(
@@ -138,6 +137,96 @@ void main() {
       }
     }
   });
+
+  test(
+    'multiple wives sit beside the husband and have separate child branches',
+    () {
+      final tree = ApiTree(
+        familyId: 'family-multiple-wives',
+        version: 1,
+        persons: [
+          _person('h', '凌丈夫', 1),
+          _person('w1', '王元配', 1, gender: 'female'),
+          _person('w2', '李继室', 1, gender: 'female'),
+          _person('c1', '凌长子', 2),
+          _person('c2', '凌次子', 2),
+        ],
+        parentChild: const [
+          ApiParentChildEdge(
+            id: 'pc1',
+            parentId: 'h',
+            childId: 'c1',
+            parentRole: 'father',
+            status: 'active',
+          ),
+          ApiParentChildEdge(
+            id: 'pc2',
+            parentId: 'w1',
+            childId: 'c1',
+            parentRole: 'mother',
+            status: 'active',
+          ),
+          ApiParentChildEdge(
+            id: 'pc3',
+            parentId: 'h',
+            childId: 'c2',
+            parentRole: 'father',
+            status: 'active',
+          ),
+          ApiParentChildEdge(
+            id: 'pc4',
+            parentId: 'w2',
+            childId: 'c2',
+            parentRole: 'mother',
+            status: 'active',
+          ),
+        ],
+        spouses: const [
+          ApiSpouseEdge(
+            id: 's1',
+            personAId: 'h',
+            personBId: 'w1',
+            status: 'married',
+          ),
+          ApiSpouseEdge(
+            id: 's2',
+            personAId: 'h',
+            personBId: 'w2',
+            status: 'married',
+          ),
+        ],
+      );
+
+      final layout = TreeLayout.fromTree(tree)!;
+      final husband = layout.placementFor('h')!;
+      final wives = [layout.placementFor('w1')!, layout.placementFor('w2')!]
+        ..sort((a, b) => a.rect.left.compareTo(b.rect.left));
+      expect(wives.first.rect.left, greaterThan(husband.rect.right));
+      expect(wives.last.rect.left, greaterThan(wives.first.rect.right));
+
+      TreeEdge edgeFor(String childId) {
+        final child = layout.placementFor(childId)!;
+        return layout.edges.firstWhere(
+          (edge) =>
+              (edge.points.last.dx - child.center.dx).abs() < 0.1 &&
+              (edge.points.last.dy - child.rect.top).abs() < 0.1,
+        );
+      }
+
+      final firstEdge = edgeFor('c1');
+      final secondEdge = edgeFor('c2');
+      expect(
+        (firstEdge.points.first.dx - secondEdge.points.first.dx).abs(),
+        greaterThan(10),
+        reason: 'different wives need separate anchors',
+      );
+      expect(
+        (firstEdge.points[1].dy - secondEdge.points[1].dy).abs(),
+        greaterThan(0),
+        reason: 'different wives need staggered branch levels',
+      );
+    },
+  );
 
   test('empty tree produces no layout', () {
     final tree = ApiTree(

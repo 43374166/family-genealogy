@@ -148,6 +148,88 @@ func (s *Store) CreatePerson(
 	return s.GetPerson(ctx, familyID, personID)
 }
 
+func (s *Store) ArchivePerson(
+	ctx context.Context,
+	familyID, personID, actorUserID string,
+	meta AuditMeta,
+) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin archive person: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var version int
+	if err := tx.QueryRowContext(ctx, `
+		SELECT version FROM persons
+		WHERE family_id = ? AND id = ? AND status = 'active'
+		FOR UPDATE`, familyID, personID,
+	).Scan(&version); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound
+		}
+		return fmt.Errorf("lock person for archive: %w", err)
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE persons SET status = 'archived', version = version + 1
+		WHERE family_id = ? AND id = ? AND status = 'active'`,
+		familyID, personID,
+	); err != nil {
+		return fmt.Errorf("archive person: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE family_memberships SET person_id = NULL
+		WHERE family_id = ? AND person_id = ?`,
+		familyID, personID,
+	); err != nil {
+		return fmt.Errorf("unbind archived person: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE parent_child_relationships SET status = 'ended'
+		WHERE family_id = ? AND status = 'active'
+		  AND (parent_id = ? OR child_id = ?)`,
+		familyID, personID, personID,
+	); err != nil {
+		return fmt.Errorf("end archived person parent relations: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `
+		DELETE FROM spouse_relationships
+		WHERE family_id = ? AND (person_a_id = ? OR person_b_id = ?)`,
+		familyID, personID, personID,
+	); err != nil {
+		return fmt.Errorf("remove archived person spouse relations: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `
+		DELETE FROM family_photo_people WHERE family_id = ? AND person_id = ?`,
+		familyID, personID,
+	); err != nil {
+		return fmt.Errorf("remove archived person photo tags: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE edit_requests SET status = 'cancelled'
+		WHERE family_id = ? AND target_person_id = ? AND status = 'pending'`,
+		familyID, personID,
+	); err != nil {
+		return fmt.Errorf("cancel archived person requests: %w", err)
+	}
+
+	before, _ := json.Marshal(map[string]any{
+		"id": personID, "status": "active", "version": version,
+	})
+	after, _ := json.Marshal(map[string]any{
+		"id": personID, "status": "archived", "version": version + 1,
+	})
+	if err := insertAudit(ctx, tx, familyID, actorUserID, "person.archived",
+		"person", personID, "", before, after, meta); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit archive person: %w", err)
+	}
+	return nil
+}
+
 func (s *Store) AddParentChild(
 	ctx context.Context,
 	familyID, actorUserID string,

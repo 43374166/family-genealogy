@@ -129,6 +129,7 @@ func NewRouter(deps Dependencies) http.Handler {
 			r.Post("/persons", api.createPerson)
 			r.Get("/persons/{personID}", api.getPerson)
 			r.Patch("/persons/{personID}", api.updatePerson)
+			r.Delete("/persons/{personID}", api.archivePerson)
 			r.Post("/relationships/parent-child", api.addParentChild)
 			r.Delete("/relationships/parent-child/{edgeID}", api.deleteParentChild)
 			r.Post("/relationships/spouse", api.addSpouse)

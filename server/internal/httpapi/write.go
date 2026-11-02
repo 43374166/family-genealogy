@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/43374166/family-genealogy/server/internal/store"
+	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
 )
 
@@ -112,6 +113,35 @@ func (a *API) createPerson(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, person)
+}
+
+func (a *API) archivePerson(w http.ResponseWriter, r *http.Request) {
+	principal, ok := principalFrom(r.Context())
+	if !ok {
+		writeProblem(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "not authenticated")
+		return
+	}
+	if !canWrite(principal.Membership.Role) {
+		writeProblem(w, r, http.StatusForbidden, "WRITE_FORBIDDEN", "only an owner or admin can delete a person")
+		return
+	}
+	personID := strings.TrimSpace(chi.URLParam(r, "personID"))
+	branchID, err := a.Store.PersonBranch(r.Context(), principal.Family.ID, personID)
+	if err != nil {
+		a.writeWriteError(w, r, err)
+		return
+	}
+	if err := a.ensureBranchScope(r.Context(), principal, []string{branchID}); err != nil {
+		a.writeWriteError(w, r, err)
+		return
+	}
+	if err := a.Store.ArchivePerson(
+		r.Context(), principal.Family.ID, personID, principal.User.ID, auditMeta(r),
+	); err != nil {
+		a.writeWriteError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"archived": true})
 }
 
 func (a *API) addParentChild(w http.ResponseWriter, r *http.Request) {

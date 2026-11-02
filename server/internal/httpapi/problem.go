@@ -152,6 +152,7 @@ var problemDetails = map[string]string{
 	"object storage is not configured":                            "对象存储尚未配置",
 	"one or more fields are too long":                             "部分字段内容过长",
 	"only an owner or admin can correct relationships":            "只有族长或管理员可以修正亲属关系",
+	"only an owner or admin can delete a person":                  "只有族长或管理员可以删除人物",
 	"only an owner or admin can edit directly":                    "只有族长或管理员可以直接修改",
 	"only an owner or admin can edit generation names":            "只有族长或管理员可以维护字辈",
 	"only an owner or admin can review bindings":                  "只有族长或管理员可以审核绑定申请",

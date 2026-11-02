@@ -124,5 +124,5 @@ Artifact 保存。该包没有签名，不能直接安装到正常 iPhone，也�
 
 - Pixel 7 / Android 15 模拟器安装运行成功。
 - `flutter analyze` 无问题。
-- `flutter test` 14 项通过（Widget 冒烟、主题模式、父母/配偶关系同步、非本姓表单、生肖换算、服务器默认地址 + 演示关系一致性）。
+- `flutter test` 15 项通过（Widget 冒烟、主题模式、父母/配偶关系同步、非本姓表单、多配偶树布局、生肖换算、服务器默认地址 + 演示关系一致性）。
 - Debug APK：`build/app/outputs/flutter-apk/app-debug.apk`。
