@@ -1,11 +1,15 @@
 import { promptAction } from '@kit.ArkUI';
-import { ApiClient } from '../service/ApiClient';
+import { AppServices } from '../service/ApiClient';
+import { photoAccessHelper } from '@kit.MediaLibraryKit';
+import { image } from '@kit.ImageKit';
+import { AuthImage } from '../components/AuthImage';
 import {
   ApiActivity,
   ApiAnniversary,
   ApiBranch,
   ApiMeResult,
   ApiPerson,
+  ApiPhoto,
   ApiRelative,
   ApiTree
 } from '../model/Types';
@@ -51,6 +55,19 @@ struct Index {
   @State private selected: ApiPerson | null = null;
   @State private detailBusy: boolean = false;
 
+  @State private albumPhotos: ApiPhoto[] = [];
+  @State private albumBusy: boolean = false;
+  @State private albumError: string = '';
+  @State private albumFilterIndex: number = 0;
+  @State private viewerPhoto: ApiPhoto | null = null;
+  @State private viewerBusy: boolean = false;
+
+  @State private avatarSource: image.PixelMap | undefined = undefined;
+  @State private avatarZoom: number = 1;
+  @State private avatarBusy: boolean = false;
+  @State private avatarError: string = '';
+  @State private avatarRevision: number = 0;
+
   @State private branches: ApiBranch[] = [];
   @State private addSurname: string = '';
   @State private addGiven: string = '';
@@ -58,7 +75,7 @@ struct Index {
   @State private addGeneration: string = '';
   @State private addBranchIndex: number = 0;
 
-  private api: ApiClient = new ApiClient();
+  private api = AppServices.api;
   private canvasCtx: CanvasRenderingContext2D =
     new CanvasRenderingContext2D(new RenderingContextSettings(true));
 
@@ -298,6 +315,182 @@ struct Index {
     }
   }
 
+  private async openAlbum(): Promise<void> {
+    this.page = 'album';
+    this.viewerPhoto = null;
+    await this.loadPhotos();
+  }
+
+  private albumPersonId(): string {
+    if (this.albumFilterIndex <= 0 || this.tree === null) return '';
+    const index = this.albumFilterIndex - 1;
+    if (index >= this.tree.persons.length) return '';
+    return this.tree.persons[index].id;
+  }
+
+  private async loadPhotos(): Promise<void> {
+    this.albumBusy = true;
+    this.albumError = '';
+    try {
+      const page = await this.api.photos(this.albumPersonId());
+      this.albumPhotos = page.items;
+    } catch (error) {
+      this.albumError = this.errorText(error);
+    } finally {
+      this.albumBusy = false;
+    }
+  }
+
+  private async pickAndUploadPhotos(): Promise<void> {
+    if (this.albumBusy) return;
+    try {
+      const picker = new photoAccessHelper.PhotoViewPicker();
+      const result = await picker.select({
+        MIMEType: photoAccessHelper.PhotoViewMIMETypes.IMAGE_TYPE,
+        maxSelectNumber: 20
+      });
+      if (result.photoUris.length === 0) return;
+      this.albumBusy = true;
+      const personId = this.albumPersonId();
+      let uploaded = 0;
+      for (const uri of result.photoUris) {
+        await this.api.uploadPhoto(uri, personId);
+        uploaded++;
+      }
+      await this.loadPhotos();
+      this.toast('已上传 ' + uploaded + ' 张照片');
+    } catch (error) {
+      this.toast(this.errorText(error));
+    } finally {
+      this.albumBusy = false;
+    }
+  }
+
+  private async pickAvatar(): Promise<void> {
+    const person = this.selected;
+    if (person === null) return;
+    try {
+      const picker = new photoAccessHelper.PhotoViewPicker();
+      const result = await picker.select({
+        MIMEType: photoAccessHelper.PhotoViewMIMETypes.IMAGE_TYPE,
+        maxSelectNumber: 1
+      });
+      if (result.photoUris.length === 0) return;
+      const source = image.createImageSource(result.photoUris[0]);
+      const pixelMap = await source.createPixelMap();
+      await source.release();
+      this.avatarSource = pixelMap;
+      this.avatarZoom = 1;
+      this.avatarError = '';
+      this.page = 'avatar';
+    } catch (error) {
+      this.toast(this.errorText(error));
+    }
+  }
+
+  private async confirmAvatar(): Promise<void> {
+    const person = this.selected;
+    const source = this.avatarSource;
+    if (person === null || source === undefined) return;
+    this.avatarBusy = true;
+    this.avatarError = '';
+    try {
+      const info = await source.getImageInfo();
+      const side = Math.max(
+        1,
+        Math.floor(Math.min(info.size.width, info.size.height) / this.avatarZoom)
+      );
+      const region: image.Region = {
+        x: Math.floor((info.size.width - side) / 2),
+        y: Math.floor((info.size.height - side) / 2),
+        size: { width: side, height: side }
+      };
+      await source.crop(region);
+      const packer = image.createImagePacker();
+      const buffer = await packer.packing(source, {
+        format: 'image/jpeg',
+        quality: 90
+      });
+      packer.release();
+      await this.api.uploadAvatarBuffer(buffer, person.id);
+      this.avatarRevision++;
+      await this.openPerson(person.id);
+      this.avatarSource = undefined;
+      this.toast('头像已更新');
+    } catch (error) {
+      this.avatarError = this.errorText(error);
+    } finally {
+      this.avatarBusy = false;
+    }
+  }
+
+  private confirmDeleteAvatar(): void {
+    const person = this.selected;
+    if (person === null) return;
+    AlertDialog.show({
+      title: '移除头像',
+      message: '确定移除 ' + person.fullName + ' 的头像吗？',
+      primaryButton: {
+        value: '取消',
+        action: () => {
+        }
+      },
+      secondaryButton: {
+        value: '移除',
+        fontColor: '#B4423D',
+        action: () => {
+          this.deleteAvatar(person.id);
+        }
+      }
+    });
+  }
+
+  private async deleteAvatar(personId: string): Promise<void> {
+    try {
+      await this.api.deleteAvatar(personId);
+      this.avatarRevision++;
+      await this.openPerson(personId);
+      this.toast('头像已移除');
+    } catch (error) {
+      this.toast(this.errorText(error));
+    }
+  }
+
+  private confirmDeletePhoto(): void {
+    const photo = this.viewerPhoto;
+    if (photo === null) return;
+    AlertDialog.show({
+      title: '删除照片',
+      message: '确定从家族相册删除这张照片吗？此操作不可撤销。',
+      primaryButton: {
+        value: '取消',
+        action: () => {
+        }
+      },
+      secondaryButton: {
+        value: '删除',
+        fontColor: '#B4423D',
+        action: () => {
+          this.deletePhoto(photo.id);
+        }
+      }
+    });
+  }
+
+  private async deletePhoto(photoId: string): Promise<void> {
+    this.viewerBusy = true;
+    try {
+      await this.api.deletePhoto(photoId);
+      this.viewerPhoto = null;
+      await this.loadPhotos();
+      this.toast('照片已删除');
+    } catch (error) {
+      this.toast(this.errorText(error));
+    } finally {
+      this.viewerBusy = false;
+    }
+  }
+
   private filteredPersons(): ApiPerson[] {
     if (this.tree === null) return [];
     const key = this.query.trim();
@@ -313,6 +506,21 @@ struct Index {
 
   private canDelete(): boolean {
     return this.role === 'owner' || this.role === 'admin';
+  }
+
+  private canEditAvatar(): boolean {
+    if (this.canDelete()) return true;
+    return this.selected !== null && this.selected!.id === this.linkedPersonId;
+  }
+
+  private albumFilterOptions(): SelectOption[] {
+    const options: SelectOption[] = [{ value: '全部人物' }];
+    if (this.tree !== null) {
+      this.tree.persons.forEach((person: ApiPerson) => {
+        options.push({ value: person.fullName });
+      });
+    }
+    return options;
   }
 
   private drawTree(): void {
@@ -556,8 +764,8 @@ struct Index {
             this.QuickTile('成员查询', '查找家族成员', '#3DA77C', 2)
           }
           Row() {
+            this.QuickTile('家族相册', '珍贵家族影像', '#35ABC0', -3)
             this.QuickTile('新增成员', '录入正式档案', '#E4A636', -1)
-            this.QuickTile('刷新数据', '同步最新族谱', '#35ABC0', -2)
           }
         }
         .width('100%')
@@ -709,6 +917,8 @@ struct Index {
         this.openAdd();
       } else if (action === -2) {
         this.refreshAll();
+      } else if (action === -3) {
+        this.openAlbum();
       } else {
         this.tab = action;
       }
@@ -1025,25 +1235,79 @@ struct Index {
       } else {
         Scroll() {
           Column({ space: 12 }) {
-            Column({ space: 6 }) {
-              Text(this.selected!.fullName)
-                .fontSize(30)
-                .fontWeight(FontWeight.Bold)
-                .fontColor('#1C2A32')
-              Row({ space: 8 }) {
-                Text(this.selected!.generationLabel)
-                  .fontSize(10)
-                  .fontColor('#4E7DF4')
-                  .backgroundColor('#EAF0FF')
-                  .padding({ left: 8, right: 8, top: 3, bottom: 3 })
-                  .borderRadius(8)
-                Text(this.selected!.lifeStatus === 'living' ? '在世' : '已故')
-                  .fontSize(10)
-                  .fontColor(this.selected!.lifeStatus === 'living' ? '#3DA77C' : '#89969C')
-                  .backgroundColor(this.selected!.lifeStatus === 'living' ? '#E9F6EF' : '#EDF2F5')
-                  .padding({ left: 8, right: 8, top: 3, bottom: 3 })
-                  .borderRadius(8)
+            Column({ space: 10 }) {
+              Row({ space: 14 }) {
+                Stack() {
+                  if (this.selected!.hasAvatar === true) {
+                    AuthImage({
+                      path: '/api/v1/persons/' + this.selected!.id +
+                        '/avatar?v=' + String(this.avatarRevision),
+                      radius: 18
+                    })
+                  } else {
+                    Text(this.selected!.fullName.substring(0, 1))
+                      .width(86)
+                      .height(86)
+                      .textAlign(TextAlign.Center)
+                      .fontSize(30)
+                      .fontWeight(FontWeight.Bold)
+                      .fontColor('#B4423D')
+                      .backgroundColor('#FBEEEA')
+                      .borderRadius(18)
+                  }
+                }
+                .width(86)
+                .height(86)
+
+                Column({ space: 5 }) {
+                  Text(this.selected!.fullName)
+                    .fontSize(28)
+                    .fontWeight(FontWeight.Bold)
+                    .fontColor('#1C2A32')
+                  Row({ space: 8 }) {
+                    Text(this.selected!.generationLabel)
+                      .fontSize(10)
+                      .fontColor('#4E7DF4')
+                      .backgroundColor('#EAF0FF')
+                      .padding({ left: 8, right: 8, top: 3, bottom: 3 })
+                      .borderRadius(8)
+                    Text(this.selected!.lifeStatus === 'living' ? '在世' : '已故')
+                      .fontSize(10)
+                      .fontColor(this.selected!.lifeStatus === 'living' ? '#3DA77C' : '#89969C')
+                      .backgroundColor(this.selected!.lifeStatus === 'living' ? '#E9F6EF' : '#EDF2F5')
+                      .padding({ left: 8, right: 8, top: 3, bottom: 3 })
+                      .borderRadius(8)
+                  }
+                }
+                .alignItems(HorizontalAlign.Start)
+                .layoutWeight(1)
               }
+              .width('100%')
+
+              if (this.canEditAvatar()) {
+                Row({ space: 8 }) {
+                  Button(this.selected!.hasAvatar === true ? '更换头像' : '设置头像')
+                    .fontSize(11)
+                    .height(32)
+                    .backgroundColor('#EAF0FF')
+                    .fontColor('#4E7DF4')
+                    .onClick(() => {
+                      this.pickAvatar();
+                    })
+                  if (this.selected!.hasAvatar === true) {
+                    Button('移除头像')
+                      .fontSize(11)
+                      .height(32)
+                      .backgroundColor('#FBEEEA')
+                      .fontColor('#B4423D')
+                      .onClick(() => {
+                        this.confirmDeleteAvatar();
+                      })
+                  }
+                }
+                .width('100%')
+              }
+
               Text('生卒：' + (this.selected!.birth !== undefined && this.selected!.birth!.text !== undefined
                 ? this.selected!.birth!.text : '未记录'))
                 .fontSize(12)
@@ -1254,6 +1518,296 @@ struct Index {
     .height('100%')
   }
 
+  @Builder
+  private AlbumView() {
+    Stack() {
+      Column() {
+        Row() {
+          Button('‹')
+            .width(38)
+            .height(38)
+            .backgroundColor('#FFFFFF')
+            .fontColor('#1C2A32')
+            .fontSize(22)
+            .borderRadius(19)
+            .onClick(() => {
+              this.viewerPhoto = null;
+              this.page = 'tabs';
+            })
+          Column({ space: 2 }) {
+            Text('家族相册')
+              .fontSize(19)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#1C2A32')
+            Text('共 ' + this.albumPhotos.length + ' 张')
+              .fontSize(10)
+              .fontColor('#89969C')
+          }
+          .alignItems(HorizontalAlign.Start)
+          .margin({ left: 10 })
+          Blank()
+          Button(this.albumBusy ? '上传中' : '上传')
+            .fontSize(11)
+            .height(32)
+            .backgroundColor('#4E7DF4')
+            .fontColor(Color.White)
+            .enabled(!this.albumBusy)
+            .onClick(() => {
+              this.pickAndUploadPhotos();
+            })
+        }
+        .width('100%')
+        .padding({ left: 14, right: 14, top: 12, bottom: 8 })
+
+        Row() {
+          Select(this.albumFilterOptions())
+            .selected(this.albumFilterIndex)
+            .value(this.albumFilterOptions()[Math.min(
+              this.albumFilterIndex,
+              this.albumFilterOptions().length - 1
+            )].value)
+            .onSelect((index: number) => {
+              this.albumFilterIndex = index;
+              this.loadPhotos();
+            })
+            .layoutWeight(1)
+          if (this.albumPersonId().length > 0) {
+            Text('上传会关联到当前人物')
+              .fontSize(10)
+              .fontColor('#89969C')
+              .margin({ left: 8 })
+          }
+        }
+        .width('100%')
+        .padding({ left: 14, right: 14, bottom: 8 })
+
+        if (this.albumError.length > 0) {
+          Text(this.albumError)
+            .fontSize(12)
+            .fontColor('#B4423D')
+            .padding(16)
+        }
+
+        if (this.albumBusy && this.albumPhotos.length === 0) {
+          Column({ space: 10 }) {
+            LoadingProgress().width(28).height(28).color('#4E7DF4')
+            Text('正在加载相册...').fontSize(12).fontColor('#89969C')
+          }
+          .layoutWeight(1)
+          .justifyContent(FlexAlign.Center)
+        } else if (this.albumPhotos.length === 0) {
+          Column({ space: 8 }) {
+            Text('还没有照片')
+              .fontSize(16)
+              .fontColor('#1C2A32')
+            Text('点击右上角“上传”，从系统相册选择照片')
+              .fontSize(11)
+              .fontColor('#89969C')
+          }
+          .layoutWeight(1)
+          .justifyContent(FlexAlign.Center)
+        } else {
+          Grid() {
+            ForEach(this.albumPhotos, (photo: ApiPhoto) => {
+              GridItem() {
+                Stack({ alignContent: Alignment.BottomStart }) {
+                  AuthImage({
+                    path: '/api/v1/photos/' + photo.id + '/content',
+                    radius: 10
+                  })
+                  if (photo.caption.length > 0) {
+                    Text(photo.caption)
+                      .fontSize(9)
+                      .fontColor(Color.White)
+                      .maxLines(1)
+                      .textOverflow({ overflow: TextOverflow.Ellipsis })
+                      .padding({ left: 6, right: 6, top: 3, bottom: 3 })
+                      .backgroundColor('#00000099')
+                      .width('100%')
+                  }
+                }
+                .width('100%')
+                .aspectRatio(1)
+                .borderRadius(10)
+                .clip(true)
+                .onClick(() => {
+                  this.viewerPhoto = photo;
+                })
+              }
+            }, (photo: ApiPhoto) => photo.id)
+          }
+          .columnsTemplate('1fr 1fr 1fr')
+          .columnsGap(8)
+          .rowsGap(8)
+          .padding({ left: 14, right: 14 })
+          .layoutWeight(1)
+        }
+      }
+      .width('100%')
+      .height('100%')
+
+      if (this.viewerPhoto !== null) {
+        this.PhotoViewer()
+      }
+    }
+    .width('100%')
+    .height('100%')
+  }
+
+  @Builder
+  private PhotoViewer() {
+    Stack() {
+      Column() {
+        AuthImage({
+          path: '/api/v1/photos/' + this.viewerPhoto!.id + '/content',
+          radius: 0,
+          fit: ImageFit.Contain
+        })
+          .width('100%')
+          .layoutWeight(1)
+      }
+      .width('100%')
+      .height('100%')
+      .backgroundColor('#111417')
+
+      Row() {
+        Button('‹')
+          .width(38)
+          .height(38)
+          .backgroundColor('#FFFFFF33')
+          .fontColor(Color.White)
+          .fontSize(22)
+          .borderRadius(19)
+          .onClick(() => {
+            this.viewerPhoto = null;
+          })
+        Blank()
+        if (this.canDelete()) {
+          Button(this.viewerBusy ? '删除中' : '删除')
+            .fontSize(11)
+            .height(32)
+            .backgroundColor('#B4423DCC')
+            .fontColor(Color.White)
+            .enabled(!this.viewerBusy)
+            .onClick(() => {
+              this.confirmDeletePhoto();
+            })
+        }
+      }
+      .width('100%')
+      .padding({ left: 14, right: 14, top: 12 })
+      .position({ x: 0, y: 0 })
+
+      Column({ space: 4 }) {
+        if (this.viewerPhoto!.caption.length > 0) {
+          Text(this.viewerPhoto!.caption)
+            .fontSize(12)
+            .fontColor(Color.White)
+        }
+        Text(this.viewerPhoto!.persons.length > 0
+          ? this.viewerPhoto!.persons.map((item) => item.fullName).join('、')
+          : '家族影像')
+          .fontSize(10)
+          .fontColor('#FFFFFFAA')
+      }
+      .width('100%')
+      .padding(16)
+      .position({ x: 0, y: '82%' })
+    }
+    .width('100%')
+    .height('100%')
+  }
+
+  @Builder
+  private AvatarCropView() {
+    Column() {
+      Row() {
+        Button('‹')
+          .width(38)
+          .height(38)
+          .backgroundColor('#FFFFFF')
+          .fontColor('#1C2A32')
+          .fontSize(22)
+          .borderRadius(19)
+          .onClick(() => {
+            this.page = 'detail';
+          })
+        Text('裁剪头像')
+          .fontSize(19)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#1C2A32')
+          .margin({ left: 12 })
+      }
+      .width('100%')
+      .padding({ left: 14, right: 14, top: 12, bottom: 8 })
+
+      if (this.avatarSource !== undefined) {
+        Stack() {
+          Image(this.avatarSource)
+            .width(280)
+            .height(280)
+            .objectFit(ImageFit.Cover)
+            .scale({ x: this.avatarZoom, y: this.avatarZoom })
+          Column()
+            .width(280)
+            .height(280)
+            .border({ width: 2, color: '#FFFFFFCC' })
+            .backgroundColor('#00000000')
+        }
+        .width(280)
+        .height(280)
+        .borderRadius(20)
+        .clip(true)
+        .backgroundColor('#1C2A32')
+
+        Text('双指或滑块缩放，头像会自动取中心正方形')
+          .fontSize(11)
+          .fontColor('#6C7B82')
+          .margin({ top: 12 })
+        Slider({
+          value: this.avatarZoom,
+          min: 1,
+          max: 3,
+          step: 0.1
+        })
+          .width('80%')
+          .selectedColor('#4E7DF4')
+          .onChange((value: number) => {
+            this.avatarZoom = value;
+          })
+        if (this.avatarError.length > 0) {
+          Text(this.avatarError)
+            .fontSize(11)
+            .fontColor('#B4423D')
+        }
+        Button(this.avatarBusy ? '正在保存...' : '保存头像')
+          .width('80%')
+          .height(46)
+          .backgroundColor('#4E7DF4')
+          .fontColor(Color.White)
+          .borderRadius(10)
+          .enabled(!this.avatarBusy)
+          .onClick(() => {
+            this.confirmAvatar();
+          })
+      } else {
+        Column({ space: 8 }) {
+          Text('没有选择图片')
+            .fontSize(14)
+            .fontColor('#1C2A32')
+          Text('请返回人物档案重新选择')
+            .fontSize(11)
+            .fontColor('#89969C')
+        }
+        .layoutWeight(1)
+        .justifyContent(FlexAlign.Center)
+      }
+    }
+    .width('100%')
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
+  }
+
   build() {
     Stack() {
       if (this.booting) {
@@ -1264,6 +1818,10 @@ struct Index {
         this.DetailView()
       } else if (this.page === 'add') {
         this.AddPersonView()
+      } else if (this.page === 'album') {
+        this.AlbumView()
+      } else if (this.page === 'avatar') {
+        this.AvatarCropView()
       } else {
         this.TabsView()
       }

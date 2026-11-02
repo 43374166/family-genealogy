@@ -170,3 +170,25 @@ export interface ApiProblem {
   code?: string;
   status?: number;
 }
+
+export interface ApiPhotoPerson {
+  personId: string;
+  fullName: string;
+}
+
+export interface ApiPhoto {
+  id: string;
+  personId?: string;
+  personName: string;
+  uploadedByUserId: string;
+  uploadedByName: string;
+  caption: string;
+  contentPath: string;
+  createdAt?: string;
+  takenAt?: string;
+  persons: ApiPhotoPerson[];
+}
+
+export interface ApiPhotoPage {
+  items: ApiPhoto[];
+}

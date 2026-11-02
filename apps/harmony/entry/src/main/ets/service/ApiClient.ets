@@ -1,5 +1,6 @@
 import { http } from '@kit.NetworkKit';
 import { BusinessError } from '@kit.BasicServicesKit';
+import fs from '@ohos.file.fs';
 import {
   ApiActivityPage,
   ApiAnniversaryPage,
@@ -9,6 +10,8 @@ import {
   ApiMeResult,
   ApiPerson,
   ApiPersonPage,
+  ApiPhoto,
+  ApiPhotoPage,
   ApiProblem,
   ApiTree
 } from '../model/Types';
@@ -173,8 +176,209 @@ export class ApiClient {
     );
   }
 
+  async photos(personId?: string): Promise<ApiPhotoPage> {
+    let path = '/api/v1/photos';
+    if (personId !== undefined && personId.length > 0) {
+      path += '?personId=' + encodeURIComponent(personId);
+    }
+    const text = await this.request(http.RequestMethod.GET, path);
+    return JSON.parse(text) as ApiPhotoPage;
+  }
+
+  async bytes(path: string): Promise<ArrayBuffer> {
+    const client = http.createHttp();
+    const headers: Record<string, string> = {
+      'Accept': 'image/*'
+    };
+    if (this.token.length > 0) {
+      headers['Authorization'] = 'Bearer ' + this.token;
+    }
+    const options: http.HttpRequestOptions = {
+      method: http.RequestMethod.GET,
+      header: headers,
+      expectDataType: http.HttpDataType.ARRAY_BUFFER,
+      connectTimeout: 12000,
+      readTimeout: 25000
+    };
+    try {
+      const response = await client.request(this.baseUrl + path, options);
+      if (response.responseCode >= 400) {
+        throw new Error('图片加载失败（' + response.responseCode + '）');
+      }
+      return response.result as ArrayBuffer;
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error;
+      }
+      const systemError = error as BusinessError;
+      throw new Error(systemError.message || '图片加载失败');
+    } finally {
+      client.destroy();
+    }
+  }
+
+  private fileBuffer(uri: string): ArrayBuffer {
+    const file = fs.openSync(uri, fs.OpenMode.READ_ONLY);
+    try {
+      const stat = fs.statSync(file.fd);
+      const buffer = new ArrayBuffer(stat.size);
+      fs.readSync(file.fd, buffer);
+      return buffer;
+    } finally {
+      fs.closeSync(file);
+    }
+  }
+
+  private filenameFromUri(uri: string): string {
+    let filename = uri.substring(uri.lastIndexOf('/') + 1);
+    try {
+      filename = decodeURIComponent(filename);
+    } catch (_) {
+      // Keep the raw URI name when decoding fails.
+    }
+    if (filename.length === 0) {
+      filename = 'photo-' + Date.now() + '.jpg';
+    }
+    if (!filename.includes('.')) {
+      filename += '.jpg';
+    }
+    return filename;
+  }
+
+  private mimeForFilename(filename: string): string {
+    const lower = filename.toLowerCase();
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.webp')) return 'image/webp';
+    return 'image/jpeg';
+  }
+
+  private async uploadMultipart(
+    path: string,
+    uri: string,
+    fields: Record<string, string>
+  ): Promise<string> {
+    const filename = this.filenameFromUri(uri);
+    const contentType = this.mimeForFilename(filename);
+    const buffer = this.fileBuffer(uri);
+    return await this.uploadMultipartData(path, buffer, filename, contentType, fields);
+  }
+
+  private async uploadMultipartData(
+    path: string,
+    buffer: ArrayBuffer,
+    filename: string,
+    contentType: string,
+    fields: Record<string, string>
+  ): Promise<string> {
+    if (buffer.byteLength > 8 * 1024 * 1024) {
+      throw new Error('图片不能超过 8 MB');
+    }
+    const formData: http.MultiFormData[] = [];
+    const keys = Object.keys(fields);
+    for (const key of keys) {
+      formData.push({
+        name: key,
+        contentType: 'text/plain',
+        data: fields[key]
+      });
+    }
+    formData.push({
+      name: 'file',
+      contentType: contentType,
+      remoteFileName: filename,
+      data: buffer
+    });
+    const client = http.createHttp();
+    const headers: Record<string, string> = {};
+    if (this.token.length > 0) {
+      headers['Authorization'] = 'Bearer ' + this.token;
+    }
+    const options: http.HttpRequestOptions = {
+      method: http.RequestMethod.POST,
+      header: headers,
+      multiFormDataList: formData,
+      expectDataType: http.HttpDataType.STRING,
+      connectTimeout: 15000,
+      readTimeout: 60000
+    };
+    try {
+      const response = await client.request(this.baseUrl + path, options);
+      const text = response.result as string;
+      if (response.responseCode >= 400) {
+        let message = '上传失败（' + response.responseCode + '）';
+        try {
+          const problem = JSON.parse(text) as ApiProblem;
+          if (problem.detail !== undefined && problem.detail.length > 0) {
+            message = problem.detail;
+          }
+        } catch (_) {
+          // Keep the status fallback.
+        }
+        throw new Error(message);
+      }
+      return text;
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error;
+      }
+      const systemError = error as BusinessError;
+      throw new Error(systemError.message || '上传失败，请检查网络');
+    } finally {
+      client.destroy();
+    }
+  }
+
+  async uploadPhoto(uri: string, personId?: string, caption: string = ''): Promise<ApiPhoto> {
+    const fields: Record<string, string> = {};
+    if (personId !== undefined && personId.length > 0) {
+      fields['personId'] = personId;
+      fields['personIds'] = personId;
+    }
+    if (caption.length > 0) {
+      fields['caption'] = caption;
+    }
+    const text = await this.uploadMultipart('/api/v1/photos', uri, fields);
+    return JSON.parse(text) as ApiPhoto;
+  }
+
+  async uploadAvatar(uri: string, personId: string): Promise<void> {
+    await this.uploadMultipart(
+      '/api/v1/persons/' + encodeURIComponent(personId) + '/avatar',
+      uri,
+      {}
+    );
+  }
+
+  async uploadAvatarBuffer(buffer: ArrayBuffer, personId: string): Promise<void> {
+    await this.uploadMultipartData(
+      '/api/v1/persons/' + encodeURIComponent(personId) + '/avatar',
+      buffer,
+      'avatar.jpg',
+      'image/jpeg',
+      {}
+    );
+  }
+
+  async deleteAvatar(personId: string): Promise<void> {
+    await this.request(
+      http.RequestMethod.DELETE,
+      '/api/v1/persons/' + encodeURIComponent(personId) + '/avatar'
+    );
+  }
+
+  async deletePhoto(photoId: string): Promise<void> {
+    await this.request(
+      http.RequestMethod.DELETE,
+      '/api/v1/photos/' + encodeURIComponent(photoId)
+    );
+  }
+
   async family(): Promise<ApiFamily> {
     const text = await this.request(http.RequestMethod.GET, '/api/v1/family');
     return JSON.parse(text) as ApiFamily;
   }
+}
+
+export class AppServices {
+  static api: ApiClient = new ApiClient();
 }

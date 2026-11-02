@@ -1,4 +1,4 @@
-﻿# 家族族谱 · HarmonyOS（原生 ArkTS/ArkUI）
+# 家族族谱 · HarmonyOS（原生 ArkTS/ArkUI）
 
 这是一个独立的 HarmonyOS NEXT 原生客户端，不是 Flutter 套壳。首个版本聚焦登录、首页、族谱树、成员查询、人物档案、新增人物和删除人物，直接连接现有 Go API。
 
@@ -17,18 +17,20 @@
 - 人物档案：父母、配偶、子女、生卒与生平
 - 新增人物：姓、名、性别、世代、家支
 - 删除人物：族长/管理员可见，服务端软删除
+- 家族相册：网格、鉴权图片加载、全屏查看、按人物筛选、多选上传、删除
+- 头像：系统相册选图、中心方形裁剪（可缩放）、上传/移除，人物档案内显示头像
 - 我的：账号、服务器、退出登录
 
 ## 尚未对齐 Android 版
 
-- 照片上传、相册、头像裁剪
+- 相册多人关联、拍摄时间/说明编辑、上传前压缩
 - 家族故事与故事图片
 - 家族合并、导入导出
 - 资料修改审核、绑定申请、成员管理
 - 推送通知
 - 扫码/邀请
 
-这些能力不影响当前版本的只读族谱和基础人物录入，后续按模块补齐。
+这些能力不影响当前版本的只读族谱、基础人物录入和相册浏览，后续按模块补齐。
 
 ## 构建
 
@@ -69,8 +71,9 @@ apps/harmony/
 │   ├── model/
 │   │   ├── Types.ets         # API 数据模型
 │   │   └── TreeLayout.ets    # 族谱布局与连线计算
-│   ├── service/ApiClient.ets # HTTP 客户端
-│   └── pages/Index.ets       # 登录/首页/树/成员/档案/新增/我的
+│   ├── components/AuthImage.ets # 带鉴权的图片加载
+│   ├── service/ApiClient.ets # HTTP、图片和 multipart 上传
+│   └── pages/Index.ets       # 登录/首页/树/成员/档案/相册/新增/我的
 ├── entry/src/main/resources/ # 图片、颜色、文案、页面清单
 └── build-profile.json5
 ```
@@ -78,5 +81,6 @@ apps/harmony/
 ## 说明
 
 - 鸿蒙端的树布局与 Android 0.47.4 的规则一致：每对夫妻一条共同子女横线，父母双方均从卡片中心接入。
-- 当前 bundleName 为 `cn.familytree.harmony`，版本 `1.0.0`。
+- 当前 bundleName 为 `cn.familytree.harmony`，版本 `1.1.0`。
+- 相册上传暂按当前筛选人物关联；头像裁剪目前是“中心正方形 + 缩放”，没有自由拖动取景框。
 - 未签名的 HAP 不能直接安装，这是 DevEco/HarmonyOS 的签名要求，不是应用代码问题。
