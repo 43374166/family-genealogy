@@ -293,7 +293,7 @@ class ProfilePage extends StatelessWidget {
                           color: AppColors.inkMuted,
                           background: AppColors.slateSoft,
                           label: '关于家族族谱',
-                          trailing: 'v0.47.2',
+                          trailing: 'v0.47.3',
                           onTap: () => _showAbout(context),
                         ),
                       ],
@@ -394,7 +394,7 @@ class ProfilePage extends StatelessWidget {
             ),
             const SizedBox(height: 5),
             const Text(
-              '家族族谱 · 家庭服务器版 v0.47.2',
+              '家族族谱 · 家庭服务器版 v0.47.3',
               style: TextStyle(fontSize: 10.5, color: AppColors.inkMuted),
             ),
             const SizedBox(height: 16),

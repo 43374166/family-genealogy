@@ -36,6 +36,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  final ScrollController _scrollController = ScrollController();
   List<ApiActivity> _activities = const [];
   bool _activityLoading = true;
   String? _activityError;
@@ -51,6 +52,12 @@ class _HomePageState extends State<HomePage> {
     _activityFamilyId = familyId;
     _loadActivity();
     _loadAnniversaries();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadAnniversaries() async {
@@ -90,6 +97,12 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _refresh() async {
+    // Clear any overscroll/ballistic offset left by the pull gesture. On
+    // Android the explicit bouncing physics used to leave the home page
+    // scrolled after the refresh finished.
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(0);
+    }
     final session = SessionScope.of(context);
     await Future.wait([
       session.refreshMe(),
@@ -97,6 +110,14 @@ class _HomePageState extends State<HomePage> {
       _loadActivity(),
       _loadAnniversaries(),
     ]);
+    if (!mounted) return;
+    // The refreshed sections change height; wait for that frame before making
+    // sure the user is still at the top.
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    if (!mounted || !_scrollController.hasClients) return;
+    if (_scrollController.offset != 0) {
+      _scrollController.jumpTo(0);
+    }
   }
 
   Future<void> _startEditRequest(BuildContext context) async {
@@ -130,9 +151,8 @@ class _HomePageState extends State<HomePage> {
         color: AppColors.primary,
         backgroundColor: AppColors.surface,
         child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(
-            parent: AlwaysScrollableScrollPhysics(),
-          ),
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 620),
