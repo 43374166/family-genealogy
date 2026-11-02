@@ -361,3 +361,43 @@ export interface ApiImportResult {
   rootName: string;
   rootGeneration: number;
 }
+
+export interface ApiFamilyListPage {
+  items: ApiFamilyEntry[];
+}
+
+export interface ApiJoinResult {
+  user: ApiUser;
+  membership: ApiMembership;
+  family: ApiFamily;
+  families: ApiFamilyEntry[];
+  archivedFamilies?: ApiFamily[];
+  mergeRequests?: ApiFamilyMergeRequest[];
+}
+
+export interface ApiFamilyAccount {
+  userId: string;
+  loginName: string;
+  displayName: string;
+  role: string;
+  personName: string;
+}
+
+export interface ApiFamilyAccountPage {
+  items: ApiFamilyAccount[];
+}
+
+export interface ApiInvite {
+  id: string;
+  code: string;
+  role: string;
+  branchName: string;
+  maxUses: number;
+  usedCount: number;
+  expiresAt?: string;
+  status: string;
+}
+
+export interface ApiInvitePage {
+  items: ApiInvite[];
+}

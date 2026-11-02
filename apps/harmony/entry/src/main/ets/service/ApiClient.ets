@@ -8,6 +8,8 @@ import {
   ApiEditRequest,
   ApiEditRequestPage,
   ApiFamily,
+  ApiFamilyAccountPage,
+  ApiFamilyListPage,
   ApiFamilyMergeDetail,
   ApiFamilyMergeRequest,
   ApiFamilyMergeRequestPage,
@@ -15,6 +17,9 @@ import {
   ApiImportPackage,
   ApiImportPreview,
   ApiImportResult,
+  ApiInvite,
+  ApiInvitePage,
+  ApiJoinResult,
   ApiLoginResult,
   ApiMeResult,
   ApiNotificationPage,
@@ -602,6 +607,94 @@ export class ApiClient {
     return JSON.parse(text) as ApiImportResult;
   }
 
+  async families(): Promise<ApiFamilyListPage> {
+    const text = await this.request(http.RequestMethod.GET, '/api/v1/families');
+    return JSON.parse(text) as ApiFamilyListPage;
+  }
+
+  async switchFamily(familyId: string): Promise<ApiMeResult> {
+    const payload: SwitchFamilyPayload = { familyId: familyId };
+    const text = await this.request(
+      http.RequestMethod.POST,
+      '/api/v1/auth/switch-family',
+      payload
+    );
+    return JSON.parse(text) as ApiMeResult;
+  }
+
+  async joinFamily(inviteCode: string): Promise<ApiJoinResult> {
+    const payload: JoinFamilyPayload = { inviteCode: inviteCode };
+    const text = await this.request(
+      http.RequestMethod.POST,
+      '/api/v1/families/join',
+      payload
+    );
+    return JSON.parse(text) as ApiJoinResult;
+  }
+
+  async createFamily(
+    name: string,
+    surname: string,
+    motto: string,
+    region: string,
+    description: string
+  ): Promise<ApiMeResult> {
+    const payload: CreateFamilyPayload = {
+      name: name,
+      surname: surname,
+      motto: motto,
+      region: region,
+      description: description
+    };
+    const text = await this.request(
+      http.RequestMethod.POST,
+      '/api/v1/families',
+      payload
+    );
+    return JSON.parse(text) as ApiMeResult;
+  }
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    const payload: PasswordPayload = {
+      currentPassword: currentPassword,
+      newPassword: newPassword
+    };
+    await this.request(
+      http.RequestMethod.POST,
+      '/api/v1/me/password',
+      payload
+    );
+  }
+
+  async deleteAccount(password: string): Promise<void> {
+    const payload: DeleteAccountPayload = { password: password };
+    await this.request(http.RequestMethod.DELETE, '/api/v1/me', payload);
+  }
+
+  async invites(): Promise<ApiInvitePage> {
+    const text = await this.request(http.RequestMethod.GET, '/api/v1/invites');
+    return JSON.parse(text) as ApiInvitePage;
+  }
+
+  async createInvite(role: string, maxUses: number, expiresInDays: number): Promise<ApiInvite> {
+    const payload: CreateInvitePayload = {
+      role: role,
+      maxUses: maxUses,
+      expiresInDays: expiresInDays
+    };
+    const text = await this.request(
+      http.RequestMethod.POST,
+      '/api/v1/invites',
+      payload
+    );
+    return JSON.parse(text) as ApiInvite;
+  }
+
+  async accounts(): Promise<ApiFamilyAccountPage> {
+    const text = await this.request(http.RequestMethod.GET, '/api/v1/accounts');
+    return JSON.parse(text) as ApiFamilyAccountPage;
+  }
+
   async family(): Promise<ApiFamily> {
     const text = await this.request(http.RequestMethod.GET, '/api/v1/family');
     return JSON.parse(text) as ApiFamily;
@@ -652,4 +745,35 @@ interface ImportPackagePayload {
   rootGeneration: number;
   parentId: string;
   parentRole: string;
+}
+
+interface SwitchFamilyPayload {
+  familyId: string;
+}
+
+interface JoinFamilyPayload {
+  inviteCode: string;
+}
+
+interface CreateFamilyPayload {
+  name: string;
+  surname: string;
+  motto: string;
+  region: string;
+  description: string;
+}
+
+interface PasswordPayload {
+  currentPassword: string;
+  newPassword: string;
+}
+
+interface DeleteAccountPayload {
+  password: string;
+}
+
+interface CreateInvitePayload {
+  role: string;
+  maxUses: number;
+  expiresInDays: number;
 }

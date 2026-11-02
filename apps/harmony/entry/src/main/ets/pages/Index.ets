@@ -12,12 +12,15 @@ import {
   ApiBindingRequest,
   ApiBranch,
   ApiEditRequest,
+  ApiFamilyAccount,
+  ApiFamilyEntry,
   ApiFamilyMergeDetail,
   ApiFamilyMergeRequest,
   ApiImportPackage,
   ApiImportPersonPreview,
   ApiImportPreview,
   ApiImportResult,
+  ApiInvite,
   ApiMeResult,
   ApiMergePerson,
   ApiMergePhoto,
@@ -158,6 +161,19 @@ struct Index {
   @State private importGeneration: number = 1;
   @State private importParentIndex: number = 0;
   @State private importParentRole: string = 'father';
+
+  @State private familyCenterBusy: boolean = false;
+  @State private familyCenterError: string = '';
+  @State private familyEntries: ApiFamilyEntry[] = [];
+  @State private familyJoinCode: string = '';
+  @State private newFamilyName: string = '';
+  @State private newFamilySurname: string = '';
+  @State private newFamilyMotto: string = '';
+  @State private familyAccounts: ApiFamilyAccount[] = [];
+  @State private familyInvites: ApiInvite[] = [];
+  @State private accountOldPassword: string = '';
+  @State private accountNewPassword: string = '';
+  @State private accountDeletePassword: string = '';
 
   @State private branches: ApiBranch[] = [];
   @State private addSurname: string = '';
@@ -1289,6 +1305,212 @@ struct Index {
       this.dataError = this.errorText(error);
     } finally {
       this.importBusy = false;
+    }
+  }
+
+  private async openFamilyCenter(): Promise<void> {
+    this.page = 'familyCenter';
+    this.familyCenterError = '';
+    await this.loadFamilyCenter();
+  }
+
+  private async loadFamilyCenter(): Promise<void> {
+    this.familyCenterBusy = true;
+    this.familyCenterError = '';
+    try {
+      const families = await this.api.families();
+      this.familyEntries = families.items;
+      if (this.canDelete()) {
+        try {
+          const accounts = await this.api.accounts();
+          this.familyAccounts = accounts.items;
+        } catch (_) {
+          this.familyAccounts = [];
+        }
+        try {
+          const invites = await this.api.invites();
+          this.familyInvites = invites.items;
+        } catch (_) {
+          this.familyInvites = [];
+        }
+      }
+    } catch (error) {
+      this.familyCenterError = this.errorText(error);
+    } finally {
+      this.familyCenterBusy = false;
+    }
+  }
+
+  private async switchToFamily(familyId: string): Promise<void> {
+    if (familyId === this.familyId || this.familyCenterBusy) return;
+    this.familyCenterBusy = true;
+    this.familyCenterError = '';
+    try {
+      const me = await this.api.switchFamily(familyId);
+      this.applyMe(me);
+      await this.loadTree();
+      await this.loadHome();
+      this.page = 'tabs';
+      this.tab = 3;
+      this.toast('已切换到 ' + me.family.name);
+    } catch (error) {
+      this.familyCenterError = this.errorText(error);
+    } finally {
+      this.familyCenterBusy = false;
+    }
+  }
+
+  private async joinFamilyByCode(): Promise<void> {
+    const code = this.familyJoinCode.trim().toUpperCase();
+    if (code.length < 6) {
+      this.familyCenterError = '请输入有效邀请码';
+      return;
+    }
+    this.familyCenterBusy = true;
+    this.familyCenterError = '';
+    try {
+      const result = await this.api.joinFamily(code);
+      const me: ApiMeResult = {
+        user: result.user,
+        membership: result.membership,
+        family: result.family,
+        families: result.families
+      };
+      this.applyMe(me);
+      await this.loadTree();
+      await this.loadHome();
+      this.familyJoinCode = '';
+      const archived = result.archivedFamilies === undefined
+        ? 0 : result.archivedFamilies.length;
+      const merges = result.mergeRequests === undefined
+        ? 0 : result.mergeRequests.length;
+      this.toast('已加入 ' + result.family.name +
+        (archived > 0 ? '，原家族已归档' : '') +
+        (merges > 0 ? '，已提交 ' + String(merges) + ' 个合并申请' : ''));
+      this.page = 'tabs';
+      this.tab = 3;
+    } catch (error) {
+      this.familyCenterError = this.errorText(error);
+    } finally {
+      this.familyCenterBusy = false;
+    }
+  }
+
+  private async createNewFamily(): Promise<void> {
+    const name = this.newFamilyName.trim();
+    const surname = this.newFamilySurname.trim();
+    if (name.length === 0 || surname.length === 0) {
+      this.familyCenterError = '请填写家族名称和姓氏';
+      return;
+    }
+    this.familyCenterBusy = true;
+    this.familyCenterError = '';
+    try {
+      const me = await this.api.createFamily(
+        name,
+        surname,
+        this.newFamilyMotto.trim(),
+        '',
+        ''
+      );
+      this.applyMe(me);
+      await this.loadTree();
+      await this.loadHome();
+      this.newFamilyName = '';
+      this.newFamilySurname = '';
+      this.newFamilyMotto = '';
+      this.page = 'tabs';
+      this.tab = 3;
+      this.toast('已创建 ' + me.family.name);
+    } catch (error) {
+      this.familyCenterError = this.errorText(error);
+    } finally {
+      this.familyCenterBusy = false;
+    }
+  }
+
+  private async changeAccountPassword(): Promise<void> {
+    if (this.accountOldPassword.length === 0 || this.accountNewPassword.length < 8) {
+      this.familyCenterError = '请输入当前密码，新密码至少 8 位';
+      return;
+    }
+    this.familyCenterBusy = true;
+    this.familyCenterError = '';
+    try {
+      await this.api.changePassword(
+        this.accountOldPassword,
+        this.accountNewPassword
+      );
+      this.accountOldPassword = '';
+      this.accountNewPassword = '';
+      this.toast('密码已修改');
+    } catch (error) {
+      this.familyCenterError = this.errorText(error);
+    } finally {
+      this.familyCenterBusy = false;
+    }
+  }
+
+  private async createFamilyInvite(): Promise<void> {
+    this.familyCenterBusy = true;
+    this.familyCenterError = '';
+    try {
+      const invite = await this.api.createInvite('member', 1, 7);
+      this.familyInvites = [invite].concat(this.familyInvites);
+      await this.copyText(invite.code);
+      this.toast('邀请码已创建并复制');
+    } catch (error) {
+      this.familyCenterError = this.errorText(error);
+    } finally {
+      this.familyCenterBusy = false;
+    }
+  }
+
+  private async copyText(text: string): Promise<void> {
+    try {
+      const data = pasteboard.createData(
+        pasteboard.MIMETYPE_TEXT_PLAIN,
+        text
+      );
+      await pasteboard.getSystemPasteboard().setData(data);
+    } catch (_) {
+      // Clipboard failures should not hide the code itself.
+    }
+  }
+
+  private confirmDeleteAccount(): void {
+    if (this.accountDeletePassword.length === 0) {
+      this.familyCenterError = '请输入密码后再注销账号';
+      return;
+    }
+    AlertDialog.show({
+      title: '注销账号',
+      message: '注销后账号会退出并删除；如果家族只有你一人，家族也会归档。此操作不可撤销。',
+      primaryButton: {
+        value: '取消',
+        action: () => {
+        }
+      },
+      secondaryButton: {
+        value: '确认注销',
+        fontColor: '#B4423D',
+        action: () => {
+          this.deleteMyAccount();
+        }
+      }
+    });
+  }
+
+  private async deleteMyAccount(): Promise<void> {
+    this.familyCenterBusy = true;
+    try {
+      await this.api.deleteAccount(this.accountDeletePassword);
+      this.logout();
+      this.toast('账号已注销');
+    } catch (error) {
+      this.familyCenterError = this.errorText(error);
+    } finally {
+      this.familyCenterBusy = false;
     }
   }
 
@@ -2718,6 +2940,20 @@ struct Index {
           this.SettingsRow('登录账号', this.loginName)
           this.SettingsRow('我的世代', this.myGeneration.length > 0 ? this.myGeneration : '未绑定')
           this.SettingsRow('家族人数', String(this.memberCount))
+          Row() {
+            Text('账号与家庭')
+              .fontSize(13)
+              .fontColor('#1C2A32')
+            Blank()
+            Text('切换 / 邀请 / 密码 ›')
+              .fontSize(11)
+              .fontColor('#4E7DF4')
+          }
+          .width('100%')
+          .padding({ top: 8, bottom: 4 })
+          .onClick(() => {
+            this.openFamilyCenter();
+          })
           if (this.canDelete()) {
             Row() {
               Text('家族合并')
@@ -5234,6 +5470,376 @@ struct Index {
     .height('100%')
   }
 
+  @Builder
+  private FamilyCenterView() {
+    Column() {
+      Row() {
+        Button('‹')
+          .width(38)
+          .height(38)
+          .backgroundColor('#FFFFFF')
+          .fontColor('#1C2A32')
+          .fontSize(22)
+          .borderRadius(19)
+          .onClick(() => {
+            this.page = 'tabs';
+            this.tab = 3;
+          })
+        Column({ space: 2 }) {
+          Text('账号与家庭')
+            .fontSize(22)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#1C2A32')
+          Text(this.familyName + ' · ' + this.displayName)
+            .fontSize(10)
+            .fontColor('#89969C')
+        }
+        .alignItems(HorizontalAlign.Start)
+        .margin({ left: 10 })
+      }
+      .width('100%')
+      .padding({ left: 14, right: 14, top: 12, bottom: 8 })
+
+      if (this.familyCenterBusy) {
+        Row() {
+          LoadingProgress()
+            .width(18)
+            .height(18)
+            .color('#4E7DF4')
+        }
+        .width('100%')
+        .justifyContent(FlexAlign.Center)
+        .padding({ top: 4, bottom: 4 })
+      }
+
+      Scroll() {
+        Column({ space: 12 }) {
+          Column({ space: 8 }) {
+            Row({ space: 8 }) {
+              Column()
+                .width(3)
+                .height(15)
+                .backgroundColor('#4E7DF4')
+                .borderRadius(3)
+              Text('我的家族')
+                .fontSize(16)
+                .fontWeight(FontWeight.Bold)
+                .fontColor('#1C2A32')
+            }
+            .width('100%')
+            if (this.familyEntries.length === 0) {
+              Text('暂无其他家族')
+                .fontSize(11)
+                .fontColor('#89969C')
+            }
+            ForEach(this.familyEntries, (entry: ApiFamilyEntry) => {
+              Row({ space: 10 }) {
+                Text(entry.family.name.substring(0, 1))
+                  .width(38)
+                  .height(38)
+                  .textAlign(TextAlign.Center)
+                  .fontSize(15)
+                  .fontWeight(FontWeight.Bold)
+                  .fontColor('#B4423D')
+                  .backgroundColor('#FBEEEA')
+                  .borderRadius(11)
+                Column({ space: 2 }) {
+                  Text(entry.family.name)
+                    .fontSize(13)
+                    .fontWeight(FontWeight.Medium)
+                    .fontColor('#1C2A32')
+                  Text(entry.family.surname + '氏 · ' +
+                    String(entry.family.memberCount) + ' 人 · ' +
+                    (entry.membership.role === 'owner' ? '族长' :
+                      entry.membership.role === 'admin' ? '管理员' : '成员'))
+                    .fontSize(9)
+                    .fontColor('#89969C')
+                }
+                .alignItems(HorizontalAlign.Start)
+                .layoutWeight(1)
+                if (entry.family.id === this.familyId) {
+                  Text('当前')
+                    .fontSize(9)
+                    .fontColor('#2F8F67')
+                    .backgroundColor('#E8F6EF')
+                    .padding({ left: 7, right: 7, top: 2, bottom: 2 })
+                    .borderRadius(6)
+                } else {
+                  Button('切换')
+                    .fontSize(10)
+                    .height(30)
+                    .backgroundColor('#EAF0FF')
+                    .fontColor('#4E7DF4')
+                    .onClick(() => {
+                      this.switchToFamily(entry.family.id);
+                    })
+                }
+              }
+              .width('100%')
+              .padding(10)
+              .backgroundColor('#F7F9FA')
+              .borderRadius(10)
+            }, (entry: ApiFamilyEntry) => entry.family.id)
+          }
+          .width('100%')
+          .padding(14)
+          .backgroundColor(Color.White)
+          .borderRadius(13)
+          .alignItems(HorizontalAlign.Start)
+
+          Column({ space: 8 }) {
+            Text('加入其他家族')
+              .fontSize(13)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#1C2A32')
+              .width('100%')
+            Text('输入对方族长分享的邀请码；原家族有数据时会自动生成合并申请。')
+              .fontSize(10)
+              .lineHeight(16)
+              .fontColor('#6C7B82')
+              .width('100%')
+            Row({ space: 8 }) {
+              TextInput({ placeholder: '邀请码', text: this.familyJoinCode })
+                .layoutWeight(1)
+                .height(40)
+                .backgroundColor('#F7F9FA')
+                .borderRadius(8)
+                .fontSize(12)
+                .onChange((value: string) => {
+                  this.familyJoinCode = value.toUpperCase();
+                })
+              Button('加入')
+                .height(40)
+                .fontSize(11)
+                .backgroundColor('#3DA77C')
+                .fontColor(Color.White)
+                .onClick(() => {
+                  this.joinFamilyByCode();
+                })
+            }
+            .width('100%')
+          }
+          .width('100%')
+          .padding(14)
+          .backgroundColor(Color.White)
+          .borderRadius(13)
+          .alignItems(HorizontalAlign.Start)
+
+          Column({ space: 8 }) {
+            Text('创建新家族')
+              .fontSize(13)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#1C2A32')
+              .width('100%')
+            TextInput({ placeholder: '家族名称', text: this.newFamilyName })
+              .height(40)
+              .backgroundColor('#F7F9FA')
+              .borderRadius(8)
+              .fontSize(12)
+              .onChange((value: string) => {
+                this.newFamilyName = value;
+              })
+            TextInput({ placeholder: '姓氏', text: this.newFamilySurname })
+              .height(40)
+              .backgroundColor('#F7F9FA')
+              .borderRadius(8)
+              .fontSize(12)
+              .onChange((value: string) => {
+                this.newFamilySurname = value;
+              })
+            TextInput({ placeholder: '家训（可选）', text: this.newFamilyMotto })
+              .height(40)
+              .backgroundColor('#F7F9FA')
+              .borderRadius(8)
+              .fontSize(12)
+              .onChange((value: string) => {
+                this.newFamilyMotto = value;
+              })
+            Button('创建家族')
+              .width('100%')
+              .height(40)
+              .fontSize(11)
+              .backgroundColor('#4E7DF4')
+              .fontColor(Color.White)
+              .onClick(() => {
+                this.createNewFamily();
+              })
+          }
+          .width('100%')
+          .padding(14)
+          .backgroundColor(Color.White)
+          .borderRadius(13)
+          .alignItems(HorizontalAlign.Start)
+
+          if (this.canDelete()) {
+            Column({ space: 8 }) {
+              Row() {
+                Text('邀请码')
+                  .fontSize(13)
+                  .fontWeight(FontWeight.Bold)
+                  .fontColor('#1C2A32')
+                Blank()
+                Button('新建')
+                  .fontSize(10)
+                  .height(28)
+                  .backgroundColor('#EAF0FF')
+                  .fontColor('#4E7DF4')
+                  .onClick(() => {
+                    this.createFamilyInvite();
+                  })
+              }
+              .width('100%')
+              if (this.familyInvites.length === 0) {
+                Text('还没有邀请码')
+                  .fontSize(10)
+                  .fontColor('#89969C')
+              }
+              ForEach(this.familyInvites, (invite: ApiInvite) => {
+                Row({ space: 8 }) {
+                  Text(invite.code)
+                    .fontSize(16)
+                    .fontWeight(FontWeight.Bold)
+                    .fontColor('#B4423D')
+                    .letterSpacing(2)
+                  Column({ space: 1 }) {
+                    Text(invite.status + ' · 已用 ' +
+                      String(invite.usedCount) + '/' + String(invite.maxUses))
+                      .fontSize(8)
+                      .fontColor('#89969C')
+                    Text(invite.expiresAt !== undefined
+                      ? '有效期至 ' + invite.expiresAt!.substring(0, 10) : '')
+                      .fontSize(8)
+                      .fontColor('#89969C')
+                  }
+                  .alignItems(HorizontalAlign.Start)
+                  .layoutWeight(1)
+                  Text('复制')
+                    .fontSize(10)
+                    .fontColor('#4E7DF4')
+                    .onClick(() => {
+                      this.copyText(invite.code);
+                      this.toast('邀请码已复制');
+                    })
+                }
+                .width('100%')
+                .padding({ top: 4, bottom: 4 })
+              }, (invite: ApiInvite) => invite.id)
+            }
+            .width('100%')
+            .padding(14)
+            .backgroundColor(Color.White)
+            .borderRadius(13)
+            .alignItems(HorizontalAlign.Start)
+
+            Column({ space: 6 }) {
+              Text('家族账号')
+                .fontSize(13)
+                .fontWeight(FontWeight.Bold)
+                .fontColor('#1C2A32')
+                .width('100%')
+              ForEach(this.familyAccounts, (account: ApiFamilyAccount) => {
+                Row({ space: 8 }) {
+                  Text(account.displayName)
+                    .fontSize(12)
+                    .fontColor('#1C2A32')
+                  Text('@' + account.loginName)
+                    .fontSize(9)
+                    .fontColor('#89969C')
+                  Blank()
+                  Text(account.role === 'owner' ? '族长' :
+                    account.role === 'admin' ? '管理员' : '成员')
+                    .fontSize(9)
+                    .fontColor('#4E7DF4')
+                  Text(account.personName.length > 0 ? account.personName : '未绑定')
+                    .fontSize(9)
+                    .fontColor('#89969C')
+                }
+                .width('100%')
+                .padding({ top: 4, bottom: 4 })
+              }, (account: ApiFamilyAccount) => account.userId)
+            }
+            .width('100%')
+            .padding(14)
+            .backgroundColor(Color.White)
+            .borderRadius(13)
+            .alignItems(HorizontalAlign.Start)
+          }
+
+          Column({ space: 8 }) {
+            Text('账号安全')
+              .fontSize(13)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#1C2A32')
+              .width('100%')
+            TextInput({ placeholder: '当前密码', text: this.accountOldPassword })
+              .height(40)
+              .type(InputType.Password)
+              .backgroundColor('#F7F9FA')
+              .borderRadius(8)
+              .fontSize(12)
+              .onChange((value: string) => {
+                this.accountOldPassword = value;
+              })
+            TextInput({ placeholder: '新密码（至少 8 位）', text: this.accountNewPassword })
+              .height(40)
+              .type(InputType.Password)
+              .backgroundColor('#F7F9FA')
+              .borderRadius(8)
+              .fontSize(12)
+              .onChange((value: string) => {
+                this.accountNewPassword = value;
+              })
+            Button('修改密码')
+              .width('100%')
+              .height(38)
+              .fontSize(11)
+              .backgroundColor('#EAF0FF')
+              .fontColor('#4E7DF4')
+              .onClick(() => {
+                this.changeAccountPassword();
+              })
+            TextInput({ placeholder: '输入密码以注销账号', text: this.accountDeletePassword })
+              .height(40)
+              .type(InputType.Password)
+              .backgroundColor('#FBEEEA')
+              .borderRadius(8)
+              .fontSize(12)
+              .onChange((value: string) => {
+                this.accountDeletePassword = value;
+              })
+            Button('注销账号')
+              .width('100%')
+              .height(38)
+              .fontSize(11)
+              .backgroundColor('#FBEEEA')
+              .fontColor('#B4423D')
+              .onClick(() => {
+                this.confirmDeleteAccount();
+              })
+          }
+          .width('100%')
+          .padding(14)
+          .backgroundColor(Color.White)
+          .borderRadius(13)
+          .alignItems(HorizontalAlign.Start)
+
+          if (this.familyCenterError.length > 0) {
+            Text(this.familyCenterError)
+              .fontSize(11)
+              .fontColor('#B4423D')
+              .width('100%')
+          }
+        }
+        .width('100%')
+        .padding({ left: 14, right: 14, bottom: 24 })
+      }
+      .layoutWeight(1)
+      .scrollBar(BarState.Off)
+    }
+    .width('100%')
+    .height('100%')
+  }
+
   build() {
     Stack() {
       if (this.booting) {
@@ -5264,6 +5870,8 @@ struct Index {
         this.MergeDetailView()
       } else if (this.page === 'data') {
         this.DataView()
+      } else if (this.page === 'familyCenter') {
+        this.FamilyCenterView()
       } else {
         this.TabsView()
       }
