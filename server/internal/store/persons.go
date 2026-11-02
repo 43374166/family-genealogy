@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
+	"time"
 
 	"github.com/43374166/family-genealogy/server/internal/model"
 )
@@ -194,7 +196,115 @@ func (s *Store) GetPerson(ctx context.Context, familyID, personID string) (*mode
 	if person.Spouses, err = s.relations(ctx, familyID, personID, "spouses"); err != nil {
 		return nil, err
 	}
+	if person.Siblings, err = s.siblings(ctx, familyID, personID, person.Birth, person.CreatedAt); err != nil {
+		return nil, err
+	}
 	return &person, nil
+}
+
+func (s *Store) siblings(
+	ctx context.Context, familyID, personID string,
+	selfBirth *model.PartialDate, selfCreated time.Time,
+) ([]model.Relative, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT DISTINCT p.id, p.full_name, p.gender,
+		       p.birth_year, p.birth_month, p.birth_day, p.created_at
+		FROM parent_child_relationships mine
+		JOIN parent_child_relationships sibling
+		  ON sibling.family_id = mine.family_id
+		 AND sibling.parent_id = mine.parent_id
+		 AND sibling.status = 'active'
+		JOIN persons p ON p.id = sibling.child_id
+		 AND p.family_id = mine.family_id AND p.status = 'active'
+		WHERE mine.family_id = ? AND mine.child_id = ?
+		  AND mine.status = 'active' AND p.id <> ?
+		ORDER BY p.birth_year IS NULL, p.birth_year, p.created_at, p.id`,
+		familyID, personID, personID)
+	if err != nil {
+		return nil, fmt.Errorf("list siblings: %w", err)
+	}
+	defer rows.Close()
+
+	type siblingRow struct {
+		relative  model.Relative
+		gender    string
+		birth     *model.PartialDate
+		createdAt time.Time
+	}
+	rowsList := make([]siblingRow, 0)
+	for rows.Next() {
+		var item siblingRow
+		var by, bm, bd sql.NullInt64
+		if err := rows.Scan(&item.relative.PersonID, &item.relative.FullName,
+			&item.gender, &by, &bm, &bd, &item.createdAt); err != nil {
+			return nil, fmt.Errorf("scan sibling: %w", err)
+		}
+		if by.Valid || bm.Valid || bd.Valid {
+			item.birth = buildPartialDate(by, bm, bd, "gregorian", false, "")
+		}
+		rowsList = append(rowsList, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate siblings: %w", err)
+	}
+	sort.SliceStable(rowsList, func(i, j int) bool {
+		a, b := rowsList[i], rowsList[j]
+		if (a.birth != nil) != (b.birth != nil) {
+			return a.birth != nil
+		}
+		if a.birth != nil && b.birth != nil {
+			ak := fmt.Sprintf("%04d%02d%02d", derefInt(a.birth.Year),
+				derefInt(a.birth.Month), derefInt(a.birth.Day))
+			bk := fmt.Sprintf("%04d%02d%02d", derefInt(b.birth.Year),
+				derefInt(b.birth.Month), derefInt(b.birth.Day))
+			if ak != bk {
+				return ak < bk
+			}
+		}
+		return a.createdAt.Before(b.createdAt)
+	})
+	result := make([]model.Relative, 0, len(rowsList))
+	for _, item := range rowsList {
+		older := siblingIsOlder(selfBirth, selfCreated, item.birth, item.createdAt)
+		prefix := "兄弟"
+		if item.gender == "female" {
+			prefix = "姐"
+			if !older {
+				prefix = "妹"
+			}
+		} else {
+			prefix = "哥"
+			if !older {
+				prefix = "弟"
+			}
+		}
+		item.relative.Relation = prefix
+		result = append(result, item.relative)
+	}
+	return result, nil
+}
+
+func derefInt(value *int) int {
+	if value == nil {
+		return 0
+	}
+	return *value
+}
+
+func siblingIsOlder(
+	selfBirth *model.PartialDate, selfCreated time.Time,
+	otherBirth *model.PartialDate, otherCreated time.Time,
+) bool {
+	if selfBirth != nil && otherBirth != nil &&
+		selfBirth.Year != nil && selfBirth.Month != nil && selfBirth.Day != nil &&
+		otherBirth.Year != nil && otherBirth.Month != nil && otherBirth.Day != nil {
+		sk := fmt.Sprintf("%04d%02d%02d", *selfBirth.Year, *selfBirth.Month, *selfBirth.Day)
+		ok := fmt.Sprintf("%04d%02d%02d", *otherBirth.Year, *otherBirth.Month, *otherBirth.Day)
+		if sk != ok {
+			return ok < sk
+		}
+	}
+	return otherCreated.Before(selfCreated)
 }
 
 func (s *Store) relations(ctx context.Context, familyID, personID, kind string) ([]model.Relative, error) {

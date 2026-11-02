@@ -759,6 +759,7 @@ class ApiPerson {
     this.education = '',
     this.biography = '',
     this.parents = const [],
+    this.siblings = const [],
     this.children = const [],
     this.spouses = const [],
   });
@@ -787,6 +788,7 @@ class ApiPerson {
   final String education;
   final String biography;
   final List<ApiRelative> parents;
+  final List<ApiRelative> siblings;
   final List<ApiRelative> children;
   final List<ApiRelative> spouses;
 
@@ -819,6 +821,7 @@ class ApiPerson {
       education: _string(json['education']),
       biography: _string(json['biography']),
       parents: _relatives(json['parents']),
+      siblings: _relatives(json['siblings']),
       children: _relatives(json['children']),
       spouses: _relatives(json['spouses']),
     );

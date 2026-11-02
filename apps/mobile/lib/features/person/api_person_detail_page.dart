@@ -640,6 +640,7 @@ class _Relationships extends StatelessWidget {
   Widget build(BuildContext context) {
     final groups = <(String, List<ApiRelative>)>[
       if (person.parents.isNotEmpty) ('父母', person.parents),
+      if (person.siblings.isNotEmpty) ('兄弟姐妹', person.siblings),
       if (person.spouses.isNotEmpty) ('配偶', person.spouses),
       if (person.children.isNotEmpty) ('子女', person.children),
     ];

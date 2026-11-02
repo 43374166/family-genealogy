@@ -1001,6 +1001,28 @@ class AppSession extends ChangeNotifier {
     await refreshTree();
   }
 
+  Future<void> addSibling({
+    required String personId,
+    required String siblingId,
+  }) async {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    final person = await _api.person(personId);
+    if (person.parents.isEmpty) {
+      throw const ApiException('请先给这个人添加父亲或母亲，再添加兄弟姐妹');
+    }
+    for (final parent in person.parents) {
+      final role = parent.relation == '母亲' ? 'mother' : 'father';
+      await _api.addParentChild(
+        parentId: parent.personId,
+        childId: siblingId,
+        parentRole: role,
+      );
+    }
+    await refreshTree();
+  }
+
   Future<void> addSpouse({
     required String personAId,
     required String personBId,
@@ -1039,15 +1061,20 @@ class AppSession extends ChangeNotifier {
   List<FamilyMember> get treeMembers {
     final currentTree = _tree;
     if (currentTree == null) return const [];
+    final familySurname = _family?.surname ?? '';
     return currentTree.persons
-        .map(
-          (person) => person.toFamilyMember(
+        .map((person) {
+          final samePaternalLine =
+              familySurname.isEmpty || person.surname == familySurname;
+          return person.toFamilyMember(
             currentTree.familyId,
-            generationName: person.generationName.isNotEmpty
-                ? person.generationName
-                : generationNameFor(person.generationNo),
-          ),
-        )
+            generationName: samePaternalLine
+                ? (person.generationName.isNotEmpty
+                      ? person.generationName
+                      : generationNameFor(person.generationNo))
+                : '',
+          );
+        })
         .toList(growable: false);
   }
 

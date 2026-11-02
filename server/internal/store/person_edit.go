@@ -51,10 +51,10 @@ func (s *Store) UpdatePerson(
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	var version int
+	var version, oldGeneration int
 	var beforeData []byte
 	err = tx.QueryRowContext(ctx, `
-		SELECT version, JSON_OBJECT(
+		SELECT version, generation_no, JSON_OBJECT(
 			'fullName', full_name, 'surname', surname, 'givenName', given_name,
 			'courtesyName', courtesy_name, 'alias', alias, 'gender', gender,
 			'generationNo', generation_no, 'branchId', branch_id,
@@ -67,7 +67,7 @@ func (s *Store) UpdatePerson(
 		FROM persons
 		WHERE family_id = ? AND id = ? AND status = 'active'
 		LIMIT 1 FOR UPDATE`, familyID, personID,
-	).Scan(&version, &beforeData)
+	).Scan(&version, &oldGeneration, &beforeData)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -76,6 +76,13 @@ func (s *Store) UpdatePerson(
 	}
 	if version != input.Version {
 		return nil, ErrVersionConflict
+	}
+	if input.GenerationNo != oldGeneration {
+		if err := shiftGenerationComponent(
+			ctx, tx, familyID, personID, input.GenerationNo-oldGeneration,
+		); err != nil {
+			return nil, err
+		}
 	}
 	var branchExists int
 	if err := tx.QueryRowContext(ctx, `

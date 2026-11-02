@@ -207,7 +207,9 @@ class _AddPersonPageState extends State<AddPersonPage> {
 
   @override
   Widget build(BuildContext context) {
-    final familyName = SessionScope.of(context).family?.name ?? '当前家庭';
+    final session = SessionScope.of(context);
+    final familyName = session.family?.name ?? '当前家庭';
+    final showGenerationName = session.family?.surname == _surname.text.trim();
     final generations = _generationOptions();
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -355,14 +357,17 @@ class _AddPersonPageState extends State<AddPersonPage> {
                                                   value ?? _generation,
                                             ),
                                           ),
-                                          const SizedBox(height: 10),
-                                          GenerationNamePicker(
-                                            currentGeneration: _generation,
-                                            currentName: _generationName,
-                                            onChanged: (item) => setState(
-                                              () => _generationName = item.name,
+                                          if (showGenerationName) ...[
+                                            const SizedBox(height: 10),
+                                            GenerationNamePicker(
+                                              currentGeneration: _generation,
+                                              currentName: _generationName,
+                                              onChanged: (item) => setState(
+                                                () =>
+                                                    _generationName = item.name,
+                                              ),
                                             ),
-                                          ),
+                                          ],
                                         ],
                                       ),
                                     ),

@@ -270,6 +270,8 @@ class _EditPersonPageState extends State<EditPersonPage> {
 
   @override
   Widget build(BuildContext context) {
+    final session = SessionScope.of(context);
+    final showGenerationName = session.family?.surname == _surname.text.trim();
     final generations = <int>{
       1,
       for (var i = -2; i <= 2; i++) _generation + i,
@@ -352,14 +354,16 @@ class _EditPersonPageState extends State<EditPersonPage> {
                               }
                             },
                           ),
-                          const SizedBox(height: 10),
-                          GenerationNamePicker(
-                            currentGeneration: _generation,
-                            currentName: _generationName,
-                            onChanged: (item) {
-                              setState(() => _generationName = item.name);
-                            },
-                          ),
+                          if (showGenerationName) ...[
+                            const SizedBox(height: 10),
+                            GenerationNamePicker(
+                              currentGeneration: _generation,
+                              currentName: _generationName,
+                              onChanged: (item) {
+                                setState(() => _generationName = item.name);
+                              },
+                            ),
+                          ],
                           const SizedBox(height: 12),
                           if (_loadingBranches)
                             const LinearProgressIndicator(minHeight: 2)

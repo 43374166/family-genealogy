@@ -86,6 +86,7 @@ type Person struct {
 	Education  string     `json:"education,omitempty"`
 	Biography  string     `json:"biography,omitempty"`
 	Parents    []Relative `json:"parents,omitempty"`
+	Siblings   []Relative `json:"siblings,omitempty"`
 	Children   []Relative `json:"children,omitempty"`
 	Spouses    []Relative `json:"spouses,omitempty"`
 	CreatedAt  time.Time  `json:"createdAt"`

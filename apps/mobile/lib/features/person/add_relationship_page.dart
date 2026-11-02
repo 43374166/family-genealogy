@@ -9,7 +9,15 @@ import '../../services/api_models.dart';
 import '../../services/app_session.dart';
 import '../search/member_search_page.dart';
 
-enum RelationKind { father, mother, spouse }
+enum RelationKind {
+  father,
+  mother,
+  spouse,
+  olderBrother,
+  olderSister,
+  youngerBrother,
+  youngerSister,
+}
 
 class AddRelationshipPage extends StatefulWidget {
   const AddRelationshipPage({super.key, this.initialSubject});
@@ -25,6 +33,14 @@ class _AddRelationshipPageState extends State<AddRelationshipPage> {
   ApiPerson? _target;
   RelationKind _kind = RelationKind.father;
   bool _submitting = false;
+
+  bool get _isSibling => switch (_kind) {
+    RelationKind.olderBrother ||
+    RelationKind.olderSister ||
+    RelationKind.youngerBrother ||
+    RelationKind.youngerSister => true,
+    _ => false,
+  };
 
   @override
   void initState() {
@@ -67,9 +83,18 @@ class _AddRelationshipPageState extends State<AddRelationshipPage> {
     setState(() => _submitting = true);
     try {
       final session = SessionScope.of(context);
+      if (!session.canWrite && _isSibling) {
+        setState(() => _submitting = false);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('兄弟姐妹关系需要族长或管理员添加')));
+        return;
+      }
       if (session.canWrite) {
         if (_kind == RelationKind.spouse) {
           await session.addSpouse(personAId: subject.id, personBId: target.id);
+        } else if (_isSibling) {
+          await session.addSibling(personId: subject.id, siblingId: target.id);
         } else {
           await session.addParentChild(
             parentId: target.id,
@@ -85,6 +110,8 @@ class _AddRelationshipPageState extends State<AddRelationshipPage> {
             content: Text(
               _kind == RelationKind.spouse
                   ? '${subject.fullName} 与 ${target.fullName} 已建立配偶关系。'
+                  : _isSibling
+                  ? '${target.fullName} 已与 ${subject.fullName} 建立兄弟姐妹关系。'
                   : '${target.fullName} 已设为 ${subject.fullName} 的${_kind == RelationKind.father ? '父亲' : '母亲'}。',
             ),
             actions: [
@@ -195,6 +222,10 @@ class _AddRelationshipPageState extends State<AddRelationshipPage> {
                                   RelationKind.father => '父亲',
                                   RelationKind.mother => '母亲',
                                   RelationKind.spouse => '配偶',
+                                  RelationKind.olderBrother => '哥哥',
+                                  RelationKind.olderSister => '姐姐',
+                                  RelationKind.youngerBrother => '弟弟',
+                                  RelationKind.youngerSister => '妹妹',
                                 },
                                 selected: _kind == kind,
                                 onTap: () => setState(() => _kind = kind),
@@ -203,7 +234,9 @@ class _AddRelationshipPageState extends State<AddRelationshipPage> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          _kind == RelationKind.spouse ? '人物 A' : '子女',
+                          _kind == RelationKind.spouse || _isSibling
+                              ? '人物 A'
+                              : '子女',
                           style: const TextStyle(
                             fontSize: 10.5,
                             fontWeight: FontWeight.w600,
@@ -253,6 +286,10 @@ class _AddRelationshipPageState extends State<AddRelationshipPage> {
                             RelationKind.father => '父亲',
                             RelationKind.mother => '母亲',
                             RelationKind.spouse => '人物 B',
+                            RelationKind.olderBrother => '哥哥',
+                            RelationKind.olderSister => '姐姐',
+                            RelationKind.youngerBrother => '弟弟',
+                            RelationKind.youngerSister => '妹妹',
                           },
                           style: const TextStyle(
                             fontSize: 10.5,
@@ -267,6 +304,10 @@ class _AddRelationshipPageState extends State<AddRelationshipPage> {
                             RelationKind.father => '选择父亲',
                             RelationKind.mother => '选择母亲',
                             RelationKind.spouse => '选择配偶',
+                            RelationKind.olderBrother ||
+                            RelationKind.olderSister ||
+                            RelationKind.youngerBrother ||
+                            RelationKind.youngerSister => '选择兄弟姐妹',
                           },
                           onTap: () async {
                             final person = await _pickPerson(exclude: subject);
