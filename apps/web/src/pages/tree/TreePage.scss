@@ -314,8 +314,8 @@ body[theme-mode='dark'] .tree-canvas::after {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 9px 9px 8px;
+  gap: 3px;
+  padding: 7px 7px 6px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.95);
   border-radius: 12px;
@@ -364,7 +364,7 @@ body[theme-mode='dark'] .tree-person {
 
 .tree-person__body {
   display: flex;
-  flex: 1;
+  flex: none;
   flex-direction: column;
   align-items: center;
   gap: 1px;
@@ -388,10 +388,10 @@ body[theme-mode='dark'] .tree-person {
 
 .tree-person__name-row strong {
   overflow: hidden;
-  max-width: 124px;
+  max-width: 102px;
   color: var(--ink);
   font-family: var(--serif);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.01em;
   text-overflow: ellipsis;
@@ -432,9 +432,9 @@ body[theme-mode='dark'] .tree-person__gender.is-female {
 
 .tree-person__years {
   overflow: hidden;
-  max-width: 156px;
+  max-width: 124px;
   color: var(--ink-muted);
-  font-size: 8.5px;
+  font-size: 7.8px;
   letter-spacing: 0.01em;
   text-align: center;
   text-overflow: ellipsis;
@@ -446,8 +446,8 @@ body[theme-mode='dark'] .tree-person__gender.is-female {
   align-items: center;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 2px;
+  gap: 3px;
+  margin-top: 1px;
 }
 
 .tree-person__meta em {
@@ -479,11 +479,11 @@ body[theme-mode='dark'] .tree-person__gender.is-female {
 .tree-person__calendar {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   width: 100%;
   min-width: 0;
-  margin-top: 3px;
-  padding-top: 3px;
+  margin-top: 2px;
+  padding-top: 2px;
   border-top: 1px dashed var(--line);
 }
 

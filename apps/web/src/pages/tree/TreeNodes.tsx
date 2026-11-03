@@ -11,12 +11,7 @@ import {
 import { PersonAvatar } from '@/components/PersonAvatar';
 import type { PersonSummary } from '@/types/api';
 import { dualCalendarDate, type DualCalendarDate } from '@/utils/calendar';
-import {
-  UNIT_CARD_HEIGHT,
-  UNIT_CARD_WIDTH,
-  type GenerationRow,
-  type LayoutUnit,
-} from './treeLayout';
+import { UNIT_CARD_WIDTH, type GenerationRow, type LayoutUnit } from './treeLayout';
 import { cn } from '@/utils/cn';
 import { genderLabel, generationShort, lifeYears } from '@/utils/format';
 
@@ -104,14 +99,14 @@ export const FamilyUnitNodeView = memo(function FamilyUnitNodeView({
                   matched && 'is-matched',
                   member.lifeStatus === 'deceased' && 'is-deceased',
                 )}
-                style={{ width: UNIT_CARD_WIDTH, height: UNIT_CARD_HEIGHT }}
+                style={{ width: UNIT_CARD_WIDTH, height: unit.height }}
                 title={`${member.fullName} · ${generationShort(member.generationNo)}`}
                 onClick={(event) => {
                   event.stopPropagation();
                   onSelectPerson(member);
                 }}
               >
-                <PersonAvatar person={member} size={50} ring={selected} />
+                <PersonAvatar person={member} size={42} ring={selected} />
                 <span className="tree-person__body">
                   <span className="tree-person__name-row">
                     <strong>{member.fullName}</strong>
@@ -134,10 +129,12 @@ export const FamilyUnitNodeView = memo(function FamilyUnitNodeView({
                     ) : null}
                     {member.hasAvatar ? <span className="tree-person__avatar-dot" /> : null}
                   </span>
-                  <span className="tree-person__calendar">
-                    {birth ? <TreeCalendarLine label="生" date={birth} /> : null}
-                    {death ? <TreeCalendarLine label="卒" date={death} /> : null}
-                  </span>
+                  {birth || death ? (
+                    <span className="tree-person__calendar">
+                      {birth ? <TreeCalendarLine label="生" date={birth} /> : null}
+                      {death ? <TreeCalendarLine label="卒" date={death} /> : null}
+                    </span>
+                  ) : null}
                 </span>
               </button>
             </div>
