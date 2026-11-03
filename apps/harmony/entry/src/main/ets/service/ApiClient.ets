@@ -535,6 +535,14 @@ export class ApiClient {
     return JSON.parse(text) as ApiEditRequestPage;
   }
 
+  async editRequest(requestId: string): Promise<ApiEditRequest> {
+    const text = await this.request(
+      http.RequestMethod.GET,
+      '/api/v1/edit-requests/' + encodeURIComponent(requestId)
+    );
+    return JSON.parse(text) as ApiEditRequest;
+  }
+
   async reviewEditRequest(
     requestId: string,
     approve: boolean,
@@ -945,6 +953,23 @@ export class ApiClient {
     );
   }
 
+  async createProfileRequest(
+    personId: string,
+    baseVersion: number,
+    changes: Record<string, string>
+  ): Promise<void> {
+    const payload: CreateEditRequestPayload = {
+      targetPersonId: personId,
+      baseVersion: baseVersion,
+      changes: changes
+    };
+    await this.request(
+      http.RequestMethod.POST,
+      '/api/v1/edit-requests',
+      payload
+    );
+  }
+
   async createBindingRequest(personId: string): Promise<void> {
     const payload: BindingPayload = { personId: personId };
     await this.request(
@@ -1094,6 +1119,20 @@ interface RelationshipEndPayload {
 
 interface BindingPayload {
   personId: string;
+}
+
+interface ProfileChangesPayload {
+  birthPlace: string;
+  residence: string;
+  occupation: string;
+  education: string;
+  biography: string;
+}
+
+interface CreateEditRequestPayload {
+  targetPersonId: string;
+  baseVersion: number;
+  changes: Record<string, string>;
 }
 
 interface UpdatePhotoPayload {

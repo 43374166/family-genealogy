@@ -116,6 +116,13 @@ struct Index {
   @State private relationPersonIndex: number = 0;
   @State private relationBusy: boolean = false;
   @State private relationError: string = '';
+  @State private profileReqBirthPlace: string = '';
+  @State private profileReqResidence: string = '';
+  @State private profileReqOccupation: string = '';
+  @State private profileReqEducation: string = '';
+  @State private profileReqBiography: string = '';
+  @State private profileReqBusy: boolean = false;
+  @State private profileReqError: string = '';
   @State private editSurname: string = '';
   @State private editGivenName: string = '';
   @State private editCourtesyName: string = '';
@@ -177,6 +184,7 @@ struct Index {
   @State private inboxError: string = '';
   @State private editReviews: ApiEditRequest[] = [];
   @State private bindingReviews: ApiBindingRequest[] = [];
+  @State private myRequests: ApiEditRequest[] = [];
   @State private reviewKind: string = '';
   @State private reviewId: string = '';
   @State private reviewLabel: string = '';
@@ -1050,8 +1058,60 @@ struct Index {
     }
   }
 
-  private async saveEditedPerson(): Promise<void> {
+  private openProfileRequest(): void {
     const person = this.selected;
+    if (person === null) return;
+    this.profileReqBirthPlace = person.birthPlace === undefined ? '' : person.birthPlace!;
+    this.profileReqResidence = person.residence === undefined ? '' : person.residence!;
+    this.profileReqOccupation = person.occupation === undefined ? '' : person.occupation!;
+    this.profileReqEducation = person.education === undefined ? '' : person.education!;
+    this.profileReqBiography = person.biography === undefined ? '' : person.biography!;
+    this.profileReqError = '';
+    this.page = 'profileRequest';
+  }
+
+  private async submitProfileRequest(): Promise<void> {
+    const person = this.selected;
+    if (person === null || this.profileReqBusy) return;
+    const changes: Record<string, string> = {};
+    const originalBirthPlace = person.birthPlace === undefined ? '' : person.birthPlace!;
+    const originalResidence = person.residence === undefined ? '' : person.residence!;
+    const originalOccupation = person.occupation === undefined ? '' : person.occupation!;
+    const originalEducation = person.education === undefined ? '' : person.education!;
+    const originalBiography = person.biography === undefined ? '' : person.biography!;
+    if (this.profileReqBirthPlace.trim() !== originalBirthPlace) {
+      changes['birthPlace'] = this.profileReqBirthPlace.trim();
+    }
+    if (this.profileReqResidence.trim() !== originalResidence) {
+      changes['residence'] = this.profileReqResidence.trim();
+    }
+    if (this.profileReqOccupation.trim() !== originalOccupation) {
+      changes['occupation'] = this.profileReqOccupation.trim();
+    }
+    if (this.profileReqEducation.trim() !== originalEducation) {
+      changes['education'] = this.profileReqEducation.trim();
+    }
+    if (this.profileReqBiography.trim() !== originalBiography) {
+      changes['biography'] = this.profileReqBiography.trim();
+    }
+    if (Object.keys(changes).length === 0) {
+      this.profileReqError = '还没有修改任何资料';
+      return;
+    }
+    this.profileReqBusy = true;
+    this.profileReqError = '';
+    try {
+      await this.api.createProfileRequest(person.id, person.version, changes);
+      this.page = 'detail';
+      this.toast('资料修改申请已提交，等待审核');
+    } catch (error) {
+      this.profileReqError = this.errorText(error);
+    } finally {
+      this.profileReqBusy = false;
+    }
+  }
+
+  private async saveEditedPerson(): Promise<void> {    const person = this.selected;
     if (person === null || this.editBusy) return;
     const generation = Number(this.editGeneration);
     if (this.editSurname.trim().length === 0 ||
@@ -1339,6 +1399,9 @@ struct Index {
         this.editReviews = edits.items;
         const bindings = await this.api.bindingRequests('pending');
         this.bindingReviews = bindings.items;
+      } else {
+        const mine = await this.api.editRequests('', true);
+        this.myRequests = mine.items;
       }
     } catch (error) {
       this.inboxError = this.errorText(error);
@@ -1378,12 +1441,72 @@ struct Index {
         this.unreadCount = Math.max(0, this.unreadCount - 1);
       } catch (error) {
         this.toast(this.errorText(error));
+        return;
       }
+    }
+    if (item.targetType === 'person' && item.targetId.length > 0) {
+      this.openPerson(item.targetId);
+    } else if (item.targetType === 'story' && item.targetId.length > 0) {
+      try {
+        const story = await this.api.story(item.targetId);
+        this.openStory(story);
+      } catch (_) {
+        this.openStories();
+      }
+    } else if (item.targetType === 'photo') {
+      this.openAlbum();
+    } else if (item.targetType === 'edit_request' ||
+      item.targetType === 'binding_request') {
+      await this.openInbox();
+      this.inboxTab = 1;
+    } else if (item.targetType === 'merge_request') {
+      this.openMerges();
     }
   }
 
-  private startReview(kind: string, id: string, label: string, approve: boolean): void {
-    this.reviewKind = kind;
+  private async showEditRequestDetail(item: ApiEditRequest): Promise<void> {
+    try {
+      const detail = await this.api.editRequest(item.id);
+      let message = '申请人：' + detail.requesterName + '\n' +
+        '内容：' + detail.summary;
+      const changes = detail.changes;
+      if (changes !== undefined) {
+        const keys = Object.keys(changes);
+        if (keys.length > 0) {
+          message += '\n\n修改内容：';
+          keys.forEach((key: string) => {
+            const label = this.changeFieldLabel(key);
+            message += '\n' + label + '：' + changes[key];
+          });
+        }
+      }
+      if (detail.reviewNote !== undefined && detail.reviewNote!.length > 0) {
+        message += '\n\n审核意见：' + detail.reviewNote;
+      }
+      AlertDialog.show({
+        title: '申请详情',
+        message: message,
+        confirm: {
+          value: '知道了',
+          action: () => {
+          }
+        }
+      });
+    } catch (error) {
+      this.toast(this.errorText(error));
+    }
+  }
+
+  private changeFieldLabel(key: string): string {
+    if (key === 'birthPlace') return '籍贯';
+    if (key === 'residence') return '现居地';
+    if (key === 'occupation') return '职业';
+    if (key === 'education') return '教育';
+    if (key === 'biography') return '生平简介';
+    return key;
+  }
+
+  private startReview(kind: string, id: string, label: string, approve: boolean): void {    this.reviewKind = kind;
     this.reviewId = id;
     this.reviewLabel = label;
     this.reviewApprove = approve;
@@ -4345,6 +4468,17 @@ struct Index {
                       this.openAddRelation();
                     })
                 }
+                if (!this.canDelete()) {
+                  Button('申请修改资料')
+                    .layoutWeight(1)
+                    .height(38)
+                    .fontSize(11)
+                    .backgroundColor('#EAF0FF')
+                    .fontColor('#4E7DF4')
+                    .onClick(() => {
+                      this.openProfileRequest();
+                    })
+                }
                 if (this.linkedPersonId.length === 0) {
                   Button('绑定为此人物')
                     .layoutWeight(1)
@@ -4449,6 +4583,106 @@ struct Index {
     .padding(16)
     .backgroundColor(Color.White)
     .borderRadius(15)
+  }
+
+  @Builder
+  private ProfileRequestView() {
+    Column() {
+      Row() {
+        Button('‹')
+          .width(38)
+          .height(38)
+          .backgroundColor('#FFFFFF')
+          .fontColor('#1C2A32')
+          .fontSize(22)
+          .borderRadius(19)
+          .onClick(() => {
+            this.page = 'detail';
+          })
+        Text('申请修改资料')
+          .fontSize(19)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#1C2A32')
+          .margin({ left: 12 })
+        Blank()
+        Button(this.profileReqBusy ? '提交中' : '提交')
+          .fontSize(11)
+          .height(32)
+          .backgroundColor('#4E7DF4')
+          .fontColor(Color.White)
+          .enabled(!this.profileReqBusy)
+          .onClick(() => {
+            this.submitProfileRequest();
+          })
+      }
+      .width('100%')
+      .padding({ left: 14, right: 14, top: 12, bottom: 8 })
+
+      Scroll() {
+        Column({ space: 10 }) {
+          Text('只提交实际改动的字段，族长或管理员审核通过后才写入正式档案。')
+            .fontSize(10)
+            .lineHeight(16)
+            .fontColor('#89969C')
+            .width('100%')
+            .padding(12)
+            .backgroundColor('#FFF8F0')
+            .borderRadius(9)
+          TextInput({ placeholder: '籍贯', text: this.profileReqBirthPlace })
+            .height(44)
+            .backgroundColor('#F7F9FA')
+            .borderRadius(8)
+            .fontSize(13)
+            .onChange((value: string) => {
+              this.profileReqBirthPlace = value;
+            })
+          TextInput({ placeholder: '现居地', text: this.profileReqResidence })
+            .height(44)
+            .backgroundColor('#F7F9FA')
+            .borderRadius(8)
+            .fontSize(13)
+            .onChange((value: string) => {
+              this.profileReqResidence = value;
+            })
+          TextInput({ placeholder: '职业', text: this.profileReqOccupation })
+            .height(44)
+            .backgroundColor('#F7F9FA')
+            .borderRadius(8)
+            .fontSize(13)
+            .onChange((value: string) => {
+              this.profileReqOccupation = value;
+            })
+          TextInput({ placeholder: '教育', text: this.profileReqEducation })
+            .height(44)
+            .backgroundColor('#F7F9FA')
+            .borderRadius(8)
+            .fontSize(13)
+            .onChange((value: string) => {
+              this.profileReqEducation = value;
+            })
+          TextArea({ placeholder: '生平简介', text: this.profileReqBiography })
+            .height(160)
+            .backgroundColor('#F7F9FA')
+            .borderRadius(8)
+            .fontSize(12)
+            .onChange((value: string) => {
+              this.profileReqBiography = value;
+            })
+          if (this.profileReqError.length > 0) {
+            Text(this.profileReqError)
+              .fontSize(11)
+              .fontColor('#B4423D')
+              .width('100%')
+          }
+        }
+        .width('100%')
+        .padding({ left: 14, right: 14, bottom: 24 })
+      }
+      .layoutWeight(1)
+      .scrollBar(BarState.Off)
+    }
+    .width('100%')
+    .height('100%')
   }
 
   @Builder
@@ -5825,9 +6059,7 @@ struct Index {
 
         Row({ space: 8 }) {
           this.InboxTabButton('通知', 0)
-          if (this.canDelete()) {
-            this.InboxTabButton('审核', 1)
-          }
+          this.InboxTabButton(this.canDelete() ? '审核' : '我的申请', 1)
         }
         .width('100%')
         .padding({ left: 14, right: 14, bottom: 8 })
@@ -5909,6 +6141,59 @@ struct Index {
             .padding({ left: 14, right: 14 })
             .scrollBar(BarState.Off)
           }
+        } else if (!this.canDelete()) {
+          Scroll() {
+            Column({ space: 8 }) {
+              if (this.myRequests.length === 0) {
+                Text('还没有提交过资料修改申请')
+                  .fontSize(11)
+                  .fontColor('#89969C')
+                  .padding(20)
+              }
+              ForEach(this.myRequests, (item: ApiEditRequest) => {
+                Column({ space: 5 }) {
+                  Row() {
+                    Text(item.summary)
+                      .fontSize(12)
+                      .fontColor('#1C2A32')
+                      .layoutWeight(1)
+                    Text(item.status === 'pending' ? '待审核' :
+                      item.status === 'approved' ? '已通过' :
+                      item.status === 'rejected' ? '已拒绝' : item.status)
+                      .fontSize(9)
+                      .fontColor(item.status === 'pending' ? '#B7791F' :
+                        item.status === 'approved' ? '#2F8F67' : '#B4423D')
+                  }
+                  .width('100%')
+                  Text(item.requesterName + ' · ' +
+                    (item.submittedAt !== undefined
+                      ? item.submittedAt!.substring(0, 10) : ''))
+                    .fontSize(9)
+                    .fontColor('#89969C')
+                  if (item.reviewNote !== undefined && item.reviewNote!.length > 0) {
+                    Text('审核意见：' + item.reviewNote!)
+                      .fontSize(10)
+                      .fontColor('#6C7B82')
+                  }
+                  Text('查看详情')
+                    .fontSize(10)
+                    .fontColor('#4E7DF4')
+                    .onClick(() => {
+                      this.showEditRequestDetail(item);
+                    })
+                }
+                .width('100%')
+                .padding(12)
+                .backgroundColor(Color.White)
+                .borderRadius(12)
+                .alignItems(HorizontalAlign.Start)
+              }, (item: ApiEditRequest) => item.id)
+            }
+            .width('100%')
+            .padding(14)
+          }
+          .layoutWeight(1)
+          .scrollBar(BarState.Off)
         } else {
           Scroll() {
             Column({ space: 14 }) {
@@ -5967,6 +6252,13 @@ struct Index {
                         .fontSize(9)
                         .fontColor('#89969C')
                       Row({ space: 8 }) {
+                        Text('详情')
+                          .fontSize(10)
+                          .fontColor('#4E7DF4')
+                          .padding({ left: 4, right: 4 })
+                          .onClick(() => {
+                            this.showEditRequestDetail(item);
+                          })
                         Button('通过')
                           .layoutWeight(1)
                           .height(32)
@@ -7550,6 +7842,8 @@ struct Index {
         this.AddRelationView()
       } else if (this.page === 'editPerson') {
         this.EditPersonView()
+      } else if (this.page === 'profileRequest') {
+        this.ProfileRequestView()
       } else if (this.page === 'stories') {
         this.StoriesView()
       } else if (this.page === 'storyDetail') {

@@ -237,6 +237,7 @@ export interface ApiEditRequest {
   reviewNote?: string;
   submittedAt?: string;
   reviewedAt?: string;
+  changes?: Record<string, string>;
 }
 
 export interface ApiEditRequestPage {
