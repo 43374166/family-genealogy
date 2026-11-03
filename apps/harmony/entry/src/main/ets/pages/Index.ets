@@ -2289,8 +2289,13 @@ struct Index {
     if (this.tree === null) return [];
     const key = this.query.trim();
     const list = this.tree.persons.filter((person: ApiPerson) => {
-      return key.length === 0 || person.fullName.includes(key) ||
-        person.generationLabel.includes(key);
+      if (key.length === 0) return true;
+      return person.fullName.includes(key) ||
+        person.generationLabel.includes(key) ||
+        (person.birthPlace !== undefined && person.birthPlace!.includes(key)) ||
+        (person.residence !== undefined && person.residence!.includes(key)) ||
+        (person.occupation !== undefined && person.occupation!.includes(key)) ||
+        (person.education !== undefined && person.education!.includes(key));
     });
     return list.sort((a: ApiPerson, b: ApiPerson) => {
       if (a.generationNo !== b.generationNo) return a.generationNo - b.generationNo;
@@ -3858,6 +3863,16 @@ struct Index {
     return '—';
   }
 
+  private personZodiac(person: ApiPerson): string {
+    const year = person.birth !== undefined ? person.birth!.year : undefined;
+    if (year === undefined || year < 1) return '';
+    const animals: string[] = [
+      '鼠', '牛', '虎', '兔', '龙', '蛇',
+      '马', '羊', '猴', '鸡', '狗', '猪'
+    ];
+    return '属' + animals[(year - 4) % 12];
+  }
+
   private selectedTreePerson(): ApiPerson | null {
     if (this.tree === null || this.treeSelectedId.length === 0) return null;
     const person = this.tree.persons.find(
@@ -3939,7 +3954,7 @@ struct Index {
       .width('100%')
       .padding({ left: 16, right: 16, top: 14, bottom: 8 })
 
-      TextInput({ placeholder: '搜索姓名或世代', text: this.query })
+      TextInput({ placeholder: '搜索姓名、世代、籍贯、职业', text: this.query })
         .height(44)
         .margin({ left: 16, right: 16, bottom: 8 })
         .backgroundColor(Color.White)
@@ -4297,6 +4312,14 @@ struct Index {
                         .fontSize(9)
                         .fontColor('#B7791F')
                         .backgroundColor('#FFF4DF')
+                        .padding({ left: 7, right: 7, top: 2, bottom: 2 })
+                        .borderRadius(6)
+                    }
+                    if (this.personZodiac(this.selected!).length > 0) {
+                      Text(this.personZodiac(this.selected!))
+                        .fontSize(9)
+                        .fontColor('#4E7DF4')
+                        .backgroundColor('#EAF0FF')
                         .padding({ left: 7, right: 7, top: 2, bottom: 2 })
                         .borderRadius(6)
                     }

@@ -1,5 +1,6 @@
 import { http } from '@kit.NetworkKit';
 import { BusinessError } from '@kit.BasicServicesKit';
+import { image } from '@kit.ImageKit';
 import fs from '@ohos.file.fs';
 import {
   ApiActivityPage,
@@ -404,8 +405,60 @@ export class ApiClient {
     if (takenAt.length > 0) {
       fields['takenAt'] = takenAt;
     }
+    const compressed = await this.compressedPhoto(uri);
+    if (compressed !== undefined) {
+      const text = await this.uploadMultipartData(
+        '/api/v1/photos',
+        compressed,
+        'photo.jpg',
+        'image/jpeg',
+        fields
+      );
+      return JSON.parse(text) as ApiPhoto;
+    }
     const text = await this.uploadMultipart('/api/v1/photos', uri, fields);
     return JSON.parse(text) as ApiPhoto;
+  }
+
+  private async compressedPhoto(uri: string): Promise<ArrayBuffer | undefined> {
+    let source: image.ImageSource | undefined = undefined;
+    let pixelMap: image.PixelMap | undefined = undefined;
+    let packer: image.ImagePacker | undefined = undefined;
+    try {
+      source = image.createImageSource(uri);
+      const info = await source.getImageInfo();
+      const width = info.size.width;
+      const height = info.size.height;
+      const longest = Math.max(width, height);
+      if (longest <= 0) return undefined;
+      const scale = Math.min(1, 1600 / longest);
+      const desiredWidth = Math.max(1, Math.round(width * scale));
+      const desiredHeight = Math.max(1, Math.round(height * scale));
+      pixelMap = await source.createPixelMap({
+        desiredSize: { width: desiredWidth, height: desiredHeight }
+      });
+      packer = image.createImagePacker();
+      const buffer = await packer.packing(pixelMap, {
+        format: 'image/jpeg',
+        quality: 78
+      });
+      if (buffer.byteLength === 0 || buffer.byteLength > 8 * 1024 * 1024) {
+        return undefined;
+      }
+      return buffer;
+    } catch (_) {
+      return undefined;
+    } finally {
+      if (packer !== undefined) {
+        await packer.release();
+      }
+      if (pixelMap !== undefined) {
+        await pixelMap.release();
+      }
+      if (source !== undefined) {
+        await source.release();
+      }
+    }
   }
 
   async uploadAvatar(uri: string, personId: string): Promise<void> {
