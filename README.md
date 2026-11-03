@@ -86,7 +86,7 @@ release APK 已构建（`familytree-0.47.4.apk`），Go 服务端全部测试通
 已实现的 Web 成员端（`apps/web`）：
 
 - React 18 + TypeScript + Vite 7 + react-router-dom 7 + Redux Toolkit + Semi Design +
-  axios，族谱树使用 React Flow 12 + Dagre 布局。
+  axios，族谱树使用 React Flow 12 + 自研森林式家庭单元布局（与 Flutter 排版一致）。
 - 账号密码 / 扫码登录（`qrcode.react`）、注册、家族首页（概览、动态、纪念日、待办、
   家支、最近故事）、成员查询、人物档案、家族相册、家族故事与阅读页、消息中心、
   审核中心/我的申请、我的、家族管理。
@@ -193,7 +193,7 @@ pnpm dev
 ```powershell
 cd apps\web
 pnpm typecheck
-pnpm test       # Dagre 家庭单元布局测试
+pnpm test       # 家庭森林布局 + 多婚姻连线 + 双历转换测试
 pnpm build
 ```
 
@@ -260,7 +260,7 @@ family-genealogy/
 │   │   ├── ios/                # iOS 工程
 │   │   ├── assets/             # 水墨背景、字体、应用图标
 │   │   └── test/               # Widget 冒烟测试
-│   ├── web/                    # React + Vite 成员端（Semi / Redux / React Flow + Dagre）
+│   ├── web/                    # React + Vite 成员端（Semi / Redux / React Flow）
 │   ├── harmony/                # ArkTS / ArkUI 鸿蒙原生端
 │   └── mini-program/           # 微信小程序，预留
 ├── server/                     # Go REST API + MySQL 8.4
@@ -284,7 +284,7 @@ family-genealogy/
 3. 权限、数据校验、审计必须由服务端执行，客户端按钮隐藏不等于权限控制。
 4. Web 端页面只消费真实 API；空状态、上传失败和权限不足都明确呈现，不冒充成功。
 5. 族谱树优先纵向世系：移动端聚焦缩放、拖动与人物摘要，Web 端使用 React Flow +
-   Dagre 自动布局家庭单元。
+   自研森林布局家庭单元，父代居中、各子支独立展开。
 
 ## 下一步
 

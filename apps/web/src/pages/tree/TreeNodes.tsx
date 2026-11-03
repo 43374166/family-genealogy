@@ -3,7 +3,6 @@ import { createContext, memo, useContext } from 'react';
 import {
   Handle,
   Position,
-  getSmoothStepPath,
   type Edge,
   type EdgeProps,
   type Node,
@@ -37,7 +36,10 @@ export type GenerationNode = Node<
   'generation'
 >;
 
-export type FamilyFlowEdge = Edge<{ dimmed: boolean; gender?: string }, 'family'>;
+export type FamilyFlowEdge = Edge<
+  { dimmed: boolean; gender?: string; barOffset?: number },
+  'family'
+>;
 
 export interface TreeInteraction {
   selectedPersonId: string | null;
@@ -177,14 +179,44 @@ export function FamilyEdgeView({
   targetY,
   data,
 }: EdgeProps<FamilyFlowEdge>) {
-  const [path] = getSmoothStepPath({
-    sourceX,
-    sourceY,
-    targetX,
-    targetY,
-    borderRadius: 20,
-    offset: 24,
-  });
+  // Flutter draws one shared sibling bar under each marriage. Every edge uses
+  // the same bar height for the same parent pair, so the overlapping horizontal
+  // segments read as one clean line instead of a bundle of diagonal curves.
+  const distance = Math.max(1, targetY - sourceY);
+  const genderNudge = data?.gender === 'female' ? 2 : data?.gender === 'male' ? -2 : 0;
+  const barY = Math.max(
+    sourceY + 24,
+    Math.min(
+      targetY - 20,
+      sourceY + distance * 0.46 + (data?.barOffset ?? 0) + genderNudge,
+    ),
+  );
+  const radius = Math.max(
+    2,
+    Math.min(8, Math.abs(targetX - sourceX) / 2, (barY - sourceY) / 2, (targetY - barY) / 2),
+  );
+  let path: string;
+  if (Math.abs(targetX - sourceX) < 1) {
+    path = `M ${sourceX} ${sourceY} L ${targetX} ${targetY}`;
+  } else if (targetX > sourceX) {
+    path = [
+      `M ${sourceX} ${sourceY}`,
+      `L ${sourceX} ${barY - radius}`,
+      `Q ${sourceX} ${barY} ${sourceX + radius} ${barY}`,
+      `L ${targetX - radius} ${barY}`,
+      `Q ${targetX} ${barY} ${targetX} ${barY + radius}`,
+      `L ${targetX} ${targetY}`,
+    ].join(' ');
+  } else {
+    path = [
+      `M ${sourceX} ${sourceY}`,
+      `L ${sourceX} ${barY - radius}`,
+      `Q ${sourceX} ${barY} ${sourceX - radius} ${barY}`,
+      `L ${targetX + radius} ${barY}`,
+      `Q ${targetX} ${barY} ${targetX} ${barY + radius}`,
+      `L ${targetX} ${targetY}`,
+    ].join(' ');
+  }
 
   return (
     <path

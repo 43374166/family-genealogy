@@ -1,12 +1,14 @@
-import dagre from '@dagrejs/dagre';
 import type { FamilyTree, PersonSummary } from '@/types/api';
 
 export const UNIT_CARD_WIDTH = 208;
 export const UNIT_CARD_HEIGHT = 142;
 export const MEMBER_GAP = 10;
+export const CHILD_GAP = 34;
+export const FAMILY_GAP = 68;
 export const ROW_PITCH = 232;
 export const LABEL_COLUMN_WIDTH = 148;
 export const CANVAS_PADDING = 56;
+const CONTENT_LEFT = LABEL_COLUMN_WIDTH + 28;
 
 export interface LayoutUnit {
   id: string;
@@ -38,6 +40,8 @@ export interface FamilyConnection {
   parentId: string;
   childId: string;
   gender: PersonSummary['gender'];
+  /** Small vertical stagger so children of different marriages do not share one bar. */
+  barOffset: number;
 }
 
 export interface GenerationRow {
@@ -72,13 +76,14 @@ function compareMembers(a: PersonSummary, b: PersonSummary, familySurname: strin
 }
 
 /**
- * 把「人物」聚合成「夫妻 / 单人家庭单元」，再交给 Dagre 计算层级布局。
+ * 以 Flutter 端的森林布局为基准重写：
+ * 1. 夫妻/多配偶聚合成一个家庭单元；
+ * 2. 每个子单元只挂到一个布局父单元，避免同一棵子树被画两次；
+ * 3. 父单元居中在子女子树之上，子女按子代数量和出生顺序从左到右排开；
+ * 4. 不同根支之间保留更大的间距，不再把所有单元挤成一条直线。
  *
- * 为什么不直接让人物作为节点：
- * 1. 夫妻卡片必须并排，父母到子女的线应从这对夫妻的中轴落下；
- * 2. 同一个人只应出现一次，多配偶也能自然放在同一单元；
- * 3. Dagre 只在「家庭单元」图上求 x/层级，得到稳定的子树排序；
- *    最终 y 仍由真实世代号决定，避免婚姻边扰动世代。
+ * 这与之前的 Dagre + 每代强制左对齐不同：树会真正“长开”，每个支系有独立
+ * 的水平空间，连线也更容易看清。
  */
 export function buildTreeLayout(
   tree: FamilyTree,
@@ -88,6 +93,7 @@ export function buildTreeLayout(
   const persons = tree.persons.filter((person) => person.status !== 'merged');
   const byId = new Map(persons.map((person) => [person.id, person]));
 
+  // ---------- 1. 家庭单元 ----------
   const parent = new Map<string, string>();
   const find = (id: string): string => {
     let root = id;
@@ -107,7 +113,6 @@ export function buildTreeLayout(
   };
 
   for (const person of persons) parent.set(person.id, person.id);
-
   for (const edge of tree.spouses) {
     if (edge.status === 'divorced') continue;
     const a = byId.get(edge.personAId);
@@ -126,7 +131,6 @@ export function buildTreeLayout(
 
   const unitById = new Map<string, LayoutUnit>();
   const personUnit = new Map<string, string>();
-
   for (const members of groups.values()) {
     members.sort((a, b) => compareMembers(a, b, familySurname));
     const generation = members[0]?.generationNo ?? 1;
@@ -147,11 +151,12 @@ export function buildTreeLayout(
     for (const member of members) personUnit.set(member.id, id);
   }
 
+  // ---------- 2. 家庭之间的父母子女关系 ----------
   const edgePairs = new Map<string, UnitEdge>();
-  const parentUnitChildren = new Map<string, Set<string>>();
-  const childUnitParents = new Map<string, Set<string>>();
-
+  const parentChildren = new Map<string, Set<string>>();
+  const childParents = new Map<string, Set<string>>();
   for (const edge of tree.parentChild) {
+    if (edge.status && edge.status !== 'active') continue;
     const parentUnitId = personUnit.get(edge.parentId);
     const childUnitId = personUnit.get(edge.childId);
     if (!parentUnitId || !childUnitId || parentUnitId === childUnitId) continue;
@@ -168,12 +173,12 @@ export function buildTreeLayout(
         parentIds: [],
         childIds: [],
       });
-      const children = parentUnitChildren.get(parentUnitId) ?? new Set<string>();
+      const children = parentChildren.get(parentUnitId) ?? new Set<string>();
       children.add(childUnitId);
-      parentUnitChildren.set(parentUnitId, children);
-      const parents = childUnitParents.get(childUnitId) ?? new Set<string>();
+      parentChildren.set(parentUnitId, children);
+      const parents = childParents.get(childUnitId) ?? new Set<string>();
       parents.add(parentUnitId);
-      childUnitParents.set(childUnitId, parents);
+      childParents.set(childUnitId, parents);
     }
     const pair = edgePairs.get(key)!;
     if (!pair.parentIds.includes(edge.parentId)) pair.parentIds.push(edge.parentId);
@@ -181,76 +186,26 @@ export function buildTreeLayout(
   }
 
   for (const unit of unitById.values()) {
-    unit.parentUnitIds = Array.from(childUnitParents.get(unit.id) ?? []);
-    unit.childUnitIds = Array.from(parentUnitChildren.get(unit.id) ?? []);
+    unit.parentUnitIds = Array.from(childParents.get(unit.id) ?? []);
+    unit.childUnitIds = Array.from(parentChildren.get(unit.id) ?? []);
   }
 
-  const graph = new dagre.graphlib.Graph();
-  graph.setGraph({
-    rankdir: 'TB',
-    nodesep: 58,
-    ranksep: 110,
-    marginx: 40,
-    marginy: 20,
-    ranker: 'tight-tree',
-  });
-  graph.setDefaultEdgeLabel(() => ({}));
-
-  for (const unit of unitById.values()) {
-    graph.setNode(unit.id, { width: unit.width, height: UNIT_CARD_HEIGHT });
-  }
-  for (const edge of edgePairs.values()) {
-    graph.setEdge(edge.source, edge.target, { weight: 1, minlen: 1 });
-  }
-
-  dagre.layout(graph);
-
-  const generations = Array.from(new Set(persons.map((person) => person.generationNo))).sort(
-    (a, b) => a - b,
-  );
-  const rowIndex = new Map(generations.map((generation, index) => [generation, index]));
-
-  let minX = Number.POSITIVE_INFINITY;
-  for (const unit of unitById.values()) {
-    const node = graph.node(unit.id) as { x?: number } | undefined;
-    minX = Math.min(minX, (node?.x ?? 0) - unit.width / 2);
-  }
-  if (!Number.isFinite(minX)) minX = 0;
-
-  const sortedUnits = Array.from(unitById.values()).sort((a, b) => {
-    if (a.generation !== b.generation) return a.generation - b.generation;
-    const nodeA = graph.node(a.id) as { x?: number } | undefined;
-    const nodeB = graph.node(b.id) as { x?: number } | undefined;
-    return (nodeA?.x ?? 0) - (nodeB?.x ?? 0);
-  });
-
-  const unitsByGeneration = new Map<number, LayoutUnit[]>();
-  for (const unit of sortedUnits) {
-    const node = graph.node(unit.id) as { x?: number } | undefined;
-    unit.x = (node?.x ?? unit.width / 2) - unit.width / 2 + (LABEL_COLUMN_WIDTH - minX);
-    unit.y = CANVAS_PADDING + (rowIndex.get(unit.generation) ?? 0) * ROW_PITCH;
-    const list = unitsByGeneration.get(unit.generation) ?? [];
-    list.push(unit);
-    unitsByGeneration.set(unit.generation, list);
-  }
-
-  // 计算每个家庭的子代数量，子代多的支系放在同一世代左边，读图时更符合
-  // 「主支在左、旁支向右」的习惯。Dagre 的 x 只作为同分时的次序。
-  const childrenByParent = new Map<string, string[]>();
-  const descendantMemo = new Map<string, number>();
+  // ---------- 3. 子代数量（只用于同层排序） ----------
+  const childrenByPerson = new Map<string, string[]>();
   for (const edge of tree.parentChild) {
     if (edge.status && edge.status !== 'active') continue;
-    const list = childrenByParent.get(edge.parentId) ?? [];
+    const list = childrenByPerson.get(edge.parentId) ?? [];
     list.push(edge.childId);
-    childrenByParent.set(edge.parentId, list);
+    childrenByPerson.set(edge.parentId, list);
   }
+  const descendantMemo = new Map<string, number>();
   const descendantCount = (personId: string, visiting = new Set<string>()): number => {
     const cached = descendantMemo.get(personId);
     if (cached !== undefined) return cached;
     if (visiting.has(personId)) return 0;
     visiting.add(personId);
     let total = 0;
-    for (const childId of childrenByParent.get(personId) ?? []) {
+    for (const childId of childrenByPerson.get(personId) ?? []) {
       total += 1 + descendantCount(childId, visiting);
     }
     visiting.delete(personId);
@@ -259,20 +214,97 @@ export function buildTreeLayout(
   };
   const unitScore = (unit: LayoutUnit): number =>
     Math.max(0, ...unit.members.map((member) => descendantCount(member.id)));
+  const sortUnits = (a: LayoutUnit, b: LayoutUnit): number =>
+    unitScore(b) - unitScore(a) ||
+    compareMembers(a.members[0], b.members[0], familySurname);
 
-  for (const list of unitsByGeneration.values()) {
-    list.sort((a, b) => unitScore(b) - unitScore(a) || a.x - b.x);
-    let cursor = LABEL_COLUMN_WIDTH + 24;
-    for (const unit of list) {
-      unit.x = cursor;
-      cursor += unit.width + 34;
+  // ---------- 4. 每棵子树只挂一个父单元 ----------
+  const layoutChildren = new Map<string, Set<string>>();
+  for (const unit of unitById.values()) {
+    layoutChildren.set(unit.id, new Set());
+  }
+  for (const unit of unitById.values()) {
+    for (const childUnitId of unit.childUnitIds) {
+      layoutChildren.get(unit.id)?.add(childUnitId);
     }
+  }
+
+  const layoutParent = new Map<string, string>();
+  for (const unit of unitById.values()) {
+    if (!unit.parentUnitIds.length) continue;
+    const preferredParent = unit.parentUnitIds
+      .map((id) => unitById.get(id)!)
+      .sort(sortUnits)[0];
+    layoutParent.set(unit.id, preferredParent.id);
+    for (const parentId of unit.parentUnitIds) {
+      if (parentId !== preferredParent.id) layoutChildren.get(parentId)?.delete(unit.id);
+    }
+  }
+
+  const sortedChildren = (unit: LayoutUnit): LayoutUnit[] =>
+    Array.from(layoutChildren.get(unit.id) ?? [])
+      .map((id) => unitById.get(id)!)
+      .filter(Boolean)
+      .sort(sortUnits);
+
+  // ---------- 5. 森林布局：先算子树宽，再居中放置 ----------
+  const subtreeWidthCache = new Map<string, number>();
+  const subtreeWidth = (unit: LayoutUnit): number => {
+    const cached = subtreeWidthCache.get(unit.id);
+    if (cached !== undefined) return cached;
+    const children = sortedChildren(unit);
+    let childrenWidth = 0;
+    children.forEach((child, index) => {
+      childrenWidth += subtreeWidth(child);
+      if (index !== children.length - 1) childrenWidth += CHILD_GAP;
+    });
+    const width = Math.max(unit.width, childrenWidth);
+    subtreeWidthCache.set(unit.id, width);
+    return width;
+  };
+
+  const placeUnit = (unit: LayoutUnit, left: number) => {
+    const width = subtreeWidth(unit);
+    unit.x = left + (width - unit.width) / 2;
+    const children = sortedChildren(unit);
+    if (!children.length) return;
+    let childrenWidth = 0;
+    children.forEach((child, index) => {
+      childrenWidth += subtreeWidth(child);
+      if (index !== children.length - 1) childrenWidth += CHILD_GAP;
+    });
+    let childLeft = left + (width - childrenWidth) / 2;
+    for (const child of children) {
+      placeUnit(child, childLeft);
+      childLeft += subtreeWidth(child) + CHILD_GAP;
+    }
+  };
+
+  const generations = Array.from(new Set(persons.map((person) => person.generationNo))).sort(
+    (a, b) => a - b,
+  );
+  const generationY = new Map(
+    generations.map((generation, index) => [generation, CANVAS_PADDING + index * ROW_PITCH]),
+  );
+  for (const unit of unitById.values()) {
+    unit.y = generationY.get(unit.generation) ?? CANVAS_PADDING;
+  }
+
+  const roots = Array.from(unitById.values())
+    .filter((unit) => !layoutParent.has(unit.id))
+    .sort((a, b) => a.generation - b.generation || sortUnits(a, b));
+
+  let cursor = CONTENT_LEFT;
+  for (const root of roots) {
+    placeUnit(root, cursor);
+    cursor += subtreeWidth(root) + FAMILY_GAP;
   }
 
   const units = Array.from(unitById.values()).sort((a, b) => {
     if (a.generation !== b.generation) return a.generation - b.generation;
     return a.x - b.x;
   });
+
   let maxX = 0;
   let maxY = 0;
   for (const unit of units) {
@@ -280,19 +312,44 @@ export function buildTreeLayout(
     maxY = Math.max(maxY, unit.y + unit.height);
   }
 
-  // 每个父/母各自连到具体子女。夫妻不共用一条线：二婚、一夫多妻时，
-  // 不同妻子所生子女的线会从各自母亲卡片出发，不会被合并到家庭单元中心。
+  // 每个父/母各自连到具体子女。二婚/一夫多妻时，不同妻子的子女线会从
+  // 各自母亲卡片出发，不会被合并到家庭单元中心。
+  const parentsByChild = new Map<string, string[]>();
+  for (const edge of tree.parentChild) {
+    if (edge.status && edge.status !== 'active') continue;
+    const list = parentsByChild.get(edge.childId) ?? [];
+    list.push(edge.parentId);
+    parentsByChild.set(edge.childId, list);
+  }
+  const groupOffsets = new Map<string, number>();
+  let groupIndex = 0;
+  for (const parentIds of parentsByChild.values()) {
+    const key = [...parentIds].sort().join('+');
+    if (!groupOffsets.has(key)) {
+      groupOffsets.set(key, ((groupIndex % 5) - 2) * 6);
+      groupIndex += 1;
+    }
+  }
+
   const connections: FamilyConnection[] = [];
   for (const edge of tree.parentChild) {
     if (edge.status && edge.status !== 'active') continue;
-    const parent = byId.get(edge.parentId);
-    const child = byId.get(edge.childId);
+    const parentPerson = byId.get(edge.parentId);
+    const childPerson = byId.get(edge.childId);
     const parentUnitId = personUnit.get(edge.parentId);
     const childUnitId = personUnit.get(edge.childId);
-    if (!parent || !child || !parentUnitId || !childUnitId || parentUnitId === childUnitId) {
+    if (
+      !parentPerson ||
+      !childPerson ||
+      !parentUnitId ||
+      !childUnitId ||
+      parentUnitId === childUnitId
+    ) {
       continue;
     }
-    if (parent.generationNo >= child.generationNo) continue;
+    if (parentPerson.generationNo >= childPerson.generationNo) continue;
+    const parents = parentsByChild.get(edge.childId) ?? [edge.parentId];
+    const groupKey = [...parents].sort().join('+');
     connections.push({
       id: `connection:${edge.id}`,
       source: parentUnitId,
@@ -301,13 +358,14 @@ export function buildTreeLayout(
       targetHandle: `target:${edge.childId}`,
       parentId: edge.parentId,
       childId: edge.childId,
-      gender: parent.gender,
+      gender: parentPerson.gender,
+      barOffset: groupOffsets.get(groupKey) ?? 0,
     });
   }
 
   const generationRows: GenerationRow[] = generations.map((generation) => ({
     generation,
-    y: CANVAS_PADDING + (rowIndex.get(generation) ?? 0) * ROW_PITCH,
+    y: generationY.get(generation) ?? CANVAS_PADDING,
     count: persons.filter((person) => person.generationNo === generation).length,
     label: `第${toChineseNumber(generation)}世`,
   }));

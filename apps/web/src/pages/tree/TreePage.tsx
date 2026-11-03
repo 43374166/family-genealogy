@@ -433,7 +433,7 @@ function TreeCanvas({
           sourceHandle: connection.sourceHandle,
           targetHandle: connection.targetHandle,
           type: 'family',
-          data: { dimmed, gender: connection.gender },
+          data: { dimmed, gender: connection.gender, barOffset: connection.barOffset },
           selectable: false,
         };
       }),
