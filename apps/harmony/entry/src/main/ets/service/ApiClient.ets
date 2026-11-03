@@ -206,6 +206,36 @@ export class ApiClient {
     return JSON.parse(text) as ApiPhotoPage;
   }
 
+  async photosByPersons(personIds: string[]): Promise<ApiPhotoPage> {
+    if (personIds.length === 0) return await this.photos();
+    const query = personIds.map((id: string) => encodeURIComponent(id)).join(',');
+    const text = await this.request(
+      http.RequestMethod.GET,
+      '/api/v1/photos?personIds=' + query
+    );
+    return JSON.parse(text) as ApiPhotoPage;
+  }
+
+  async updatePhoto(
+    photoId: string,
+    personIds: string[],
+    caption: string,
+    takenAt: string
+  ): Promise<ApiPhoto> {
+    const payload: UpdatePhotoPayload = {
+      personId: personIds.length > 0 ? personIds[0] : '',
+      personIds: personIds,
+      caption: caption,
+      takenAt: takenAt
+    };
+    const text = await this.request(
+      http.RequestMethod.PATCH,
+      '/api/v1/photos/' + encodeURIComponent(photoId),
+      payload
+    );
+    return JSON.parse(text) as ApiPhoto;
+  }
+
   async bytes(path: string): Promise<ArrayBuffer> {
     const client = http.createHttp();
     const headers: Record<string, string> = {
@@ -352,13 +382,27 @@ export class ApiClient {
   }
 
   async uploadPhoto(uri: string, personId?: string, caption: string = ''): Promise<ApiPhoto> {
+    const personIds: string[] = personId !== undefined && personId.length > 0
+      ? [personId] : [];
+    return await this.uploadPhotoTagged(uri, personIds, caption, '');
+  }
+
+  async uploadPhotoTagged(
+    uri: string,
+    personIds: string[],
+    caption: string,
+    takenAt: string
+  ): Promise<ApiPhoto> {
     const fields: Record<string, string> = {};
-    if (personId !== undefined && personId.length > 0) {
-      fields['personId'] = personId;
-      fields['personIds'] = personId;
+    if (personIds.length > 0) {
+      fields['personId'] = personIds[0];
+      fields['personIds'] = personIds.join(',');
     }
     if (caption.length > 0) {
       fields['caption'] = caption;
+    }
+    if (takenAt.length > 0) {
+      fields['takenAt'] = takenAt;
     }
     const text = await this.uploadMultipart('/api/v1/photos', uri, fields);
     return JSON.parse(text) as ApiPhoto;
@@ -434,6 +478,27 @@ export class ApiClient {
       http.RequestMethod.DELETE,
       '/api/v1/stories/' + encodeURIComponent(storyId)
     );
+  }
+
+  async updateStory(
+    storyId: string,
+    title: string,
+    body: string,
+    personId: string,
+    photoIds: string[]
+  ): Promise<ApiStory> {
+    const payload: StoryPayload = {
+      title: title,
+      body: body,
+      personId: personId,
+      photoIds: photoIds
+    };
+    const text = await this.request(
+      http.RequestMethod.PATCH,
+      '/api/v1/stories/' + encodeURIComponent(storyId),
+      payload
+    );
+    return JSON.parse(text) as ApiStory;
   }
 
   async notifications(limit: number = 50): Promise<ApiNotificationPage> {
@@ -1029,4 +1094,11 @@ interface RelationshipEndPayload {
 
 interface BindingPayload {
   personId: string;
+}
+
+interface UpdatePhotoPayload {
+  personId: string;
+  personIds: string[];
+  caption: string;
+  takenAt: string;
 }

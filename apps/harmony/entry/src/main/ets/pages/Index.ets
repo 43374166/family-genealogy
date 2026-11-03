@@ -28,6 +28,7 @@ import {
   ApiNotification,
   ApiPerson,
   ApiPhoto,
+  ApiPhotoPerson,
   ApiRelative,
   ApiStory,
   ApiTree,
@@ -139,6 +140,13 @@ struct Index {
   @State private albumFilterIndex: number = 0;
   @State private viewerPhoto: ApiPhoto | null = null;
   @State private viewerBusy: boolean = false;
+  @State private photoFormUris: string[] = [];
+  @State private photoFormCaption: string = '';
+  @State private photoFormTakenAt: string = '';
+  @State private photoFormPersonIds: string[] = [];
+  @State private photoFormEditingId: string = '';
+  @State private photoFormBusy: boolean = false;
+  @State private photoFormError: string = '';
 
   @State private avatarSource: image.PixelMap | undefined = undefined;
   @State private avatarZoom: number = 1;
@@ -158,6 +166,9 @@ struct Index {
   @State private storySaving: boolean = false;
   @State private storyStatus: string = '';
   @State private storyError: string = '';
+  @State private storyEditingId: string = '';
+  @State private storyExistingPhotos: ApiPhoto[] = [];
+  @State private storyViewerPhoto: ApiPhoto | null = null;
 
   @State private inboxTab: number = 0;
   @State private notifications: ApiNotification[] = [];
@@ -693,19 +704,80 @@ struct Index {
         maxSelectNumber: 20
       });
       if (result.photoUris.length === 0) return;
-      this.albumBusy = true;
-      const personId = this.albumPersonId();
-      let uploaded = 0;
-      for (const uri of result.photoUris) {
-        await this.api.uploadPhoto(uri, personId);
-        uploaded++;
-      }
-      await this.loadPhotos();
-      this.toast('已上传 ' + uploaded + ' 张照片');
+      this.photoFormUris = result.photoUris;
+      this.photoFormEditingId = '';
+      this.photoFormCaption = '';
+      this.photoFormTakenAt = '';
+      this.photoFormPersonIds = this.albumPersonId().length > 0
+        ? [this.albumPersonId()] : [];
+      this.photoFormError = '';
+      this.page = 'photoForm';
     } catch (error) {
       this.toast(this.errorText(error));
+    }
+  }
+
+  private openEditPhotoForm(photo: ApiPhoto): void {
+    this.photoFormUris = [];
+    this.photoFormEditingId = photo.id;
+    this.photoFormCaption = photo.caption;
+    this.photoFormTakenAt = photo.takenAt !== undefined
+      ? photo.takenAt!.substring(0, 10) : '';
+    this.photoFormPersonIds = photo.persons.map(
+      (item: ApiPhotoPerson) => item.personId
+    );
+    this.photoFormError = '';
+    this.page = 'photoForm';
+  }
+
+  private togglePhotoPerson(personId: string): void {
+    if (this.photoFormPersonIds.includes(personId)) {
+      this.photoFormPersonIds = this.photoFormPersonIds.filter(
+        (id: string) => id !== personId
+      );
+    } else {
+      this.photoFormPersonIds = this.photoFormPersonIds.concat([personId]);
+    }
+  }
+
+  private async savePhotoForm(): Promise<void> {
+    if (this.photoFormBusy) return;
+    if (this.photoFormTakenAt.length > 0 &&
+      !/^\d{4}-\d{2}-\d{2}$/.test(this.photoFormTakenAt)) {
+      this.photoFormError = '拍摄日期格式应为 YYYY-MM-DD';
+      return;
+    }
+    this.photoFormBusy = true;
+    this.photoFormError = '';
+    try {
+      if (this.photoFormEditingId.length > 0) {
+        await this.api.updatePhoto(
+          this.photoFormEditingId,
+          this.photoFormPersonIds,
+          this.photoFormCaption.trim(),
+          this.photoFormTakenAt.trim()
+        );
+      } else {
+        for (const uri of this.photoFormUris) {
+          await this.api.uploadPhotoTagged(
+            uri,
+            this.photoFormPersonIds,
+            this.photoFormCaption.trim(),
+            this.photoFormTakenAt.trim()
+          );
+        }
+      }
+      const count = this.photoFormUris.length;
+      this.viewerPhoto = null;
+      await this.loadPhotos();
+      this.page = 'album';
+      this.toast(this.photoFormEditingId.length > 0
+        ? '照片信息已更新'
+        : '已上传 ' + String(count) + ' 张照片');
+    } catch (error) {
+      this.photoFormError = this.errorText(error);
     } finally {
-      this.albumBusy = false;
+      this.photoFormBusy = false;
     }
   }
 
@@ -1099,9 +1171,29 @@ struct Index {
   }
 
   private openStoryEditor(): void {
+    this.storyEditingId = '';
+    this.storyExistingPhotos = [];
     this.storyTitle = '';
     this.storyBody = '';
     this.storyPersonIndex = 0;
+    this.storyPhotoUris = [];
+    this.storyStatus = '';
+    this.storyError = '';
+    this.page = 'storyEdit';
+  }
+
+  private openEditStory(story: ApiStory): void {
+    this.storyEditingId = story.id;
+    this.storyExistingPhotos = story.photos;
+    this.storyTitle = story.title;
+    this.storyBody = story.body;
+    this.storyPersonIndex = 0;
+    if (story.personId !== undefined && this.tree !== null) {
+      const index = this.tree.persons.findIndex(
+        (person: ApiPerson) => person.id === story.personId
+      );
+      if (index >= 0) this.storyPersonIndex = index + 1;
+    }
     this.storyPhotoUris = [];
     this.storyStatus = '';
     this.storyError = '';
@@ -1126,7 +1218,7 @@ struct Index {
   }
 
   private async pickStoryPhotos(): Promise<void> {
-    const remaining = 9 - this.storyPhotoUris.length;
+    const remaining = 9 - this.storyExistingPhotos.length - this.storyPhotoUris.length;
     if (remaining <= 0) {
       this.storyError = '故事最多附带 9 张图片';
       return;
@@ -1164,7 +1256,9 @@ struct Index {
     this.storyStatus = '';
     try {
       const personId = this.storyPersonId();
-      const photoIds: string[] = [];
+      const photoIds: string[] = this.storyExistingPhotos.map(
+        (photo: ApiPhoto) => photo.id
+      );
       for (let i = 0; i < this.storyPhotoUris.length; i++) {
         this.storyStatus = '正在上传图片 ' + String(i + 1) + '/' +
           String(this.storyPhotoUris.length);
@@ -1172,10 +1266,20 @@ struct Index {
         photoIds.push(uploaded.id);
       }
       this.storyStatus = '正在保存故事...';
-      await this.api.createStory(title, body, personId, photoIds);
+      if (this.storyEditingId.length > 0) {
+        await this.api.updateStory(
+          this.storyEditingId,
+          title,
+          body,
+          personId,
+          photoIds
+        );
+      } else {
+        await this.api.createStory(title, body, personId, photoIds);
+      }
       await this.loadStories();
       this.page = 'stories';
-      this.toast('故事已发布');
+      this.toast(this.storyEditingId.length > 0 ? '故事已更新' : '故事已发布');
     } catch (error) {
       this.storyError = this.errorText(error);
     } finally {
@@ -4906,6 +5010,133 @@ struct Index {
   }
 
   @Builder
+  private PhotoFormView() {
+    Column() {
+      Row() {
+        Button('‹')
+          .width(38)
+          .height(38)
+          .backgroundColor('#FFFFFF')
+          .fontColor('#1C2A32')
+          .fontSize(22)
+          .borderRadius(19)
+          .onClick(() => {
+            this.page = 'album';
+          })
+        Text(this.photoFormEditingId.length > 0 ? '编辑照片信息' : '上传照片')
+          .fontSize(19)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#1C2A32')
+          .margin({ left: 12 })
+        Blank()
+        Button(this.photoFormBusy ? '保存中' : '保存')
+          .fontSize(11)
+          .height(32)
+          .backgroundColor('#4E7DF4')
+          .fontColor(Color.White)
+          .enabled(!this.photoFormBusy)
+          .onClick(() => {
+            this.savePhotoForm();
+          })
+      }
+      .width('100%')
+      .padding({ left: 14, right: 14, top: 12, bottom: 8 })
+
+      Scroll() {
+        Column({ space: 10 }) {
+          if (this.photoFormEditingId.length > 0) {
+            Stack() {
+              AuthImage({
+                path: '/api/v1/photos/' + this.photoFormEditingId + '/content',
+                radius: 10,
+                fit: ImageFit.Cover
+              })
+            }
+            .width('100%')
+            .height(180)
+          } else {
+            Scroll() {
+              Row({ space: 8 }) {
+                ForEach(this.photoFormUris, (uri: string) => {
+                  Image(uri)
+                    .width(64)
+                    .height(64)
+                    .objectFit(ImageFit.Cover)
+                    .borderRadius(8)
+                }, (uri: string) => uri)
+              }
+            }
+            .scrollable(ScrollDirection.Horizontal)
+            .scrollBar(BarState.Off)
+            .width('100%')
+          }
+          TextInput({ placeholder: '照片说明（可选）', text: this.photoFormCaption })
+            .height(44)
+            .backgroundColor('#F7F9FA')
+            .borderRadius(8)
+            .fontSize(13)
+            .onChange((value: string) => {
+              this.photoFormCaption = value;
+            })
+          TextInput({ placeholder: '拍摄日期 YYYY-MM-DD（可选）', text: this.photoFormTakenAt })
+            .height(44)
+            .backgroundColor('#F7F9FA')
+            .borderRadius(8)
+            .fontSize(13)
+            .onChange((value: string) => {
+              this.photoFormTakenAt = value;
+            })
+          Column({ space: 7 }) {
+            Text('关联人物')
+              .fontSize(13)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#1C2A32')
+              .width('100%')
+            Text('可同时选择多人，照片会出现在这些人的档案中。')
+              .fontSize(10)
+              .fontColor('#89969C')
+              .width('100%')
+            Flex({ wrap: FlexWrap.Wrap }) {
+              ForEach(this.tree !== null ? this.tree.persons : [], (person: ApiPerson) => {
+                Text(person.fullName)
+                  .fontSize(10)
+                  .fontColor(this.photoFormPersonIds.includes(person.id)
+                    ? '#4E7DF4' : '#6C7B82')
+                  .backgroundColor(this.photoFormPersonIds.includes(person.id)
+                    ? '#EAF0FF' : '#F2F5F7')
+                  .padding({ left: 8, right: 8, top: 5, bottom: 5 })
+                  .borderRadius(8)
+                  .margin({ right: 6, bottom: 6 })
+                  .onClick(() => {
+                    this.togglePhotoPerson(person.id);
+                  })
+              }, (person: ApiPerson) => person.id)
+            }
+            .width('100%')
+          }
+          .width('100%')
+          .padding(14)
+          .backgroundColor(Color.White)
+          .borderRadius(12)
+          .alignItems(HorizontalAlign.Start)
+          if (this.photoFormError.length > 0) {
+            Text(this.photoFormError)
+              .fontSize(11)
+              .fontColor('#B4423D')
+              .width('100%')
+          }
+        }
+        .width('100%')
+        .padding({ left: 14, right: 14, bottom: 24 })
+      }
+      .layoutWeight(1)
+      .scrollBar(BarState.Off)
+    }
+    .width('100%')
+    .height('100%')
+  }
+
+  @Builder
   private PhotoViewer() {
     Stack() {
       Column() {
@@ -4933,6 +5164,15 @@ struct Index {
             this.viewerPhoto = null;
           })
         Blank()
+        Button('编辑')
+          .fontSize(11)
+          .height(32)
+          .backgroundColor('#FFFFFF33')
+          .fontColor(Color.White)
+          .margin({ right: 8 })
+          .onClick(() => {
+            this.openEditPhotoForm(this.viewerPhoto!);
+          })
         if (this.canDelete()) {
           Button(this.viewerBusy ? '删除中' : '删除')
             .fontSize(11)
@@ -5207,7 +5447,8 @@ struct Index {
 
   @Builder
   private StoryDetailView() {
-    Column() {
+    Stack() {
+      Column() {
       Row() {
         Button('‹')
           .width(38)
@@ -5226,6 +5467,19 @@ struct Index {
           .fontColor('#1C2A32')
           .margin({ left: 12 })
         Blank()
+        if (this.selectedStory !== null &&
+          (this.canDeleteStory() ||
+            this.selectedStory!.authorUserId === this.currentUserId)) {
+          Button('编辑')
+            .fontSize(11)
+            .height(32)
+            .backgroundColor('#EAF0FF')
+            .fontColor('#4E7DF4')
+            .margin({ right: 8 })
+            .onClick(() => {
+              this.openEditStory(this.selectedStory!);
+            })
+        }
         if (this.canDeleteStory() && this.selectedStory !== null) {
           Button('删除')
             .fontSize(11)
@@ -5287,6 +5541,9 @@ struct Index {
                   .width('48%')
                   .aspectRatio(1)
                   .margin({ bottom: 8 })
+                  .onClick(() => {
+                    this.storyViewerPhoto = photo;
+                  })
                 }, (photo: ApiPhoto) => photo.id)
               }
               .width('100%')
@@ -5299,9 +5556,51 @@ struct Index {
         .layoutWeight(1)
         .scrollBar(BarState.Off)
       }
+      if (this.storyViewerPhoto !== null) {
+        this.StoryPhotoViewer()
+      }
     }
     .width('100%')
     .height('100%')
+  }
+  }
+
+  @Builder
+  private StoryPhotoViewer() {
+    Stack() {
+      AuthImage({
+        path: '/api/v1/photos/' + this.storyViewerPhoto!.id + '/content',
+        radius: 0,
+        fit: ImageFit.Contain
+      })
+        .width('100%')
+        .height('100%')
+      Row() {
+        Button('‹')
+          .width(38)
+          .height(38)
+          .backgroundColor('#FFFFFF33')
+          .fontColor(Color.White)
+          .fontSize(22)
+          .borderRadius(19)
+          .onClick(() => {
+            this.storyViewerPhoto = null;
+          })
+      }
+      .width('100%')
+      .padding({ left: 14, right: 14, top: 12 })
+      .position({ x: 0, y: 0 })
+      if (this.storyViewerPhoto!.caption.length > 0) {
+        Text(this.storyViewerPhoto!.caption)
+          .fontSize(12)
+          .fontColor(Color.White)
+          .padding(16)
+          .position({ x: 0, y: '82%' })
+      }
+    }
+    .width('100%')
+    .height('100%')
+    .backgroundColor('#111417')
   }
 
   @Builder
@@ -5318,7 +5617,7 @@ struct Index {
           .onClick(() => {
             this.page = 'stories';
           })
-        Text('写家族故事')
+        Text(this.storyEditingId.length > 0 ? '编辑故事' : '写家族故事')
           .fontSize(19)
           .fontWeight(FontWeight.Bold)
           .fontColor('#1C2A32')
@@ -5375,11 +5674,43 @@ struct Index {
                 .fontWeight(FontWeight.Bold)
                 .fontColor('#1C2A32')
               Blank()
-              Text(this.storyPhotoUris.length + '/9')
+              Text(this.storyExistingPhotos.length + this.storyPhotoUris.length + '/9')
                 .fontSize(10)
                 .fontColor('#89969C')
             }
             .width('100%')
+            if (this.storyExistingPhotos.length > 0) {
+              Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.SpaceBetween }) {
+                ForEach(this.storyExistingPhotos, (photo: ApiPhoto) => {
+                  Stack({ alignContent: Alignment.TopEnd }) {
+                    AuthImage({
+                      path: '/api/v1/photos/' + photo.id + '/content',
+                      radius: 8
+                    })
+                    Text('×')
+                      .width(24)
+                      .height(24)
+                      .textAlign(TextAlign.Center)
+                      .fontSize(15)
+                      .fontColor(Color.White)
+                      .backgroundColor('#00000099')
+                      .borderRadius(12)
+                      .margin(4)
+                      .onClick(() => {
+                        this.storyExistingPhotos = this.storyExistingPhotos.filter(
+                          (item: ApiPhoto) => item.id !== photo.id
+                        );
+                      })
+                  }
+                  .width('31%')
+                  .aspectRatio(1)
+                  .borderRadius(8)
+                  .clip(true)
+                  .margin({ bottom: 8 })
+                }, (photo: ApiPhoto) => photo.id)
+              }
+              .width('100%')
+            }
             if (this.storyPhotoUris.length > 0) {
               Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.SpaceBetween }) {
                 ForEach(this.storyPhotoUris, (uri: string, index: number) => {
@@ -7209,6 +7540,8 @@ struct Index {
         this.AddPersonView()
       } else if (this.page === 'album') {
         this.AlbumView()
+      } else if (this.page === 'photoForm') {
+        this.PhotoFormView()
       } else if (this.page === 'members') {
         this.MembersView()
       } else if (this.page === 'avatar') {
