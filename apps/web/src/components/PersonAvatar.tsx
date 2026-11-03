@@ -5,7 +5,7 @@ import { useAuthedImage } from '@/hooks/useAuthedImage';
 import { personsApi } from '@/api/persons';
 
 interface PersonAvatarProps {
-  person: Pick<PersonSummary, 'id' | 'fullName' | 'hasAvatar'>;
+  person: Pick<PersonSummary, 'id' | 'fullName' | 'hasAvatar'> & { version?: number };
   size?: number;
   className?: string;
   ring?: boolean;
@@ -19,7 +19,10 @@ export function PersonAvatar({
   ring = false,
   eager = false,
 }: PersonAvatarProps) {
-  const path = person.hasAvatar ? personsApi.avatarPath(person.id) : null;
+  // Version query busts the authenticated-image cache after an avatar change.
+  const path = person.hasAvatar
+    ? `${personsApi.avatarPath(person.id)}?v=${person.version ?? 0}`
+    : null;
   const { url, loading } = useAuthedImage(path, Boolean(path));
   const tone = avatarTone(person.id || person.fullName);
 

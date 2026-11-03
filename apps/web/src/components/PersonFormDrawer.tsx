@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Input, InputNumber, SideSheet, TextArea, Toast } from '@douyinfe/semi-ui';
+import { IconCamera, IconDelete } from '@douyinfe/semi-icons';
 import { SafeSelect as Select } from '@/components/SafeSelect';
+import { PersonAvatar } from '@/components/PersonAvatar';
 import type {
   Branch,
   CreatePersonInput,
@@ -114,6 +116,10 @@ export function PersonFormDrawer({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<PersonSummary[]>([]);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarAction, setAvatarAction] = useState<'keep' | 'upload' | 'remove'>('keep');
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
   useEffect(() => {
     if (!visible) return;
@@ -126,7 +132,34 @@ export function PersonFormDrawer({
       ),
     );
     setError(null);
+    setAvatarFile(null);
+    setAvatarAction('keep');
   }, [auth.family?.surname, branches, person, visible]);
+
+  useEffect(() => {
+    if (!avatarFile) {
+      setAvatarPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(avatarFile);
+    setAvatarPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [avatarFile]);
+
+  const chooseAvatar = (file: File | null) => {
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setError('头像只支持 JPEG、PNG 或 WebP 图片');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError('头像不能超过 5 MB');
+      return;
+    }
+    setError(null);
+    setAvatarFile(file);
+    setAvatarAction('upload');
+  };
 
   useEffect(() => {
     if (!visible) return;
@@ -308,6 +341,20 @@ export function PersonFormDrawer({
           duration: 3.5,
         });
       }
+      if (mode === 'edit' && person) {
+        try {
+          if (avatarAction === 'remove' && person.hasAvatar) {
+            await personsApi.deleteAvatar(person.id);
+          } else if (avatarAction === 'upload' && avatarFile) {
+            await personsApi.uploadAvatar(person.id, avatarFile);
+          }
+        } catch {
+          Toast.warning({
+            content: '人物资料已保存，但头像未更新，请重试或检查对象存储',
+            duration: 4,
+          });
+        }
+      }
       onSaved(saved);
       onClose();
     } catch (submitError) {
@@ -437,6 +484,68 @@ export function PersonFormDrawer({
             </span>
           </div>
         </section>
+
+        {mode === 'edit' && person ? (
+          <section className="person-form__section">
+            <h4>人物头像</h4>
+            <div className="person-form__avatar">
+              <div className="person-form__avatar-preview">
+                {avatarPreview ? (
+                  <img src={avatarPreview} alt="待上传头像预览" />
+                ) : avatarAction !== 'remove' && person.hasAvatar ? (
+                  <PersonAvatar person={person} size={86} eager />
+                ) : (
+                  <span className="person-form__avatar-empty">
+                    <IconCamera size="large" />
+                  </span>
+                )}
+              </div>
+              <div className="person-form__avatar-copy">
+                <strong>上传或更换头像</strong>
+                <p>支持 JPEG、PNG、WebP，文件不超过 5 MB。保存资料后生效。</p>
+                <div className="person-form__avatar-actions">
+                  <Button
+                    size="small"
+                    theme="light"
+                    icon={<IconCamera />}
+                    onClick={() => avatarInputRef.current?.click()}
+                    disabled={saving}
+                  >
+                    {avatarPreview || (person.hasAvatar && avatarAction !== 'remove')
+                      ? '更换图片'
+                      : '选择图片'}
+                  </Button>
+                  {(avatarPreview || (person.hasAvatar && avatarAction !== 'remove')) && (
+                    <Button
+                      size="small"
+                      theme="borderless"
+                      type="danger"
+                      icon={<IconDelete />}
+                      onClick={() => {
+                        setAvatarFile(null);
+                        setAvatarAction('remove');
+                        setError(null);
+                      }}
+                      disabled={saving}
+                    >
+                      移除头像
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                hidden
+                onChange={(event) => {
+                  chooseAvatar(event.target.files?.[0] ?? null);
+                  event.target.value = '';
+                }}
+              />
+            </div>
+          </section>
+        ) : null}
 
         <section className="person-form__section">
           <h4>亲属关系</h4>

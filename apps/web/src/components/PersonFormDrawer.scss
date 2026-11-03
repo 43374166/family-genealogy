@@ -117,6 +117,79 @@
   line-height: 1.6;
 }
 
+.person-form__avatar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.person-form__avatar-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 86px;
+  height: 86px;
+  flex: none;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface);
+}
+
+.person-form__avatar-preview > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.person-form__avatar-preview .person-avatar {
+  width: 86px !important;
+  height: 86px !important;
+}
+
+.person-form__avatar-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: var(--ink-muted);
+  background: var(--surface);
+}
+
+.person-form__avatar-copy {
+  min-width: 0;
+}
+
+.person-form__avatar-copy strong {
+  display: block;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.person-form__avatar-copy p {
+  margin-top: 4px;
+  color: var(--ink-muted);
+  font-size: 9.5px;
+  line-height: 1.6;
+}
+
+.person-form__avatar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.person-form__avatar-actions .semi-button {
+  border-radius: 7px;
+}
+
 .person-form .semi-input-wrapper,
 .person-form .semi-select,
 .person-form .semi-input-number,
