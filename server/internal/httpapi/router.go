@@ -129,6 +129,7 @@ func NewRouter(deps Dependencies) http.Handler {
 			r.Get("/branches", api.listBranches)
 			r.Post("/branches", api.createBranch)
 			r.Patch("/branches/{branchID}", api.updateBranch)
+			r.Delete("/branches/{branchID}", api.deleteBranch)
 			r.Get("/persons", api.listPersons)
 			r.Post("/persons", api.createPerson)
 			r.Get("/persons/{personID}", api.getPerson)

@@ -127,6 +127,31 @@ func (a *API) updateBranch(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, branch)
 }
 
+func (a *API) deleteBranch(w http.ResponseWriter, r *http.Request) {
+	principal, ok := principalFrom(r.Context())
+	if !ok {
+		writeProblem(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "not authenticated")
+		return
+	}
+	if !canWrite(principal.Membership.Role) {
+		writeProblem(w, r, http.StatusForbidden, "WRITE_FORBIDDEN", "only an owner or admin can delete a branch")
+		return
+	}
+	err := a.Store.DeleteBranch(
+		r.Context(), principal.Family.ID, principal.User.ID,
+		strings.TrimSpace(chi.URLParam(r, "branchID")), auditMeta(r),
+	)
+	if err != nil {
+		if errors.Is(err, store.ErrConflict) {
+			writeProblem(w, r, http.StatusConflict, "BRANCH_IN_USE", "branch still has persons")
+			return
+		}
+		a.writeWriteError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (a *API) createPerson(w http.ResponseWriter, r *http.Request) {	principal, ok := principalFrom(r.Context())
 	if !ok {
 		writeProblem(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "not authenticated")

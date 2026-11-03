@@ -67,6 +67,53 @@ func (s *Store) CreateBranch(
 	return &model.Branch{ID: branchID, Name: name, SortOrder: sortOrder}, nil
 }
 
+func (s *Store) DeleteBranch(
+	ctx context.Context,
+	familyID, actorUserID, branchID string,
+	meta AuditMeta,
+) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin branch deletion: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	var personCount int
+	if err := tx.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM persons
+		WHERE family_id = ? AND branch_id = ? AND status = 'active'`,
+		familyID, branchID).Scan(&personCount); err != nil {
+		return fmt.Errorf("count branch persons: %w", err)
+	}
+	if personCount > 0 {
+		return ErrConflict
+	}
+	if _, err := tx.ExecContext(ctx, `
+		DELETE FROM branch_admin_grants WHERE family_id = ? AND branch_id = ?`,
+		familyID, branchID); err != nil {
+		return fmt.Errorf("delete branch grants: %w", err)
+	}
+	result, err := tx.ExecContext(ctx, `
+		DELETE FROM branches WHERE id = ? AND family_id = ?`, branchID, familyID)
+	if err != nil {
+		return fmt.Errorf("delete branch: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read branch delete rows: %w", err)
+	}
+	if affected == 0 {
+		return ErrNotFound
+	}
+	if err := insertAudit(ctx, tx, familyID, actorUserID, "branch.deleted",
+		"branch", branchID, "", nil, nil, meta); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit branch deletion: %w", err)
+	}
+	return nil
+}
+
 func (s *Store) UpdateBranch(
 	ctx context.Context,
 	familyID, actorUserID, branchID, name string,

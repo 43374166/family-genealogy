@@ -857,6 +857,13 @@ export class ApiClient {
     return JSON.parse(text) as ApiBranch;
   }
 
+  async deleteBranch(branchId: string): Promise<void> {
+    await this.request(
+      http.RequestMethod.DELETE,
+      '/api/v1/branches/' + encodeURIComponent(branchId)
+    );
+  }
+
   async register(
     loginName: string,
     password: string,

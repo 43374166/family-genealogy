@@ -2067,8 +2067,46 @@ struct Index {
     }
   }
 
-  private async updateMemberRole(account: ApiFamilyAccount): Promise<void> {
-    if (this.roleBusy || account.role === 'owner') return;
+  private confirmDeleteBranch(branch: ApiBranch): void {
+    AlertDialog.show({
+      title: '删除家支',
+      message: '确定删除家支“' + branch.name + '”吗？只有没有人物使用的家支才能删除。',
+      primaryButton: {
+        value: '取消',
+        action: () => {
+        }
+      },
+      secondaryButton: {
+        value: '删除',
+        fontColor: '#B4423D',
+        action: () => {
+          this.deleteBranchById(branch.id);
+        }
+      }
+    });
+  }
+
+  private async deleteBranchById(branchId: string): Promise<void> {
+    this.branchBusy = true;
+    this.familyCenterError = '';
+    try {
+      await this.api.deleteBranch(branchId);
+      const branches = await this.api.branches();
+      this.dataBranches = branches.items;
+      if (this.branchEditId === branchId) {
+        this.branchEditId = '';
+        this.branchEditName = '';
+        this.branchEditSort = '0';
+      }
+      this.toast('家支已删除');
+    } catch (error) {
+      this.familyCenterError = this.errorText(error);
+    } finally {
+      this.branchBusy = false;
+    }
+  }
+
+  private async updateMemberRole(account: ApiFamilyAccount): Promise<void> {    if (this.roleBusy || account.role === 'owner') return;
     const nextRole = account.role === 'admin' ? 'member' : 'admin';
     this.roleBusy = true;
     this.familyCenterError = '';
@@ -7231,6 +7269,11 @@ struct Index {
                   .fontWeight(FontWeight.Bold)
                   .fontColor('#B4423D')
                   .letterSpacing(3)
+                QRCode(this.exportCode)
+                  .width(120)
+                  .height(120)
+                  .color('#1C2A32')
+                  .backgroundColor(Color.White)
                 if (this.exportPackage !== null) {
                   Text(this.exportPackage!.sourceFamilyName + ' · ' +
                     this.exportPackage!.rootName + ' · ' +
@@ -7661,6 +7704,12 @@ struct Index {
                     .fontColor('#4E7DF4')
                     .onClick(() => {
                       this.startEditBranch(branch);
+                    })
+                  Text('删除')
+                    .fontSize(10)
+                    .fontColor('#B4423D')
+                    .onClick(() => {
+                      this.confirmDeleteBranch(branch);
                     })
                 }
                 .width('100%')
