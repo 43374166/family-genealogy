@@ -76,8 +76,8 @@ describe('buildTreeLayout', () => {
     const childrenUnit = findUnitForPerson(layout, 'p3');
     expect(parentsUnit?.members.map((member) => member.id).sort()).toEqual(['p1', 'p2']);
     expect(childrenUnit?.members.map((member) => member.id).sort()).toEqual(['p3', 'p4']);
-    expect(parentsUnit?.width).toBe(426);
-    expect(childrenUnit?.width).toBe(426);
+    expect(parentsUnit?.width).toBe(370);
+    expect(childrenUnit?.width).toBe(370);
     expect(layout.connections).toHaveLength(4);
     expect(layout.connections.every((connection) => connection.sourceHandle.startsWith('person:'))).toBe(
       true,
@@ -124,8 +124,8 @@ describe('buildTreeLayout', () => {
     const unit = findUnitForPerson(layout, 'p1')!;
     const first = findPersonAnchor(layout, 'p1')!;
     const second = findPersonAnchor(layout, 'p2')!;
-    expect(first.x).toBe(unit.x + 104);
-    expect(second.x).toBe(unit.x + 208 + 10 + 104);
+    expect(first.x).toBe(unit.x + 90);
+    expect(second.x).toBe(unit.x + 180 + 10 + 90);
     expect(first.y).toBe(unit.y + unit.height / 2);
   });
 

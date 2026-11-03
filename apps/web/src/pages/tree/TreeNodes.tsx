@@ -111,7 +111,7 @@ export const FamilyUnitNodeView = memo(function FamilyUnitNodeView({
                   onSelectPerson(member);
                 }}
               >
-                <PersonAvatar person={member} size={44} ring={selected} />
+                <PersonAvatar person={member} size={50} ring={selected} />
                 <span className="tree-person__body">
                   <span className="tree-person__name-row">
                     <strong>{member.fullName}</strong>
