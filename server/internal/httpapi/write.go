@@ -152,7 +152,8 @@ func (a *API) deleteBranch(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (a *API) createPerson(w http.ResponseWriter, r *http.Request) {	principal, ok := principalFrom(r.Context())
+func (a *API) createPerson(w http.ResponseWriter, r *http.Request) {
+	principal, ok := principalFrom(r.Context())
 	if !ok {
 		writeProblem(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "not authenticated")
 		return

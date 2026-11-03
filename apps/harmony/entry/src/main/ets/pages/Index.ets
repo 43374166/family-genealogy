@@ -356,6 +356,13 @@ struct Index {
       message.includes('resolve');
   }
 
+  private isCredentialError(message: string): boolean {
+    const lower = message.toLowerCase();
+    return lower.includes('password') || lower.includes('credentials') ||
+      lower.includes('unauthorized') || message.includes('密码') ||
+      message.includes('登录名');
+  }
+
   private async loginWith(server: string): Promise<void> {
     this.api.setServer(server);
     const result = await this.api.login(this.loginName, this.password);
@@ -382,13 +389,16 @@ struct Index {
       // The public domain currently has an IPv6-only DNS record. On networks
       // without IPv6 HarmonyOS reports "could not resolve host". Fall back to
       // the LAN HTTP endpoint so the same credentials can still log in at home.
-      if (this.serverDraft !== LAN_SERVER && this.isHostError(firstMessage)) {
+      // Also retry on connection/TLS timeouts: a phone may resolve IPv6 but
+      // have no working IPv6 route.
+      if (this.serverDraft !== LAN_SERVER && !this.isCredentialError(firstMessage)) {
         try {
           await this.loginWith(LAN_SERVER);
           this.toast('已切换到家庭局域网登录');
           return;
         } catch (lanError) {
-          this.error = firstMessage + '；局域网登录也失败：' + this.errorText(lanError);
+          const lanMessage = this.errorText(lanError);
+          this.error = '线上：' + firstMessage + '\n家庭局域网：' + lanMessage;
           return;
         }
       }

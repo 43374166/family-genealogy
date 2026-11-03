@@ -5,7 +5,7 @@
 ## 已实现
 
 - 登录与服务器地址切换，默认线上 `https://family.fishdream.xyz:10443`
-- 线上域名只有 IPv6 记录；登录页可切“家庭局域网” (`http://192.168.1.36:10080/family-api`)，解析失败时会自动回退一次
+- 线上域名只有 IPv6 记录；登录页可切“家庭局域网” (`http://192.168.1.36:10080/family-api`)，线上连接/解析失败时会自动回退一次，并在都失败时同时显示两边错误
 - 登录态持久化（PersistentStorage）
 - 首页：家族名称/家风、成员与家支统计、快捷入口、近期生日与祭日、最新动态
 - 族谱树：
@@ -93,7 +93,7 @@ apps/harmony/
 ## 说明
 
 - 鸿蒙端的树布局与 Android 0.47.4 的规则一致：每对夫妻一条共同子女横线，父母双方均从卡片中心接入。
-- 当前 bundleName 为 `cn.familytree.harmony`，版本 `1.18.0`。
+- 当前 bundleName 为 `cn.familytree.harmony`，版本 `1.19.0`。
 - 相册上传暂按当前筛选人物关联；头像裁剪目前是“中心正方形 + 缩放”，没有自由拖动取景框。
 - **找不到请求主机名字 / Could not resolve host**：`family.fishdream.xyz` 当前只解析到 IPv6。设备没有 IPv6 时，在登录页点“家庭局域网”，或直接填 `http://192.168.1.36:10080/family-api`。该 HTTP 入口只允许内网地址访问，离开家庭 Wi-Fi 后请切回线上服务器。
 - 未签名的 HAP 不能直接安装，这是 DevEco/HarmonyOS 的签名要求，不是应用代码问题。

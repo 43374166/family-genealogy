@@ -473,7 +473,8 @@ func (a *API) updateAccountRole(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (a *API) listBranchAdmins(w http.ResponseWriter, r *http.Request) {	principal, ok := principalFrom(r.Context())
+func (a *API) listBranchAdmins(w http.ResponseWriter, r *http.Request) {
+	principal, ok := principalFrom(r.Context())
 	if !ok {
 		writeProblem(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "not authenticated")
 		return
