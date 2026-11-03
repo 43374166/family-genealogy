@@ -25,6 +25,57 @@ func (a *API) getFamily(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, principal.Family)
 }
 
+type updateFamilyRequest struct {
+	Name        string `json:"name"`
+	Surname     string `json:"surname"`
+	Motto       string `json:"motto"`
+	Region      string `json:"region"`
+	Description string `json:"description"`
+}
+
+func (a *API) updateFamily(w http.ResponseWriter, r *http.Request) {
+	principal, ok := principalFrom(r.Context())
+	if !ok {
+		writeProblem(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "not authenticated")
+		return
+	}
+	if principal.Membership.Role != "owner" && principal.Membership.Role != "admin" {
+		writeProblem(w, r, http.StatusForbidden, "WRITE_FORBIDDEN", "only an owner or admin can edit the family")
+		return
+	}
+	var payload updateFamilyRequest
+	if err := decodeJSON(w, r, &payload); err != nil {
+		writeProblem(w, r, http.StatusBadRequest, "INVALID_JSON", err.Error())
+		return
+	}
+	payload.Name = strings.TrimSpace(payload.Name)
+	payload.Surname = strings.TrimSpace(payload.Surname)
+	payload.Motto = strings.TrimSpace(payload.Motto)
+	payload.Region = strings.TrimSpace(payload.Region)
+	payload.Description = strings.TrimSpace(payload.Description)
+	if payload.Name == "" || len([]rune(payload.Name)) > 80 ||
+		payload.Surname == "" || len([]rune(payload.Surname)) > 20 ||
+		len([]rune(payload.Motto)) > 120 ||
+		len([]rune(payload.Region)) > 80 ||
+		len([]rune(payload.Description)) > 2000 {
+		writeProblem(w, r, http.StatusUnprocessableEntity, "INVALID_FAMILY", "family fields are invalid")
+		return
+	}
+	family, err := a.Store.UpdateFamily(
+		r.Context(), principal.Family.ID, principal.User.ID,
+		store.NewFamily{
+			Name: payload.Name, Surname: payload.Surname, Motto: payload.Motto,
+			Region: payload.Region, Description: payload.Description,
+		},
+		auditMeta(r),
+	)
+	if err != nil {
+		a.writeStoreError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, family)
+}
+
 func (a *API) getTree(w http.ResponseWriter, r *http.Request) {
 	principal, ok := principalFrom(r.Context())
 	if !ok {

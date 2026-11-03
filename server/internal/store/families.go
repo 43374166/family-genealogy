@@ -19,6 +19,55 @@ type NewFamily struct {
 	Description string
 }
 
+func (s *Store) UpdateFamily(
+	ctx context.Context,
+	familyID string,
+	actorUserID string,
+	input NewFamily,
+	meta AuditMeta,
+) (*model.Family, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin family update: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	result, err := tx.ExecContext(ctx, `
+		UPDATE families
+		SET name = ?, surname = ?, motto = ?, region = ?, description = ?,
+			version = version + 1, updated_at = UTC_TIMESTAMP(6)
+		WHERE id = ? AND status = 'active'`,
+		input.Name, input.Surname, input.Motto, input.Region, input.Description,
+		familyID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("update family: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("read family update rows: %w", err)
+	}
+	if affected == 0 {
+		return nil, ErrNotFound
+	}
+	after := map[string]any{
+		"name": input.Name, "surname": input.Surname, "motto": input.Motto,
+		"region": input.Region, "description": input.Description,
+	}
+	afterJSON, err := json.Marshal(after)
+	if err != nil {
+		return nil, fmt.Errorf("encode family audit: %w", err)
+	}
+	if err := insertAudit(ctx, tx, familyID, actorUserID, "family.updated",
+		"family", familyID, "", nil, afterJSON, meta); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit family update: %w", err)
+	}
+	return s.GetFamily(ctx, familyID)
+}
+
 func (s *Store) CreateFamilyForUser(
 	ctx context.Context,
 	userID string,

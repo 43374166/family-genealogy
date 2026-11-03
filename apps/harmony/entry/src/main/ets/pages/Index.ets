@@ -241,6 +241,12 @@ struct Index {
   @State private recoveryCodeDisplay: string = '';
   @State private archiveConfirmName: string = '';
   @State private archivePassword: string = '';
+  @State private familyEditName: string = '';
+  @State private familyEditSurname: string = '';
+  @State private familyEditMotto: string = '';
+  @State private familyEditRegion: string = '';
+  @State private familyEditDescription: string = '';
+  @State private familyEditBusy: boolean = false;
 
   @State private branches: ApiBranch[] = [];
   @State private addSurname: string = '';
@@ -1959,6 +1965,12 @@ struct Index {
     try {
       const families = await this.api.families();
       this.familyEntries = families.items;
+      const family = await this.api.family();
+      this.familyEditName = family.name;
+      this.familyEditSurname = family.surname;
+      this.familyEditMotto = family.motto;
+      this.familyEditRegion = family.region;
+      this.familyEditDescription = family.description;
       if (this.canDelete()) {
         try {
           const accounts = await this.api.accounts();
@@ -1980,8 +1992,36 @@ struct Index {
     }
   }
 
-  private async switchToFamily(familyId: string): Promise<void> {
-    if (familyId === this.familyId || this.familyCenterBusy) return;
+  private async saveFamilyProfile(): Promise<void> {
+    if (this.familyEditBusy) return;
+    if (this.familyEditName.trim().length === 0 ||
+      this.familyEditSurname.trim().length === 0) {
+      this.familyCenterError = '家族名称和姓氏不能为空';
+      return;
+    }
+    this.familyEditBusy = true;
+    this.familyCenterError = '';
+    try {
+      const family = await this.api.updateFamily(
+        this.familyEditName.trim(),
+        this.familyEditSurname.trim(),
+        this.familyEditMotto.trim(),
+        this.familyEditRegion.trim(),
+        this.familyEditDescription.trim()
+      );
+      this.familyName = family.name;
+      this.familySurname = family.surname;
+      this.familyMotto = family.motto;
+      this.applyMe(await this.api.me());
+      this.toast('家族资料已更新');
+    } catch (error) {
+      this.familyCenterError = this.errorText(error);
+    } finally {
+      this.familyEditBusy = false;
+    }
+  }
+
+  private async switchToFamily(familyId: string): Promise<void> {    if (familyId === this.familyId || this.familyCenterBusy) return;
     this.familyCenterBusy = true;
     this.familyCenterError = '';
     try {
@@ -7475,6 +7515,71 @@ struct Index {
           .backgroundColor(Color.White)
           .borderRadius(13)
           .alignItems(HorizontalAlign.Start)
+
+          if (this.canDelete()) {
+            Column({ space: 8 }) {
+              Text('家族资料')
+                .fontSize(13)
+                .fontWeight(FontWeight.Bold)
+                .fontColor('#1C2A32')
+                .width('100%')
+              TextInput({ placeholder: '家族名称', text: this.familyEditName })
+                .height(40)
+                .backgroundColor('#F7F9FA')
+                .borderRadius(8)
+                .fontSize(12)
+                .onChange((value: string) => {
+                  this.familyEditName = value;
+                })
+              TextInput({ placeholder: '姓氏', text: this.familyEditSurname })
+                .height(40)
+                .backgroundColor('#F7F9FA')
+                .borderRadius(8)
+                .fontSize(12)
+                .onChange((value: string) => {
+                  this.familyEditSurname = value;
+                })
+              TextInput({ placeholder: '家训', text: this.familyEditMotto })
+                .height(40)
+                .backgroundColor('#F7F9FA')
+                .borderRadius(8)
+                .fontSize(12)
+                .onChange((value: string) => {
+                  this.familyEditMotto = value;
+                })
+              TextInput({ placeholder: '地区', text: this.familyEditRegion })
+                .height(40)
+                .backgroundColor('#F7F9FA')
+                .borderRadius(8)
+                .fontSize(12)
+                .onChange((value: string) => {
+                  this.familyEditRegion = value;
+                })
+              TextArea({ placeholder: '家族简介', text: this.familyEditDescription })
+                .height(90)
+                .backgroundColor('#F7F9FA')
+                .borderRadius(8)
+                .fontSize(12)
+                .onChange((value: string) => {
+                  this.familyEditDescription = value;
+                })
+              Button(this.familyEditBusy ? '保存中' : '保存家族资料')
+                .width('100%')
+                .height(38)
+                .fontSize(11)
+                .backgroundColor('#EAF0FF')
+                .fontColor('#4E7DF4')
+                .enabled(!this.familyEditBusy)
+                .onClick(() => {
+                  this.saveFamilyProfile();
+                })
+            }
+            .width('100%')
+            .padding(14)
+            .backgroundColor(Color.White)
+            .borderRadius(13)
+            .alignItems(HorizontalAlign.Start)
+          }
 
           Column({ space: 8 }) {
             Text('加入其他家族')

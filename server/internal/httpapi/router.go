@@ -123,6 +123,7 @@ func NewRouter(deps Dependencies) http.Handler {
 			r.Post("/auth/accept-terms", api.acceptTerms)
 			r.Post("/auth/recovery-code", api.createRecoveryCode)
 			r.Get("/family", api.getFamily)
+			r.Patch("/family", api.updateFamily)
 			r.Get("/tree", api.getTree)
 			r.Get("/branches", api.listBranches)
 			r.Get("/persons", api.listPersons)

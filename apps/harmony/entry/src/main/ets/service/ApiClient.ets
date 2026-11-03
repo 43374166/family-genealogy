@@ -951,6 +951,28 @@ export class ApiClient {
     return JSON.parse(text) as ApiPerson;
   }
 
+  async updateFamily(
+    name: string,
+    surname: string,
+    motto: string,
+    region: string,
+    description: string
+  ): Promise<ApiFamily> {
+    const payload: UpdateFamilyPayload = {
+      name: name,
+      surname: surname,
+      motto: motto,
+      region: region,
+      description: description
+    };
+    const text = await this.request(
+      http.RequestMethod.PATCH,
+      '/api/v1/family',
+      payload
+    );
+    return JSON.parse(text) as ApiFamily;
+  }
+
   async addParentChild(
     parentId: string,
     childId: string,
@@ -1193,4 +1215,12 @@ interface UpdatePhotoPayload {
   personIds: string[];
   caption: string;
   takenAt: string;
+}
+
+interface UpdateFamilyPayload {
+  name: string;
+  surname: string;
+  motto: string;
+  region: string;
+  description: string;
 }
