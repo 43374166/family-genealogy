@@ -49,12 +49,8 @@ import {
   type GenerationNode,
 } from './TreeNodes';
 import { cn } from '@/utils/cn';
-import {
-  formatPartialDate,
-  genderLabel,
-  generationShort,
-  lifeYears,
-} from '@/utils/format';
+import { dualCalendarDate, type DualCalendarDate } from '@/utils/calendar';
+import { genderLabel, generationShort, lifeYears } from '@/utils/format';
 import './TreePage.scss';
 
 interface FocusRequest {
@@ -278,6 +274,7 @@ export default function TreePage() {
               search={search}
               selectedPerson={selectedPerson}
               focusRequest={focusRequest}
+              currentPersonId={currentMemberId}
               onSelectPerson={setSelectedPerson}
               onClearSelection={() => setSelectedPerson(null)}
               onFitAll={() => {
@@ -338,6 +335,7 @@ function TreeCanvas({
   search,
   selectedPerson,
   focusRequest,
+  currentPersonId,
   onSelectPerson,
   onClearSelection,
   onFitAll,
@@ -349,6 +347,7 @@ function TreeCanvas({
   search: string;
   selectedPerson: PersonSummary | null;
   focusRequest: FocusRequest | null;
+  currentPersonId?: string;
   onSelectPerson: (person: PersonSummary) => void;
   onClearSelection: () => void;
   onFitAll: () => void;
@@ -452,31 +451,35 @@ function TreeCanvas({
     if (initialFitDone.current) return;
     const frame = window.requestAnimationFrame(() => {
       initialFitDone.current = true;
-      if (isMobile) {
-        // 手机上不把整棵树压成缩略图：先聚焦中段世代里最宽的家庭单元（通常是夫妻）。
-        const middleGeneration =
-          layout.generations[Math.floor(layout.generations.length / 2)]?.generation;
-        const candidates = unitNodes.filter(
+      // On a large tree the full fit can shrink cards to an unreadable size.
+      // Start on the current member's family unit (or the middle generation),
+      // and leave "查看全谱" available for the overview.
+      const ownUnit = currentPersonId
+        ? unitNodes.find((node) =>
+            node.data.unit.members.some((member) => member.id === currentPersonId),
+          )
+        : null;
+      const middleGeneration =
+        layout.generations[Math.floor(layout.generations.length / 2)]?.generation;
+      const middleUnit = unitNodes
+        .filter(
           (node) => Math.abs(node.data.unit.generation - (middleGeneration ?? 1)) <= 1,
-        );
-        const middle = candidates
-          .slice()
-          .sort((a, b) => b.data.unit.width - a.data.unit.width)[0];
-        if (middle) {
-          fitView({
-            nodes: [middle],
-            padding: 0.2,
-            minZoom: 0.55,
-            maxZoom: 0.9,
-            duration: 0,
-          });
-          return;
-        }
+        )
+        .slice()
+        .sort((a, b) => b.data.unit.width - a.data.unit.width)[0];
+      const target = ownUnit ?? middleUnit;
+      if (target) {
+        const unit = target.data.unit;
+        setCenter(unit.x + unit.width / 2, unit.y + unit.height / 2, {
+          zoom: isMobile ? 0.78 : 1,
+          duration: 0,
+        });
+        return;
       }
-      fitView({ padding: 0.18, duration: 400, maxZoom: 0.95 });
+      fitView({ padding: 0.2, duration: 0, maxZoom: 0.95 });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [fitView, isMobile, layout.generations, unitNodes]);
+  }, [currentPersonId, fitView, isMobile, layout.generations, setCenter, unitNodes]);
 
   useEffect(() => {
     if (generation === 'all') return;
@@ -519,8 +522,11 @@ function TreeCanvas({
         maxZoom={1.85}
         nodesDraggable={false}
         nodesConnectable={false}
-        panOnScroll
+        panOnScroll={false}
+        zoomOnScroll
+        zoomOnPinch
         zoomOnDoubleClick={false}
+        preventScrolling
         proOptions={{ hideAttribution: false }}
         onPaneClick={onClearSelection}
       >
@@ -565,6 +571,8 @@ function PersonPeek({
     { enabled: Boolean(summary.id) },
   );
   const person: Person | null = detailQuery.data;
+  const birth = dualCalendarDate(summary.birth);
+  const death = dualCalendarDate(summary.death);
 
   return (
     <aside className="tree-peek" aria-label={`${summary.fullName} 简介`}>
@@ -595,13 +603,22 @@ function PersonPeek({
               <strong>{genderLabel(summary.gender)}</strong>
             </div>
             <div>
-              <span>出生</span>
-              <strong>{formatPartialDate(summary.birth)}</strong>
+              <span>生肖</span>
+              <strong>
+                {[birth?.ganzhiYear, birth?.zodiac].filter(Boolean).join(' · ') || '未详'}
+              </strong>
             </div>
             <div>
               <span>身份</span>
               <strong>{person?.occupation || '未记录'}</strong>
             </div>
+          </div>
+
+          <div className="tree-peek__calendar">
+            <PeekCalendarLine label="出生" date={birth} />
+            {summary.lifeStatus === 'deceased' || summary.death ? (
+              <PeekCalendarLine label="逝世" date={death} />
+            ) : null}
           </div>
 
           {person?.biography ? (
@@ -657,6 +674,19 @@ function PersonPeek({
         </Button>
       </div>
     </aside>
+  );
+}
+
+function PeekCalendarLine({ label, date }: { label: string; date: DualCalendarDate | null }) {
+  if (!date) return null;
+  return (
+    <div className="tree-peek__calendar-line">
+      <span>{label}</span>
+      <div>
+        <strong>{date.primary}</strong>
+        {date.secondary ? <small>{date.secondary}</small> : null}
+      </div>
+    </div>
   );
 }
 

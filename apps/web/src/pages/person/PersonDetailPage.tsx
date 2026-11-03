@@ -30,11 +30,11 @@ import { LifeStatusPill, StatusPill } from '@/components/StatusPill';
 import { SectionSkeleton } from '@/components/LoadingScreen';
 import { PersonFormDrawer } from '@/components/PersonFormDrawer';
 import { ProfileRequestDrawer } from '@/components/ProfileRequestDrawer';
-import type { Photo, Relative } from '@/types/api';
+import type { PartialDate, Photo, Relative } from '@/types/api';
+import { dualCalendarDate } from '@/utils/calendar';
 import {
   formatDate,
   formatDateTime,
-  formatPartialDate,
   genderLabel,
   generationShort,
   lifeYears,
@@ -315,11 +315,17 @@ export default function PersonDetailPage() {
                 label="排行"
                 value={person.birthOrder ? `第 ${person.birthOrder} 位` : '未记录'}
               />
-              <InfoRow icon={<IconCalendar />} label="出生" value={formatPartialDate(person.birth)} />
+              <InfoRow
+                icon={<IconCalendar />}
+                label="出生"
+                value={<CalendarValue date={person.birth} />}
+              />
               <InfoRow
                 icon={<IconCalendar />}
                 label="逝世"
-                value={person.lifeStatus === 'living' ? '在世' : formatPartialDate(person.death)}
+                value={
+                  person.lifeStatus === 'living' ? '在世' : <CalendarValue date={person.death} />
+                }
               />
               <InfoRow icon={<IconMapPin />} label="籍贯" value={person.birthPlace || '未记录'} />
               <InfoRow icon={<IconHome />} label="现居" value={person.residence || '未记录'} />
@@ -467,6 +473,17 @@ export default function PersonDetailPage() {
   );
 }
 
+function CalendarValue({ date }: { date?: PartialDate | null }) {
+  const info = dualCalendarDate(date);
+  if (!info) return <>未记录</>;
+  return (
+    <span className="person-calendar-value">
+      <span>{info.primary}</span>
+      {info.secondary ? <small>{info.secondary}</small> : null}
+    </span>
+  );
+}
+
 function InfoRow({
   icon,
   label,
@@ -474,7 +491,7 @@ function InfoRow({
 }: {
   icon: ReactNode;
   label: string;
-  value: string;
+  value: ReactNode;
 }) {
   return (
     <div className="person-info-row">

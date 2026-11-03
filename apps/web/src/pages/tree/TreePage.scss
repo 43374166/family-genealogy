@@ -5,6 +5,21 @@
 .tree-page {
   display: flex;
   flex-direction: column;
+  height: calc(100dvh - 72px);
+  min-height: 620px;
+  padding-top: 20px;
+  padding-bottom: 12px;
+  overflow: hidden;
+}
+
+.tree-page .page-heading {
+  flex: none;
+  margin-bottom: 14px;
+}
+
+.tree-page .tree-toolbar,
+.tree-page .tree-footnote {
+  flex: none;
 }
 
 .tree-toolbar {
@@ -14,8 +29,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 12px;
-  padding: 9px 11px;
+  margin-bottom: 10px;
+  padding: 8px 11px;
   border-radius: 14px;
   box-shadow: var(--shadow-soft);
 }
@@ -162,8 +177,9 @@
 
 .tree-canvas {
   position: relative;
-  height: clamp(570px, calc(100vh - 258px), 860px);
-  min-height: 540px;
+  flex: 1;
+  height: auto;
+  min-height: 0;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.66);
   border-radius: 18px;
@@ -296,9 +312,9 @@ body[theme-mode='dark'] .tree-canvas::after {
 .tree-person {
   position: relative;
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 11px;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 9px 10px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.95);
   border-radius: 12px;
@@ -349,8 +365,12 @@ body[theme-mode='dark'] .tree-person {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   min-width: 0;
+}
+
+.tree-person .person-avatar {
+  margin-top: 2px;
 }
 
 .tree-person__name-row {
@@ -362,7 +382,7 @@ body[theme-mode='dark'] .tree-person {
 
 .tree-person__name-row strong {
   overflow: hidden;
-  max-width: 76px;
+  max-width: 104px;
   color: var(--ink);
   font-family: var(--serif);
   font-size: 13.5px;
@@ -406,9 +426,9 @@ body[theme-mode='dark'] .tree-person__gender.is-female {
 
 .tree-person__years {
   overflow: hidden;
-  max-width: 112px;
+  max-width: 140px;
   color: var(--ink-muted);
-  font-size: 9px;
+  font-size: 8.5px;
   letter-spacing: 0.01em;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -417,21 +437,27 @@ body[theme-mode='dark'] .tree-person__gender.is-female {
 .tree-person__meta {
   display: flex;
   align-items: center;
-  gap: 5px;
-  margin-top: 3px;
+  gap: 4px;
+  margin-top: 2px;
 }
 
 .tree-person__meta em {
   display: inline-flex;
   align-items: center;
-  min-height: 16px;
-  padding: 0 6px;
+  min-height: 14px;
+  padding: 0 5px;
   border-radius: 4px;
   color: var(--ink-soft);
   background: var(--surface-soft);
-  font-size: 8px;
+  font-size: 7.5px;
   font-style: normal;
   font-weight: 500;
+  white-space: nowrap;
+}
+
+.tree-person__meta em.tree-person__zodiac {
+  color: var(--cinnabar);
+  background: var(--cinnabar-soft);
 }
 
 .tree-person__avatar-dot {
@@ -439,6 +465,57 @@ body[theme-mode='dark'] .tree-person__gender.is-female {
   height: 4px;
   border-radius: 50%;
   background: var(--jade);
+}
+
+.tree-person__calendar {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  margin-top: 3px;
+  padding-top: 3px;
+  border-top: 1px dashed var(--line);
+}
+
+.tree-person__calendar-row {
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+}
+
+.tree-person__calendar-row > em {
+  width: 9px;
+  flex: none;
+  color: var(--cinnabar);
+  font-size: 7.5px;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.tree-person__calendar-row > span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tree-person__calendar-row strong,
+.tree-person__calendar-row small {
+  overflow: hidden;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tree-person__calendar-row strong {
+  color: var(--ink-soft);
+  font-size: 8px;
+  font-weight: 500;
+}
+
+.tree-person__calendar-row small {
+  color: var(--ink-muted);
+  font-size: 7.5px;
 }
 
 .tree-handle {
@@ -763,6 +840,47 @@ body[theme-mode='dark'] .tree-peek {
   white-space: nowrap;
 }
 
+.tree-peek__calendar {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.tree-peek__calendar-line {
+  display: flex;
+  gap: 9px;
+}
+
+.tree-peek__calendar-line > span {
+  width: 28px;
+  flex: none;
+  color: var(--ink-muted);
+  font-size: 8.5px;
+  line-height: 1.5;
+}
+
+.tree-peek__calendar-line > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tree-peek__calendar-line strong {
+  color: var(--ink-soft);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.tree-peek__calendar-line small {
+  color: var(--ink-muted);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
 .tree-peek__bio {
   margin-top: 14px;
   color: var(--ink-muted);
@@ -850,9 +968,9 @@ body[theme-mode='dark'] .tree-peek {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  margin-top: 13px;
+  margin-top: 8px;
   color: var(--ink-muted);
-  font-size: 9.5px;
+  font-size: 9px;
 }
 
 @media (max-width: 1180px) {
@@ -903,8 +1021,16 @@ body[theme-mode='dark'] .tree-peek {
     flex-wrap: nowrap;
   }
 
+  .tree-page {
+    height: auto;
+    min-height: 0;
+    padding-top: 16px;
+    padding-bottom: 92px;
+  }
+
   .tree-canvas {
-    height: calc(100vh - 235px);
+    flex: none;
+    height: calc(100dvh - 235px);
     min-height: 470px;
     border-radius: 15px;
   }

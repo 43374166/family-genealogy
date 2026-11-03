@@ -57,39 +57,32 @@ class ProfilePage extends StatelessWidget {
 
   Future<void> _scan(BuildContext context) async {
     final value = await Navigator.of(context).push<String>(
-      MaterialPageRoute<String>(builder: (_) => const QrScanPage()),
-    );
-    if (value == null || value.trim().isEmpty || !context.mounted) return;
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => JoinFamilyPage(initialCode: value.trim().toUpperCase()),
-      ),
-    );
-  }
-
-  Future<void> _scanWebLogin(BuildContext context) async {
-    final value = await Navigator.of(context).push<String>(
       MaterialPageRoute<String>(
         builder: (_) => const QrScanPage(
-          title: '扫码登录网页',
-          subtitle: '扫描电脑端「扫码登录」二维码',
-          hint: '识别后会显示电脑所在城市和 IP，由你确认是否登录。',
-          errorHint: '请允许相机权限，或改用账号密码登录网页。',
+          title: '扫一扫',
+          subtitle: '邀请码或网页登录二维码',
+          hint: '网页登录会显示电脑所在城市和 IP；邀请码会进入加入家族页。',
+          errorHint: '请允许相机权限，或返回手动输入邀请码。',
         ),
       ),
     );
     if (value == null || value.trim().isEmpty || !context.mounted) return;
-    final payload = parseWebLoginPayload(value);
-    if (payload == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('这不是网页登录二维码，请重新扫描')));
+
+    // A single scanner serves both flows. The payload decides the destination.
+    final webLogin = parseWebLoginPayload(value);
+    if (webLogin != null) {
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) =>
+              WebLoginConfirmPage(qrId: webLogin.id, secret: webLogin.secret),
+        ),
+      );
       return;
     }
+
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (_) =>
-            WebLoginConfirmPage(qrId: payload.id, secret: payload.secret),
+        builder: (_) => JoinFamilyPage(initialCode: value.trim().toUpperCase()),
       ),
     );
   }
@@ -290,15 +283,6 @@ class ProfilePage extends StatelessWidget {
                               builder: (_) => const PhoneBindPage(),
                             ),
                           ),
-                        ),
-                        const Divider(height: 1, indent: 47),
-                        _MenuRow(
-                          icon: Icons.qr_code_scanner_rounded,
-                          color: AppColors.primary,
-                          background: AppColors.primarySoft,
-                          label: '扫码登录网页',
-                          trailing: '确认电脑登录',
-                          onTap: () => _scanWebLogin(context),
                         ),
                         const Divider(height: 1, indent: 47),
                         _MenuRow(

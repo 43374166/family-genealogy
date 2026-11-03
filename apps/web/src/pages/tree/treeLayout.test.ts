@@ -71,8 +71,8 @@ describe('buildTreeLayout', () => {
     const childrenUnit = findUnitForPerson(layout, 'p3');
     expect(parentsUnit?.members.map((member) => member.id).sort()).toEqual(['p1', 'p2']);
     expect(childrenUnit?.members.map((member) => member.id).sort()).toEqual(['p3', 'p4']);
-    expect(parentsUnit?.width).toBe(342);
-    expect(childrenUnit?.width).toBe(342);
+    expect(parentsUnit?.width).toBe(426);
+    expect(childrenUnit?.width).toBe(426);
   });
 
   it('同一对父母的多条父母子女边只生成一条家庭单元连线', () => {

@@ -448,6 +448,19 @@ body[theme-mode='dark'] .person-hero__meta {
   word-break: break-all;
 }
 
+.person-calendar-value {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+
+.person-calendar-value small {
+  color: var(--ink-muted);
+  font-size: 8.5px;
+  font-weight: 400;
+}
+
 .person-info-foot {
   display: flex;
   justify-content: space-between;

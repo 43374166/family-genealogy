@@ -68,8 +68,8 @@ export function formatPartialDate(date?: PartialDate | null): string {
 
 export function formatYear(date?: PartialDate | null): string {
   if (!date) return '';
-  if (date.text) return date.text;
-  return date.year ? String(date.year) : '';
+  if (date.year) return String(date.year);
+  return date.text ?? '';
 }
 
 export function lifeYears(person: Pick<PersonSummary, 'birth' | 'death' | 'lifeStatus'>): string {

@@ -1,10 +1,10 @@
 import dagre from '@dagrejs/dagre';
 import type { FamilyTree, PersonSummary } from '@/types/api';
 
-export const UNIT_CARD_WIDTH = 166;
-export const UNIT_CARD_HEIGHT = 98;
+export const UNIT_CARD_WIDTH = 208;
+export const UNIT_CARD_HEIGHT = 142;
 export const MEMBER_GAP = 10;
-export const ROW_PITCH = 184;
+export const ROW_PITCH = 232;
 export const LABEL_COLUMN_WIDTH = 148;
 export const CANVAS_PADDING = 56;
 

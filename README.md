@@ -17,7 +17,6 @@ MySQL schema、迁移、登录/会话、Web 扫码登录、家族/族谱树/人�
 **GitHub：** https://github.com/43374166/family-genealogy
 **Gitee：** https://gitee.com/fish-ling/family-genealogy
 
-[![Android test APK](https://github.com/43374166/family-genealogy/actions/workflows/android-apk.yml/badge.svg?branch=master)](https://github.com/43374166/family-genealogy/actions/workflows/android-apk.yml)
 [![iOS unsigned package](https://github.com/43374166/family-genealogy/actions/workflows/ios-unsigned.yml/badge.svg?branch=master)](https://github.com/43374166/family-genealogy/actions/workflows/ios-unsigned.yml)
 
 > 设计参考：`docs/reference/ui-home.png`、`docs/reference/ui-tree.png`
@@ -41,8 +40,9 @@ MySQL schema、迁移、登录/会话、Web 扫码登录、家族/族谱树/人�
 
 2026-11-04 验收：云端 MySQL 已备份并恢复到本地（2 用户 / 26 人物 / 1 故事 / 2 照片，
 迁移版本 22）；云端 API 部署扫码登录迁移与接口，Web 登录页完成扫码全流程，Flutter
-新增「扫码登录网页」入口与确认页；`pnpm typecheck`、`pnpm lint`、`flutter analyze`
-与 `flutter test` 全部通过。
+Flutter 右上角统一扫码入口按二维码类型进入网页登录确认页或加入家族页；Web 族谱树改为
+占满视口、滚轮缩放，人物卡片展示双历生卒、干支与生肖；`pnpm typecheck`、`pnpm lint`、
+`pnpm test`（11 项）、`flutter analyze` 与 `flutter test` 全部通过。
 2026-11-03 验收：Web 成员端 `pnpm typecheck`、`pnpm test`（6 项 Dagre 布局测试）、
 `pnpm build` 全部通过，并完成 Chromium 真实登录/树交互/审核/故事/移动端走查。
 2026-11-02 验收：`flutter analyze` 无问题；`flutter test` 15 项全部通过；
@@ -90,6 +90,8 @@ release APK 已构建（`familytree-0.47.4.apk`），Go 服务端全部测试通
 - 账号密码 / 扫码登录（`qrcode.react`）、注册、家族首页（概览、动态、纪念日、待办、
   家支、最近故事）、成员查询、人物档案、家族相册、家族故事与阅读页、消息中心、
   审核中心/我的申请、我的、家族管理。
+- 族谱树占满顶栏以下视口，页面不纵向滚动；滚轮缩放、拖拽平移；人物卡片直接展示
+  双历生卒日期、干支年与生肖，无需进入完整档案。
 - 普通成员与族长/管理员使用同一套页面，按角色显示审核、家族管理、编辑或申请入口。
 - 头像/相册均通过带 Bearer 的 Blob 请求加载；Desktop 侧栏与移动端抽屉/底栏自适应。
 
@@ -218,18 +220,9 @@ hvigorw.bat --mode module -p module=entry@default -p product=default -p buildMod
 > 请在登录页切到“家庭局域网”（`http://192.168.1.36:10080/family-api`，仅内网可访问），
 > 客户端也会在解析失败时自动回退一次。
 
-## Android 云端测试包
-
-推送 `apps/mobile/**` 或手动运行 `Android test APK` workflow 会构建可直接安装的
-release APK（CI 无生产签名时使用 debug/test key）：
-
-- Actions Artifact：`familytree-android-test-<run>-<attempt>`（保留 14 天，需登录 GitHub）
-- 同时发布到 GitHub Releases 的 prerelease：
-  `android-build-<run>-<attempt>`，APK 可直接下载
-- API 固定为 `https://family.fishdream.xyz:10443`
-- 如果旧测试包由另一把 debug key 签名，需要先卸载旧版本再安装
-
 ## iOS 云端打包（无签名）
+
+> Android 打包按本地签名流程处理，不再走 GitHub Actions；GitHub 只负责 iOS 构建。
 
 Android 显示名为「家族族谱」；iOS 本机签名流程要求 ASCII 应用名，因此使用
 `FamilyTree`，应用内部仍是中文。后续不同家庭登录只改变家庭空间数据，不改变
