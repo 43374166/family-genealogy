@@ -37,7 +37,7 @@ export type GenerationNode = Node<
   'generation'
 >;
 
-export type FamilyFlowEdge = Edge<{ dimmed: boolean }, 'family'>;
+export type FamilyFlowEdge = Edge<{ dimmed: boolean; gender?: string }, 'family'>;
 
 export interface TreeInteraction {
   selectedPersonId: string | null;
@@ -69,7 +69,6 @@ export const FamilyUnitNodeView = memo(function FamilyUnitNodeView({
       )}
       style={{ width: unit.width, height: unit.height }}
     >
-      <Handle type="target" position={Position.Top} className="tree-handle" />
       <div className="tree-unit__members">
         {unit.members.map((member, index) => {
           const selected = member.id === selectedPersonId;
@@ -78,6 +77,18 @@ export const FamilyUnitNodeView = memo(function FamilyUnitNodeView({
           const death = dualCalendarDate(member.death);
           return (
             <div className="tree-unit__member-wrap" key={member.id}>
+              <Handle
+                type="target"
+                position={Position.Top}
+                id={`target:${member.id}`}
+                className="tree-handle tree-handle--target"
+              />
+              <Handle
+                type="source"
+                position={Position.Bottom}
+                id={`person:${member.id}`}
+                className="tree-handle tree-handle--source"
+              />
               {index > 0 ? (
                 <span className="tree-unit__bond" aria-hidden>
                   <i />
@@ -131,7 +142,6 @@ export const FamilyUnitNodeView = memo(function FamilyUnitNodeView({
           );
         })}
       </div>
-      <Handle type="source" position={Position.Bottom} className="tree-handle" />
     </div>
   );
 });
@@ -180,7 +190,12 @@ export function FamilyEdgeView({
     <path
       d={path}
       fill="none"
-      className={cn('react-flow__edge-path family-edge-path', data?.dimmed && 'is-dimmed')}
+      className={cn(
+        'react-flow__edge-path family-edge-path',
+        data?.gender === 'male' && 'is-male',
+        data?.gender === 'female' && 'is-female',
+        data?.dimmed && 'is-dimmed',
+      )}
     />
   );
 }

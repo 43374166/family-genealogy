@@ -28,6 +28,18 @@ export interface UnitEdge {
   childIds: string[];
 }
 
+/** A visible father/mother-to-child line. Two parents produce two lines. */
+export interface FamilyConnection {
+  id: string;
+  source: string;
+  target: string;
+  sourceHandle: string;
+  targetHandle: string;
+  parentId: string;
+  childId: string;
+  gender: PersonSummary['gender'];
+}
+
 export interface GenerationRow {
   generation: number;
   y: number;
@@ -38,6 +50,7 @@ export interface GenerationRow {
 export interface TreeLayoutResult {
   units: LayoutUnit[];
   edges: UnitEdge[];
+  connections: FamilyConnection[];
   generations: GenerationRow[];
   width: number;
   height: number;
@@ -221,24 +234,75 @@ export function buildTreeLayout(
     unitsByGeneration.set(unit.generation, list);
   }
 
-  // Dagre 的 rank 与真实世代不完全等价（孤立的婚姻单元可能同 rank）。
-  // 将同世代单元按 x 排开，保证覆盖 y 后不会重叠。
+  // 计算每个家庭的子代数量，子代多的支系放在同一世代左边，读图时更符合
+  // 「主支在左、旁支向右」的习惯。Dagre 的 x 只作为同分时的次序。
+  const childrenByParent = new Map<string, string[]>();
+  const descendantMemo = new Map<string, number>();
+  for (const edge of tree.parentChild) {
+    if (edge.status && edge.status !== 'active') continue;
+    const list = childrenByParent.get(edge.parentId) ?? [];
+    list.push(edge.childId);
+    childrenByParent.set(edge.parentId, list);
+  }
+  const descendantCount = (personId: string, visiting = new Set<string>()): number => {
+    const cached = descendantMemo.get(personId);
+    if (cached !== undefined) return cached;
+    if (visiting.has(personId)) return 0;
+    visiting.add(personId);
+    let total = 0;
+    for (const childId of childrenByParent.get(personId) ?? []) {
+      total += 1 + descendantCount(childId, visiting);
+    }
+    visiting.delete(personId);
+    descendantMemo.set(personId, total);
+    return total;
+  };
+  const unitScore = (unit: LayoutUnit): number =>
+    Math.max(0, ...unit.members.map((member) => descendantCount(member.id)));
+
   for (const list of unitsByGeneration.values()) {
-    list.sort((a, b) => a.x - b.x);
-    for (let index = 1; index < list.length; index += 1) {
-      const prev = list[index - 1];
-      const current = list[index];
-      const minimum = prev.x + prev.width + 34;
-      if (current.x < minimum) current.x = minimum;
+    list.sort((a, b) => unitScore(b) - unitScore(a) || a.x - b.x);
+    let cursor = LABEL_COLUMN_WIDTH + 24;
+    for (const unit of list) {
+      unit.x = cursor;
+      cursor += unit.width + 34;
     }
   }
 
-  const units = sortedUnits;
+  const units = Array.from(unitById.values()).sort((a, b) => {
+    if (a.generation !== b.generation) return a.generation - b.generation;
+    return a.x - b.x;
+  });
   let maxX = 0;
   let maxY = 0;
   for (const unit of units) {
     maxX = Math.max(maxX, unit.x + unit.width);
     maxY = Math.max(maxY, unit.y + unit.height);
+  }
+
+  // 每个父/母各自连到具体子女。夫妻不共用一条线：二婚、一夫多妻时，
+  // 不同妻子所生子女的线会从各自母亲卡片出发，不会被合并到家庭单元中心。
+  const connections: FamilyConnection[] = [];
+  for (const edge of tree.parentChild) {
+    if (edge.status && edge.status !== 'active') continue;
+    const parent = byId.get(edge.parentId);
+    const child = byId.get(edge.childId);
+    const parentUnitId = personUnit.get(edge.parentId);
+    const childUnitId = personUnit.get(edge.childId);
+    if (!parent || !child || !parentUnitId || !childUnitId || parentUnitId === childUnitId) {
+      continue;
+    }
+    if (parent.generationNo >= child.generationNo) continue;
+    connections.push({
+      id: `connection:${edge.id}`,
+      source: parentUnitId,
+      target: childUnitId,
+      sourceHandle: `person:${edge.parentId}`,
+      targetHandle: `target:${edge.childId}`,
+      parentId: edge.parentId,
+      childId: edge.childId,
+      gender: parent.gender,
+    });
   }
 
   const generationRows: GenerationRow[] = generations.map((generation) => ({
@@ -251,6 +315,7 @@ export function buildTreeLayout(
   return {
     units,
     edges: Array.from(edgePairs.values()),
+    connections,
     generations: generationRows,
     width: Math.max(960, maxX + CANVAS_PADDING),
     height: Math.max(560, maxY + CANVAS_PADDING + 20),
@@ -275,4 +340,19 @@ export function findUnitForPerson(
   personId: string,
 ): LayoutUnit | undefined {
   return layout.units.find((unit) => unit.members.some((member) => member.id === personId));
+}
+
+/** 返回人物卡片在自己的家庭单元内的中心点，而不是整个单元的中心。 */
+export function findPersonAnchor(
+  layout: TreeLayoutResult,
+  personId: string,
+): { x: number; y: number } | undefined {
+  const unit = findUnitForPerson(layout, personId);
+  if (!unit) return undefined;
+  const index = unit.members.findIndex((member) => member.id === personId);
+  if (index < 0) return undefined;
+  return {
+    x: unit.x + index * (UNIT_CARD_WIDTH + MEMBER_GAP) + UNIT_CARD_WIDTH / 2,
+    y: unit.y + unit.height / 2,
+  };
 }

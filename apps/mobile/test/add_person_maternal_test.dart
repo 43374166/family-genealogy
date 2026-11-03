@@ -31,7 +31,9 @@ class _AddPersonSession extends AppSession {
 }
 
 void main() {
-  testWidgets('adding a non-family surname asks for a husband', (tester) async {
+  testWidgets('adding a non-family surname allows parents and a wife', (
+    tester,
+  ) async {
     final session = _AddPersonSession();
     addTearDown(session.dispose);
 
@@ -48,14 +50,15 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.scrollUntilVisible(
-      find.text('选择男方'),
+      find.text('选择女方'),
       280,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('配偶（男方，可选）'), findsOneWidget);
-    expect(find.text('父亲'), findsNothing);
-    expect(find.text('母亲'), findsNothing);
+    expect(find.text('父亲'), findsOneWidget);
+    expect(find.text('母亲'), findsOneWidget);
+    expect(find.text('配偶'), findsOneWidget);
+    expect(find.text('选择女方'), findsOneWidget);
   });
 }

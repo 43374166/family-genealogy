@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { FamilyTree, ParentChildEdge, PersonSummary, SpouseEdge } from '@/types/api';
-import { buildTreeLayout, findUnitForPerson, toChineseNumber } from './treeLayout';
+import {
+  buildTreeLayout,
+  findPersonAnchor,
+  findUnitForPerson,
+  toChineseNumber,
+} from './treeLayout';
 
 function person(
   id: string,
@@ -73,6 +78,65 @@ describe('buildTreeLayout', () => {
     expect(childrenUnit?.members.map((member) => member.id).sort()).toEqual(['p3', 'p4']);
     expect(parentsUnit?.width).toBe(426);
     expect(childrenUnit?.width).toBe(426);
+    expect(layout.connections).toHaveLength(4);
+    expect(layout.connections.every((connection) => connection.sourceHandle.startsWith('person:'))).toBe(
+      true,
+    );
+    expect(layout.connections.every((connection) => connection.targetHandle.startsWith('target:'))).toBe(
+      true,
+    );
+  });
+
+  it('每段婚姻的子女分别从父亲和母亲卡片出发', () => {
+    const father = person('f1', '张父', 'male', 1);
+    const wife1 = person('w1', '林妻', 'female', 1, '林');
+    const wife2 = person('w2', '李妻', 'female', 1, '李');
+    const child1 = person('c1', '张长子', 'male', 2);
+    const child2 = person('c2', '张次子', 'male', 2);
+    const tree: FamilyTree = {
+      familyId: 'f1',
+      version: 1,
+      persons: [father, wife1, wife2, child1, child2],
+      parentChild: [
+        parentEdge('pc1', father.id, child1.id, 'father'),
+        parentEdge('pc2', wife1.id, child1.id, 'mother'),
+        parentEdge('pc3', father.id, child2.id, 'father'),
+        parentEdge('pc4', wife2.id, child2.id, 'mother'),
+      ],
+      spouses: [spouseEdge('s1', father.id, wife1.id), spouseEdge('s2', father.id, wife2.id)],
+    };
+    const layout = buildTreeLayout(tree);
+    expect(layout.units.filter((unit) => unit.generation === 1)).toHaveLength(1);
+    expect(layout.units.find((unit) => unit.members.some((member) => member.id === father.id))?.members).toHaveLength(3);
+    expect(layout.connections.map((connection) => connection.sourceHandle).sort()).toEqual([
+      'person:f1',
+      'person:f1',
+      'person:w1',
+      'person:w2',
+    ]);
+    expect(
+      layout.connections.filter((connection) => connection.childId === child1.id).map((connection) => connection.parentId).sort(),
+    ).toEqual([father.id, wife1.id].sort());
+  });
+
+  it('点击人物时使用人物卡中心而不是家庭单元中心', () => {
+    const layout = buildTreeLayout(sampleTree());
+    const unit = findUnitForPerson(layout, 'p1')!;
+    const first = findPersonAnchor(layout, 'p1')!;
+    const second = findPersonAnchor(layout, 'p2')!;
+    expect(first.x).toBe(unit.x + 104);
+    expect(second.x).toBe(unit.x + 208 + 10 + 104);
+    expect(first.y).toBe(unit.y + unit.height / 2);
+  });
+
+  it('子代更多的家庭单元排在同一世代左边', () => {
+    const tree = sampleTree();
+    const lonely = person('p6', '张孤', 'male', 1);
+    tree.persons.push(lonely);
+    const layout = buildTreeLayout(tree);
+    const parentUnit = findUnitForPerson(layout, 'p1')!;
+    const lonelyUnit = findUnitForPerson(layout, 'p6')!;
+    expect(parentUnit.x).toBeLessThan(lonelyUnit.x);
   });
 
   it('同一对父母的多条父母子女边只生成一条家庭单元连线', () => {

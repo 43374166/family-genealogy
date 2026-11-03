@@ -1,7 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button, Input, InputNumber, SideSheet, TextArea, Toast } from '@douyinfe/semi-ui';
 import { SafeSelect as Select } from '@/components/SafeSelect';
-import type { Branch, CreatePersonInput, Person, UpdatePersonInput } from '@/types/api';
+import type {
+  Branch,
+  CreatePersonInput,
+  Person,
+  PersonSummary,
+  UpdatePersonInput,
+} from '@/types/api';
 import { personsApi } from '@/api/persons';
 import { useAppSelector } from '@/store/hooks';
 import { toErrorMessage } from '@/utils/error';
@@ -32,6 +38,9 @@ interface PersonFormState {
   occupation: string;
   education: string;
   biography: string;
+  fatherId: string;
+  motherId: string;
+  spouseId: string;
 }
 
 function initialForm(
@@ -40,6 +49,9 @@ function initialForm(
   defaultGeneration: number,
   defaultBranchId: string,
 ): PersonFormState {
+  const father = person?.parents?.find((relative) => relative.relation === '父亲');
+  const mother = person?.parents?.find((relative) => relative.relation === '母亲');
+  const spouse = person?.spouses?.find((relative) => relative.personId);
   return {
     surname: person?.surname ?? defaultSurname,
     givenName: person?.givenName ?? '',
@@ -62,6 +74,9 @@ function initialForm(
     occupation: person?.occupation ?? '',
     education: person?.education ?? '',
     biography: person?.biography ?? '',
+    fatherId: father?.personId ?? '',
+    motherId: mother?.personId ?? '',
+    spouseId: spouse?.personId ?? '',
   };
 }
 
@@ -98,6 +113,7 @@ export function PersonFormDrawer({
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [candidates, setCandidates] = useState<PersonSummary[]>([]);
 
   useEffect(() => {
     if (!visible) return;
@@ -112,9 +128,58 @@ export function PersonFormDrawer({
     setError(null);
   }, [auth.family?.surname, branches, person, visible]);
 
+  useEffect(() => {
+    if (!visible) return;
+    let active = true;
+    personsApi
+      .listPersons({ limit: 100 })
+      .then((page) => {
+        if (active) setCandidates(page.items);
+      })
+      .catch(() => {
+        if (active) setCandidates([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [visible, auth.family?.id]);
+
   const update = <K extends keyof PersonFormState>(key: K, value: PersonFormState[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
     setError(null);
+  };
+
+  const spouseGender = form.gender === 'male' ? 'female' : form.gender === 'female' ? 'male' : '';
+  const parentOptions = (gender: 'male' | 'female', excludeId: string) =>
+    candidates
+      .filter((candidate) => candidate.gender === gender && candidate.id !== person?.id)
+      .filter((candidate) => candidate.id !== excludeId)
+      .map((candidate) => ({
+        value: candidate.id,
+        label: `${candidate.fullName} · ${candidate.generationLabel}`,
+      }));
+  const spouseOptions = useMemo(
+    () =>
+      candidates
+        .filter((candidate) => candidate.id !== person?.id)
+        .filter((candidate) => candidate.id !== form.fatherId && candidate.id !== form.motherId)
+        .filter((candidate) => (spouseGender ? candidate.gender === spouseGender : false))
+        .map((candidate) => ({
+          value: candidate.id,
+          label: `${candidate.fullName} · ${candidate.generationLabel}`,
+        })),
+    [candidates, form.fatherId, form.motherId, person?.id, spouseGender],
+  );
+
+  const chooseRelative = (key: 'fatherId' | 'motherId' | 'spouseId', id: string) => {
+    const selected = candidates.find((candidate) => candidate.id === id);
+    update(key, id);
+    if (mode === 'create' && selected) {
+      update(
+        'generationNo',
+        String(key === 'spouseId' ? selected.generationNo : selected.generationNo + 1),
+      );
+    }
   };
 
   const validate = (): string | null => {
@@ -127,7 +192,46 @@ export function PersonFormDrawer({
     if (!form.birthMonth && form.birthDay) return '填写出生日期前，请先填写出生月份';
     if (!form.deathYear && (form.deathMonth || form.deathDay)) return '填写逝世月份或日期前，请先填写逝世年份';
     if (!form.deathMonth && form.deathDay) return '填写逝世日期前，请先填写逝世月份';
+    if (form.fatherId && form.fatherId === form.motherId) return '父亲和母亲不能选择同一个人';
+    if (person && (form.fatherId === person.id || form.motherId === person.id)) {
+      return '父亲和母亲不能选择本人';
+    }
+    if (form.spouseId && (form.spouseId === form.fatherId || form.spouseId === form.motherId)) {
+      return '配偶不能同时选择为父亲或母亲';
+    }
     return null;
+  };
+
+  const handleGenderChange = (gender: string) => {
+    setForm((current) => ({ ...current, gender, spouseId: '' }));
+    setError(null);
+  };
+
+  const syncRelations = async (saved: Person) => {
+    const existingFather = person?.parents?.find((relative) => relative.relation === '父亲');
+    const existingMother = person?.parents?.find((relative) => relative.relation === '母亲');
+    const existingSpouse = person?.spouses?.find((relative) => relative.personId);
+
+    if (mode === 'create') {
+      if (form.fatherId) await personsApi.addParentChild(form.fatherId, saved.id, 'father');
+      if (form.motherId) await personsApi.addParentChild(form.motherId, saved.id, 'mother');
+      if (form.spouseId) await personsApi.addSpouse(saved.id, form.spouseId);
+      return;
+    }
+    if (!person) return;
+
+    if (existingFather?.personId !== (form.fatherId || undefined)) {
+      if (existingFather) await personsApi.deleteParentChild(existingFather.edgeId);
+      if (form.fatherId) await personsApi.addParentChild(form.fatherId, person.id, 'father');
+    }
+    if (existingMother?.personId !== (form.motherId || undefined)) {
+      if (existingMother) await personsApi.deleteParentChild(existingMother.edgeId);
+      if (form.motherId) await personsApi.addParentChild(form.motherId, person.id, 'mother');
+    }
+    if (existingSpouse?.personId !== (form.spouseId || undefined)) {
+      if (existingSpouse) await personsApi.deleteSpouse(existingSpouse.edgeId);
+      if (form.spouseId) await personsApi.addSpouse(person.id, form.spouseId);
+    }
   };
 
   const handleSubmit = async () => {
@@ -196,6 +300,14 @@ export function PersonFormDrawer({
         saved = await personsApi.createPerson(common);
         Toast.success({ content: `${saved.fullName} 已加入族谱`, duration: 2.4 });
       }
+      try {
+        await syncRelations(saved);
+      } catch {
+        Toast.warning({
+          content: '人物资料已保存，但部分亲属关系未写入，请在档案页补充',
+          duration: 3.5,
+        });
+      }
       onSaved(saved);
       onClose();
     } catch (submitError) {
@@ -258,7 +370,7 @@ export function PersonFormDrawer({
               <span>性别</span>
               <Select
                 value={form.gender}
-                onChange={(value) => update('gender', String(value))}
+                onChange={(value) => handleGenderChange(String(value))}
                 optionList={[
                   { value: 'male', label: '男' },
                   { value: 'female', label: '女' },
@@ -322,6 +434,72 @@ export function PersonFormDrawer({
             <span className="person-form__field person-form__hint-field">
               <span>提示</span>
               <em>修改世代会同步影响族谱树中的位置。</em>
+            </span>
+          </div>
+        </section>
+
+        <section className="person-form__section">
+          <h4>亲属关系</h4>
+          <p className="person-form__section-note">
+            父母用于确定人物在族谱中的子女位置；配偶按当前性别筛选。父母、配偶均可留空。
+          </p>
+          <div className="person-form__row">
+            <label className="person-form__field">
+              <span>父亲</span>
+              <Select
+                value={form.fatherId || undefined}
+                placeholder="选择父亲"
+                filter
+                showClear
+                optionList={parentOptions('male', form.motherId)}
+                onChange={(value) => {
+                  const id = typeof value === 'string' ? value : '';
+                  if (id) chooseRelative('fatherId', id);
+                  else update('fatherId', '');
+                }}
+                onClear={() => update('fatherId', '')}
+              />
+            </label>
+            <label className="person-form__field">
+              <span>母亲</span>
+              <Select
+                value={form.motherId || undefined}
+                placeholder="选择母亲"
+                filter
+                showClear
+                optionList={parentOptions('female', form.fatherId)}
+                onChange={(value) => {
+                  const id = typeof value === 'string' ? value : '';
+                  if (id) chooseRelative('motherId', id);
+                  else update('motherId', '');
+                }}
+                onClear={() => update('motherId', '')}
+              />
+            </label>
+          </div>
+          <div className="person-form__row">
+            <label className="person-form__field">
+              <span>配偶</span>
+              <Select
+                value={form.spouseId || undefined}
+                placeholder={spouseGender ? '选择配偶' : '请先选择男/女性别'}
+                filter
+                showClear
+                disabled={!spouseGender}
+                optionList={spouseOptions}
+                onChange={(value) => {
+                  const id = typeof value === 'string' ? value : '';
+                  if (id) chooseRelative('spouseId', id);
+                  else update('spouseId', '');
+                }}
+                onClear={() => update('spouseId', '')}
+              />
+            </label>
+            <span className="person-form__field person-form__hint-field">
+              <span>说明</span>
+              <em>
+                外姓配偶也可选择；若父母不在同一家族，可只选择其中一位。
+              </em>
             </span>
           </div>
         </section>

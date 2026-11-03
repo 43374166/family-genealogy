@@ -133,7 +133,11 @@ class _MemberSearchPageState extends State<MemberSearchPage> {
     final memberCount = widget.gender == null
         ? session.family?.memberCount ?? _results.length
         : _results.length;
-    final genderHint = widget.gender == 'male' ? ' · 仅显示男性' : '';
+    final genderHint = switch (widget.gender) {
+      'male' => ' · 仅显示男性',
+      'female' => ' · 仅显示女性',
+      _ => '',
+    };
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(

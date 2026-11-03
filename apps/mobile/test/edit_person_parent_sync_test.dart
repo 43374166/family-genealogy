@@ -159,7 +159,7 @@ void main() {
     expect(find.text('资料已保存'), findsOneWidget);
   });
 
-  testWidgets('non-family surname edits choose a husband instead of parents', (
+  testWidgets('non-family surname edits can keep spouse and add parents', (
     tester,
   ) async {
     final session = _FakeSession();
@@ -181,8 +181,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('配偶'), findsOneWidget);
-    expect(find.text('父亲'), findsNothing);
-    expect(find.text('母亲'), findsNothing);
+    expect(find.text('父亲'), findsOneWidget);
+    expect(find.text('母亲'), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.close_rounded));
     await tester.pumpAndSettle();

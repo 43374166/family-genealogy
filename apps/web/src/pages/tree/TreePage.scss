@@ -527,6 +527,15 @@ body[theme-mode='dark'] .tree-person__gender.is-female {
   border: 0 !important;
   background: transparent !important;
   pointer-events: none !important;
+  z-index: 4;
+}
+
+.tree-handle--target {
+  top: -3px !important;
+}
+
+.tree-handle--source {
+  bottom: -3px !important;
 }
 
 .tree-generation-label {
@@ -573,8 +582,24 @@ body[theme-mode='dark'] .tree-person__gender.is-female {
   transition: opacity 0.25s ease, stroke 0.2s ease;
 }
 
+.react-flow__edge-path.family-edge-path.is-male {
+  stroke: rgba(74, 119, 164, 0.44);
+}
+
+.react-flow__edge-path.family-edge-path.is-female {
+  stroke: rgba(184, 102, 112, 0.4);
+}
+
 body[theme-mode='dark'] .react-flow__edge-path.family-edge-path {
   stroke: rgba(176, 197, 190, 0.24);
+}
+
+body[theme-mode='dark'] .react-flow__edge-path.family-edge-path.is-male {
+  stroke: rgba(125, 174, 218, 0.42);
+}
+
+body[theme-mode='dark'] .react-flow__edge-path.family-edge-path.is-female {
+  stroke: rgba(226, 151, 159, 0.4);
 }
 
 .react-flow__edge-path.family-edge-path.is-dimmed {

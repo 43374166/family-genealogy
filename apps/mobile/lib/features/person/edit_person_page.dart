@@ -108,6 +108,12 @@ class _EditPersonPageState extends State<EditPersonPage> {
     if (mounted) setState(() {});
   }
 
+  String? get _spouseGender => switch (_gender) {
+    'male' => 'female',
+    'female' => 'male',
+    _ => null,
+  };
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -261,10 +267,17 @@ class _EditPersonPageState extends State<EditPersonPage> {
       final birthOrder = int.tryParse(_birthOrder.text.trim());
       final birth = _birth;
       final death = _lifeStatus == 'deceased' ? _death : null;
-      if (isPaternalLine && _fatherId != null && _fatherId == _motherId) {
+      if (_fatherId != null && _fatherId == _motherId) {
         setState(() {
           _submitting = false;
           _error = '父亲和母亲不能选择同一个人';
+        });
+        return;
+      }
+      if (_fatherId == widget.person.id || _motherId == widget.person.id) {
+        setState(() {
+          _submitting = false;
+          _error = '父亲和母亲不能选择本人';
         });
         return;
       }
@@ -295,11 +308,8 @@ class _EditPersonPageState extends State<EditPersonPage> {
           biography: biography,
           version: widget.person.version,
         );
-        if (isPaternalLine) {
-          await _syncParents(session, asRequest: false);
-        } else {
-          await _syncSpouse(session, asRequest: false);
-        }
+        await _syncParents(session, asRequest: false);
+        await _syncSpouse(session, asRequest: false);
       } else {
         await session.createProfileRequest(
           personId: widget.person.id,
@@ -322,11 +332,8 @@ class _EditPersonPageState extends State<EditPersonPage> {
           biography: biography,
           version: widget.person.version,
         );
-        if (isPaternalLine) {
-          await _syncParents(session, asRequest: true);
-        } else {
-          await _syncSpouse(session, asRequest: true);
-        }
+        await _syncParents(session, asRequest: true);
+        await _syncSpouse(session, asRequest: true);
       }
       if (!mounted) return;
       await showDialog<void>(
@@ -413,7 +420,11 @@ class _EditPersonPageState extends State<EditPersonPage> {
                             ],
                             onChanged: (value) {
                               if (value != null) {
-                                setState(() => _gender = value);
+                                setState(() {
+                                  _gender = value;
+                                  _spouseId = null;
+                                  _spouseName = '';
+                                });
                               }
                             },
                           ),
@@ -530,56 +541,79 @@ class _EditPersonPageState extends State<EditPersonPage> {
                             const SizedBox(height: 10),
                           if (_canWrite) ...[
                             const SizedBox(height: 10),
-                            if (isPaternalLine) ...[
-                              ParentPickerField(
-                                label: '父亲',
-                                personId: _fatherId,
-                                personName: _fatherName,
-                                onPick: (person) => setState(() {
-                                  _fatherId = person.id;
-                                  _fatherName = person.fullName;
-                                }),
-                                onClear: () => setState(() {
-                                  _fatherId = null;
-                                  _fatherName = '';
-                                }),
+                            const Padding(
+                              padding: EdgeInsets.only(bottom: 4),
+                              child: Text(
+                                '亲属关系（可选）',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.inkMuted,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
-                              const SizedBox(height: 8),
-                              ParentPickerField(
-                                label: '母亲',
-                                personId: _motherId,
-                                personName: _motherName,
-                                onPick: (person) => setState(() {
-                                  _motherId = person.id;
-                                  _motherName = person.fullName;
-                                }),
-                                onClear: () => setState(() {
-                                  _motherId = null;
-                                  _motherName = '';
-                                }),
-                              ),
-                            ] else ...[
-                              ParentPickerField(
-                                label: '配偶',
-                                hint: '选择男方',
-                                gender: 'male',
-                                excludePersonId: widget.person.id,
-                                personId: _spouseId,
-                                personName: _spouseName,
-                                onPick: (person) => setState(() {
-                                  _spouseId = person.id;
-                                  _spouseName = person.fullName;
-                                  _generation = person.generationNo;
-                                  if ((person.branchId ?? '').isNotEmpty) {
-                                    _branchId = person.branchId;
-                                  }
-                                }),
-                                onClear: () => setState(() {
-                                  _spouseId = null;
-                                  _spouseName = '';
-                                }),
-                              ),
-                            ],
+                            ),
+                            ParentPickerField(
+                              label: '父亲',
+                              gender: 'male',
+                              excludePersonId: widget.person.id,
+                              personId: _fatherId,
+                              personName: _fatherName,
+                              onPick: (person) => setState(() {
+                                _fatherId = person.id;
+                                _fatherName = person.fullName;
+                                if (_generation <= person.generationNo) {
+                                  _generation = person.generationNo + 1;
+                                }
+                              }),
+                              onClear: () => setState(() {
+                                _fatherId = null;
+                                _fatherName = '';
+                              }),
+                            ),
+                            const SizedBox(height: 8),
+                            ParentPickerField(
+                              label: '母亲',
+                              gender: 'female',
+                              excludePersonId: widget.person.id,
+                              personId: _motherId,
+                              personName: _motherName,
+                              onPick: (person) => setState(() {
+                                _motherId = person.id;
+                                _motherName = person.fullName;
+                                if (_generation <= person.generationNo) {
+                                  _generation = person.generationNo + 1;
+                                }
+                              }),
+                              onClear: () => setState(() {
+                                _motherId = null;
+                                _motherName = '';
+                              }),
+                            ),
+                            const SizedBox(height: 8),
+                            ParentPickerField(
+                              label: '配偶',
+                              hint: _spouseGender == 'female'
+                                  ? '选择女方'
+                                  : _spouseGender == 'male'
+                                  ? '选择男方'
+                                  : '选择配偶',
+                              gender: _spouseGender,
+                              excludePersonId: widget.person.id,
+                              personId: _spouseId,
+                              personName: _spouseName,
+                              onPick: (person) => setState(() {
+                                _spouseId = person.id;
+                                _spouseName = person.fullName;
+                                _generation = person.generationNo;
+                                if ((person.branchId ?? '').isNotEmpty) {
+                                  _branchId = person.branchId;
+                                }
+                              }),
+                              onClear: () => setState(() {
+                                _spouseId = null;
+                                _spouseName = '';
+                              }),
+                            ),
                           ],
                           _field(
                             _birthOrder,

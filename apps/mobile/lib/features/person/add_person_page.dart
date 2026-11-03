@@ -52,6 +52,12 @@ class _AddPersonPageState extends State<AddPersonPage> {
     if (mounted) setState(() {});
   }
 
+  String? get _spouseGender => switch (_gender) {
+    'male' => 'female',
+    'female' => 'male',
+    _ => null,
+  };
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -121,10 +127,7 @@ class _AddPersonPageState extends State<AddPersonPage> {
       final biography = _biography.text.trim();
       final samePaternalLine = session.family?.surname == surname;
       final generationName = samePaternalLine ? _generationName : '';
-      if (samePaternalLine &&
-          _father != null &&
-          _mother != null &&
-          _father!.id == _mother!.id) {
+      if (_father != null && _mother != null && _father!.id == _mother!.id) {
         setState(() => _submitting = false);
         ScaffoldMessenger.of(
           context,
@@ -154,21 +157,21 @@ class _AddPersonPageState extends State<AddPersonPage> {
           lifeStatus: _lifeStatus,
           biography: biography,
         );
-        if (samePaternalLine && _father != null) {
+        if (_father != null) {
           await session.addParentChild(
             parentId: _father!.id,
             childId: person.id,
             parentRole: 'father',
           );
         }
-        if (samePaternalLine && _mother != null) {
+        if (_mother != null) {
           await session.addParentChild(
             parentId: _mother!.id,
             childId: person.id,
             parentRole: 'mother',
           );
         }
-        if (!samePaternalLine && _spouse != null) {
+        if (_spouse != null) {
           await session.addSpouse(personAId: person.id, personBId: _spouse!.id);
         }
         if (!mounted) return;
@@ -290,8 +293,8 @@ class _AddPersonPageState extends State<AddPersonPage> {
                                   child: Text(
                                     _canWrite
                                         ? (isPaternalLine
-                                              ? '人物会先作为一个独立节点写入族谱。保存后再添加父母、配偶和子女关系。'
-                                              : '人物会写入族谱，并与所选男方建立配偶关系。')
+                                              ? '人物会先作为一个独立节点写入族谱，可同时选择父母或配偶。'
+                                              : '人物会写入族谱；可选择父母建立子女关系，也可选择配偶建立婚姻关系。')
                                         : '申请通过后，人物才会写入族谱。保存后再添加父母、配偶和子女关系。',
                                     style: const TextStyle(
                                       fontSize: 10.5,
@@ -363,8 +366,15 @@ class _AddPersonPageState extends State<AddPersonPage> {
                                       child: Text('未注明'),
                                     ),
                                   ],
-                                  onChanged: (value) =>
-                                      setState(() => _gender = value ?? 'male'),
+                                  onChanged: (value) => setState(() {
+                                    _gender = value ?? 'male';
+                                    final desired = _spouseGender;
+                                    if (_spouse != null &&
+                                        desired != null &&
+                                        _spouse!.gender != desired) {
+                                      _spouse = null;
+                                    }
+                                  }),
                                 ),
                                 const SizedBox(height: 13),
                                 Row(
@@ -488,47 +498,59 @@ class _AddPersonPageState extends State<AddPersonPage> {
                                 ],
                                 if (_canWrite) ...[
                                   const SizedBox(height: 13),
-                                  if (isPaternalLine) ...[
-                                    const _FieldLabel('父母（可选）'),
-                                    ParentPickerField(
-                                      label: '父亲',
-                                      personId: _father?.id,
-                                      personName: _father?.fullName ?? '',
-                                      onPick: (person) =>
-                                          setState(() => _father = person),
-                                      onClear: () =>
-                                          setState(() => _father = null),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    ParentPickerField(
-                                      label: '母亲',
-                                      personId: _mother?.id,
-                                      personName: _mother?.fullName ?? '',
-                                      onPick: (person) =>
-                                          setState(() => _mother = person),
-                                      onClear: () =>
-                                          setState(() => _mother = null),
-                                    ),
-                                  ] else ...[
-                                    const _FieldLabel('配偶（男方，可选）'),
-                                    ParentPickerField(
-                                      label: '配偶',
-                                      hint: '选择男方',
-                                      gender: 'male',
-                                      personId: _spouse?.id,
-                                      personName: _spouse?.fullName ?? '',
-                                      onPick: (person) => setState(() {
-                                        _spouse = person;
-                                        _generation = person.generationNo;
-                                        if ((person.branchId ?? '')
-                                            .isNotEmpty) {
-                                          _branchId = person.branchId;
-                                        }
-                                      }),
-                                      onClear: () =>
-                                          setState(() => _spouse = null),
-                                    ),
-                                  ],
+                                  const _FieldLabel('亲属关系（可选）'),
+                                  ParentPickerField(
+                                    label: '父亲',
+                                    gender: 'male',
+                                    excludePersonId: _mother?.id,
+                                    personId: _father?.id,
+                                    personName: _father?.fullName ?? '',
+                                    onPick: (person) => setState(() {
+                                      _father = person;
+                                      if (_generation <= person.generationNo) {
+                                        _generation = person.generationNo + 1;
+                                      }
+                                    }),
+                                    onClear: () =>
+                                        setState(() => _father = null),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  ParentPickerField(
+                                    label: '母亲',
+                                    gender: 'female',
+                                    excludePersonId: _father?.id,
+                                    personId: _mother?.id,
+                                    personName: _mother?.fullName ?? '',
+                                    onPick: (person) => setState(() {
+                                      _mother = person;
+                                      if (_generation <= person.generationNo) {
+                                        _generation = person.generationNo + 1;
+                                      }
+                                    }),
+                                    onClear: () =>
+                                        setState(() => _mother = null),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  ParentPickerField(
+                                    label: '配偶',
+                                    hint: _spouseGender == 'female'
+                                        ? '选择女方'
+                                        : _spouseGender == 'male'
+                                        ? '选择男方'
+                                        : '选择配偶',
+                                    gender: _spouseGender,
+                                    personId: _spouse?.id,
+                                    personName: _spouse?.fullName ?? '',
+                                    onPick: (person) => setState(() {
+                                      _spouse = person;
+                                      _generation = person.generationNo;
+                                      if ((person.branchId ?? '').isNotEmpty) {
+                                        _branchId = person.branchId;
+                                      }
+                                    }),
+                                    onClear: () =>
+                                        setState(() => _spouse = null),
+                                  ),
                                 ],
                                 const SizedBox(height: 13),
                                 const _FieldLabel('生平简介'),

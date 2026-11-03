@@ -35,10 +35,11 @@ import { SectionSkeleton } from '@/components/LoadingScreen';
 import type { Person, PersonSummary } from '@/types/api';
 import {
   buildTreeLayout,
+  findPersonAnchor,
   findUnitForPerson,
   toChineseNumber,
+  type FamilyConnection,
   type TreeLayoutResult,
-  type UnitEdge,
 } from './treeLayout';
 import {
   TreeInteractionContext,
@@ -268,14 +269,17 @@ export default function TreePage() {
           <ReactFlowProvider>
             <TreeCanvas
               layout={layout}
-              edges={layout.edges}
+              connections={layout.connections}
               generation={generation}
               branchId={branchId}
               search={search}
               selectedPerson={selectedPerson}
               focusRequest={focusRequest}
               currentPersonId={currentMemberId}
-              onSelectPerson={setSelectedPerson}
+              onSelectPerson={(person) => {
+                setSelectedPerson(person);
+                setFocusRequest({ personId: person.id, nonce: Date.now() });
+              }}
               onClearSelection={() => setSelectedPerson(null)}
               onFitAll={() => {
                 setGeneration('all');
@@ -329,7 +333,7 @@ export default function TreePage() {
 
 function TreeCanvas({
   layout,
-  edges,
+  connections,
   generation,
   branchId,
   search,
@@ -341,7 +345,7 @@ function TreeCanvas({
   onFitAll,
 }: {
   layout: TreeLayoutResult;
-  edges: UnitEdge[];
+  connections: FamilyConnection[];
   generation: number | 'all';
   branchId: string;
   search: string;
@@ -405,9 +409,9 @@ function TreeCanvas({
 
   const flowEdges = useMemo<FamilyFlowEdge[]>(
     () =>
-      edges.map((edge) => {
-        const sourceUnit = layout.units.find((unit) => unit.id === edge.source);
-        const targetUnit = layout.units.find((unit) => unit.id === edge.target);
+      connections.map((connection) => {
+        const sourceUnit = layout.units.find((unit) => unit.id === connection.source);
+        const targetUnit = layout.units.find((unit) => unit.id === connection.target);
         const dimmed =
           (generation !== 'all' &&
             sourceUnit?.generation !== generation &&
@@ -423,15 +427,17 @@ function TreeCanvas({
               !targetUnit?.members.some((member) => personMatchesSearch(member, keyword)),
           );
         return {
-          id: edge.id,
-          source: edge.source,
-          target: edge.target,
+          id: connection.id,
+          source: connection.source,
+          target: connection.target,
+          sourceHandle: connection.sourceHandle,
+          targetHandle: connection.targetHandle,
           type: 'family',
-          data: { dimmed },
+          data: { dimmed, gender: connection.gender },
           selectable: false,
         };
       }),
-    [branchId, edges, generation, keyword, layout],
+    [branchId, connections, generation, keyword, layout],
   );
 
   const nodes = useMemo(() => [...generationNodes, ...unitNodes], [generationNodes, unitNodes]);
@@ -470,7 +476,10 @@ function TreeCanvas({
       const target = ownUnit ?? middleUnit;
       if (target) {
         const unit = target.data.unit;
-        setCenter(unit.x + unit.width / 2, unit.y + unit.height / 2, {
+        const ownAnchor = currentPersonId
+          ? findPersonAnchor(layout, currentPersonId)
+          : undefined;
+        setCenter(ownAnchor?.x ?? unit.x + unit.width / 2, ownAnchor?.y ?? unit.y + unit.height / 2, {
           zoom: isMobile ? 0.78 : 1,
           duration: 0,
         });
@@ -479,7 +488,7 @@ function TreeCanvas({
       fitView({ padding: 0.2, duration: 0, maxZoom: 0.95 });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [currentPersonId, fitView, isMobile, layout.generations, setCenter, unitNodes]);
+  }, [currentPersonId, fitView, isMobile, layout, setCenter, unitNodes]);
 
   useEffect(() => {
     if (generation === 'all') return;
@@ -495,8 +504,9 @@ function TreeCanvas({
     if (!focusRequest) return;
     const unit = findUnitForPerson(layout, focusRequest.personId);
     if (!unit) return;
+    const anchor = findPersonAnchor(layout, focusRequest.personId);
     const timer = window.setTimeout(() => {
-      setCenter(unit.x + unit.width / 2, unit.y + unit.height / 2, {
+      setCenter(anchor?.x ?? unit.x + unit.width / 2, anchor?.y ?? unit.y + unit.height / 2, {
         zoom: 1.06,
         duration: 650,
       });
