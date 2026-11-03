@@ -1,6 +1,6 @@
 import type { FamilyTree, PersonSummary } from '@/types/api';
 
-export const UNIT_CARD_WIDTH = 132;
+export const UNIT_CARD_WIDTH = 120;
 export const UNIT_CARD_HEIGHT = 148;
 export const MEMBER_GAP = 10;
 export const CHILD_GAP = 34;
