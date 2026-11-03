@@ -1,26 +1,14 @@
 import type { FamilyTree, PersonSummary } from '@/types/api';
 
-export const UNIT_CARD_WIDTH = 140;
-export const UNIT_CARD_MIN_HEIGHT = 108;
+export const UNIT_CARD_WIDTH = 132;
+export const UNIT_CARD_HEIGHT = 148;
 export const MEMBER_GAP = 10;
 export const CHILD_GAP = 34;
 export const FAMILY_GAP = 68;
-export const ROW_GAP = 86;
+export const ROW_PITCH = 226;
 export const LABEL_COLUMN_WIDTH = 148;
 export const CANVAS_PADDING = 56;
 const CONTENT_LEFT = LABEL_COLUMN_WIDTH + 28;
-
-function hasDate(value: PersonSummary['birth']): boolean {
-  if (!value) return false;
-  return Boolean(value.year || value.text || value.month || value.day);
-}
-
-function memberCardHeight(member: PersonSummary): number {
-  // Only reserve space for dates that actually exist. The API may return an
-  // empty date object for unknown dates, so checking object presence alone
-  // would reintroduce the large blank area we are removing.
-  return UNIT_CARD_MIN_HEIGHT + (hasDate(member.birth) ? 26 : 0) + (hasDate(member.death) ? 26 : 0);
-}
 
 export interface LayoutUnit {
   id: string;
@@ -148,14 +136,13 @@ export function buildTreeLayout(
     const generation = members[0]?.generationNo ?? 1;
     const id = `unit:${members.map((member) => member.id).join('+')}`;
     const width = members.length * UNIT_CARD_WIDTH + (members.length - 1) * MEMBER_GAP;
-    const height = Math.max(...members.map(memberCardHeight));
     const unit: LayoutUnit = {
       id,
       generation,
       x: 0,
       y: 0,
       width,
-      height,
+      height: UNIT_CARD_HEIGHT,
       members,
       parentUnitIds: [],
       childUnitIds: [],
@@ -296,19 +283,9 @@ export function buildTreeLayout(
   const generations = Array.from(new Set(persons.map((person) => person.generationNo))).sort(
     (a, b) => a - b,
   );
-  const generationHeights = new Map<number, number>();
-  for (const unit of unitById.values()) {
-    generationHeights.set(
-      unit.generation,
-      Math.max(generationHeights.get(unit.generation) ?? 0, unit.height),
-    );
-  }
-  const generationY = new Map<number, number>();
-  let rowTop = CANVAS_PADDING;
-  for (const generation of generations) {
-    generationY.set(generation, rowTop);
-    rowTop += (generationHeights.get(generation) ?? UNIT_CARD_MIN_HEIGHT) + ROW_GAP;
-  }
+  const generationY = new Map(
+    generations.map((generation, index) => [generation, CANVAS_PADDING + index * ROW_PITCH]),
+  );
   for (const unit of unitById.values()) {
     unit.y = generationY.get(unit.generation) ?? CANVAS_PADDING;
   }

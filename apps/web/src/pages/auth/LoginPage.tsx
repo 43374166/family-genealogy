@@ -58,7 +58,7 @@ export default function LoginPage() {
   };
 
   const fillDemo = () => {
-    setLoginName('zhangsan');
+    setLoginName('linglei');
     setPassword('Demo#2026');
     setLocalError(null);
   };
@@ -150,7 +150,7 @@ export default function LoginPage() {
         {import.meta.env.DEV ? (
           <button type="button" className="auth-demo" onClick={fillDemo}>
             <span>本地演示账号</span>
-            <code>zhangsan / Demo#2026</code>
+            <code>linglei / Demo#2026</code>
             <em>一键填入</em>
           </button>
         ) : null}
