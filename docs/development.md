@@ -18,7 +18,7 @@
 | 端 | 目录 | 技术路线 | 当前动作 |
 | --- | --- | --- | --- |
 | 移动端 | `apps/mobile` | Flutter 3.35 / Dart 3.9 | 开发中 |
-| Web 成员端 + 后台 | `apps/web` | React + TypeScript + Vite | 待建 |
+| Web 成员端 + 后台 | `apps/web` | React 18 + TypeScript + Vite 7 + Semi + Redux | ✅ 成员端已完成，独立后台待拆 |
 | 鸿蒙 | `apps/harmony` | 单独技术验证，可采用 Flutter 社区方案或 ArkUI | 待评估 |
 | 微信小程序 | `apps/mini-program` | 独立前端，复用 HTTP API | 待建 |
 | 服务端 | `server` | Go 1.25 + MySQL 8.4（PG 17 设计参考） | 基础层已建，业务 API 待开发 |
@@ -216,7 +216,100 @@ apps/mobile/lib/
 
 ## 7. 安全边界
 
-- 当前没有账号系统，也没有真实成员隐私数据。
-- 演示图片为程序生成插画，不含真实家族照片。
-- 后续接入服务端前，不要把 `data/` 下的正式 JSON 或媒体文件提交到 Git。
-- 环境变量、签名文件与服务器密钥统一放入 `.env` / 本地密钥库，并保持被忽略状态。
+- 账号、会话、角色与家族数据都由 Go 服务端校验；Web 端不把隐藏按钮当作权限控制。
+- 本地演示数据与演示图片只用于联调；真实照片存放在私有 OBS，不能提交到 Git。
+- `data/` 下的正式 JSON 与媒体文件不得提交；环境变量、签名文件与服务器密钥统一放入
+  `.env` / 本地密钥库，并保持被忽略状态。
+- 浏览器端令牌存放在 `localStorage`，只在同源 HTTPS 环境部署；公共设备应及时退出。
+  服务端只保存令牌哈希。
+
+## 8. Web 成员端实现（2026-11-03）
+
+`apps/web` 已从占位目录升级为可运行成员端，复用 Go API，不复制业务后端。
+
+### 8.1 技术决策
+
+- **React 18 + Vite 7 + TypeScript**：与仓库现有 Web 规划一致；React 18 是 Semi
+  2.104 兼容性最稳的版本。
+- **react-router-dom 7**：`RequireAuth`、`GuestOnly`、`RequireReviewer` 三个路由守卫，
+  登录后回到来源路径；普通成员访问 `/family` 会重定向。
+- **Redux Toolkit**：`authSlice` 管理 token/me/家族身份，`notificationSlice` 管理未读与
+  消息状态，`uiSlice` 管理主题、侧栏和移动抽屉；页面数据读取由 `useAsync` 统一处理
+  取消、竞态和刷新。
+- **Semi Design**：使用 Semi 的 Button / Input / Select / SideSheet / Modal / Tabs /
+  Toast / Dropdown / Avatar / Badge / Skeleton 等基础组件，再通过 CSS 变量统一纸本
+  墨色、圆角、阴影和暗色主题。`SafeSelect` 把 Semi Select 的复杂泛型收窄，规避 TS 5.8
+  下动态 optionList 的类型实例化过深问题。
+- **扁平的 axios 请求层**：参考 md2card 的 `createFlatRequest` 思路，
+  `flatRequest<T>` 返回 `{ data, error, status }`，页面使用 `request<T>` 抛出统一
+  `ApiError`；错误按 RFC 9457 的 `detail → title → HTTP 状态` 提取。401 只触发一次
+  `auth:expired` 事件，由根组件清 token 并交给路由守卫跳转。
+- **鉴权图片**：相册内容与头像接口都要求 `Authorization`，因此不能用裸 `<img src>`。
+  `useAuthedImage` 先拉 Blob，再以 object URL 渲染，并按 token + path 缓存。
+- **族谱树**：Dagre 只排家庭单元（夫妻/多配偶/单人），y 坐标按真实世代覆盖；
+  React Flow 负责视口、缩放、拖拽、定位和自定义节点。夫妻并排渲染，父代到子代只从
+  单元中轴落下一条线。布局是纯函数并有 6 项 Vitest 单测。
+- **响应式**：桌面使用固定侧栏 + 顶栏；移动端使用抽屉导航 + 底部五项导航，族谱树
+  默认聚焦中段家庭单元而不是把整棵树缩成缩略图。
+
+### 8.2 已实现页面
+
+登录（账号密码 / 扫码）、注册、家族首页、族谱树、成员查询、人物档案、个人影像、
+家族相册、家族故事列表与阅读页、消息中心、审核中心/我的申请、我的、家族管理
+（资料/家支/账号/邀请码/字辈）。
+
+### 8.3 验收
+
+2026-11-04 在 Windows + Chromium 下完成：
+
+- `pnpm typecheck`、`pnpm lint` 通过；
+- `pnpm test` 6 项布局测试通过；
+- `pnpm build` 通过（Semi / React Flow / Dagre 分包）；
+- 真实 API 登录、扫码登录全流程、族谱树点击/定位、人物档案、故事新建与详情、
+  资料审核通过、暗色主题、普通成员权限、移动端抽屉与族谱树聚焦走查；
+- 截图见 `docs/screenshots/web/`。
+
+### 8.4 已知边界
+
+- 相册/头像上传需要服务端配置私有 OBS；Web 的上传、成员关联、灯箱和错误分支已实现，
+  本地无 OBS 时只能展示空相册。
+- 独立 `/admin` 后台尚未拆分；`/family` 覆盖族长/管理员日常维护。
+- 短信验证码、导出、绑定申请审核、家族合并审核仍以 Flutter / HarmonyOS 为主；
+  Web 已支持扫码登录，消息中的合并通知目前落到「我的」。
+- OpenAPI 仍需同步服务端后来新增的接口；Web 类型以 Go handler 实际输出为准。
+
+## 9. 云端数据同步与扫码登录（2026-11-04）
+
+### 9.1 数据库同步
+
+- 云端 `family.fishdream.xyz:10443` 的 MySQL 通过既有 `familytree-backup` 逻辑生成
+  一致性备份，再经 `scripts/pull-familytree-backup.ps1` 拉回 `backups/`；
+- 导入前先用 `mysqldump --single-transaction --no-tablespaces` 备份本地库；
+- 导入时移除 dump 中 root `DEFINER`，避免本地应用账号无法创建触发器；
+- 校验结果：云端 / 本地均为 2 用户、26 人物、1 故事、2 照片、迁移版本 22。
+- 客户端 API 统一指向云端实际监听端口 **10443**；用户提供的 10433 当前未监听，不做
+  假设。
+
+### 9.2 扫码登录协议
+
+- 迁移 `00022_qr_login_sessions.sql` 新增 `auth_qr_sessions`，保存 secret 哈希、状态、
+  请求 IP/城市/地区/设备、二维码所有者与确认家族；状态机为
+  `pending → scanned → confirmed → consumed`，另有 `expired` / `cancelled`。
+- 公开接口：`POST /api/v1/auth/qr`、`GET /api/v1/auth/qr/{id}?secret=`、
+  `POST /api/v1/auth/qr/{id}/cancel`；登录后接口：
+  `POST /api/v1/auth/qr/{id}/scan`、`POST .../confirm`。
+- 二维码内容为 `familytree://web-login?v=1&id=...&secret=...`；手机端只接受该 scheme。
+- 轮询仅在 `confirmed` 后签发一次正常 Bearer 会话，随后置为 `consumed`，再次轮询
+  返回 `QR_ALREADY_USED`；二维码 2 分钟过期。
+- 服务端从 Nginx 的 `X-Real-IP` 取真实客户端 IP，并对 loopback/私网来源才信任代理头；
+  归属地查询失败不阻塞登录。
+- Web 登录页使用 `qrcode.react` 渲染，展示城市、IP、设备和倒计时；Flutter 在
+  「我的 → 扫码登录网页」扫描并展示确认页。
+
+### 9.3 验收
+
+- 本地 QR API：创建 → 登录账号 → scan → confirm → 浏览器轮询拿到会话 → `/me`
+  成功；重放返回 409，错误 secret 返回 404，取消后状态为 `cancelled`；
+- 云端 API 已部署 `/healthz` 正常，QR 创建返回真实 IPv6 与归属地「北京」；
+- Web Chromium 扫码全流程通过，二维码页展示云端城市与设备；
+- Flutter `analyze` 无问题，`test` 17 项通过（含 QR payload 解析）。

@@ -1,0 +1,342 @@
+.qr-login {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 456px;
+}
+
+.qr-login__loading,
+.qr-login__failure,
+.qr-login__success {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 400px;
+  padding: 32px 18px;
+  text-align: center;
+}
+
+.qr-login__loading p {
+  color: var(--ink-soft);
+  font-family: var(--serif);
+  font-size: 14px;
+}
+
+.qr-login__loading small {
+  max-width: 290px;
+  color: var(--ink-muted);
+  font-size: 9.5px;
+  line-height: 1.7;
+}
+
+.qr-login__failure-icon,
+.qr-login__success-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 2px;
+  border-radius: 16px;
+  font-size: 25px;
+}
+
+.qr-login__failure-icon {
+  color: var(--cinnabar);
+  background: var(--cinnabar-soft);
+}
+
+.qr-login__success-icon {
+  color: var(--jade);
+  background: var(--jade-soft);
+}
+
+.qr-login__failure h3,
+.qr-login__success h3 {
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.qr-login__failure p,
+.qr-login__success p {
+  max-width: 300px;
+  margin-bottom: 6px;
+  color: var(--ink-muted);
+  font-size: 11px;
+  line-height: 1.8;
+}
+
+.qr-frame {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 222px;
+  height: 222px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: #fff;
+  box-shadow: 0 14px 36px rgba(31, 59, 70, 0.08);
+}
+
+.qr-frame::before,
+.qr-frame::after {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+}
+
+.qr-frame::before {
+  top: 8px;
+  left: 8px;
+  border-top: 1.5px solid var(--cinnabar);
+  border-left: 1.5px solid var(--cinnabar);
+  border-radius: 4px 0 0;
+  opacity: 0.45;
+}
+
+.qr-frame::after {
+  right: 8px;
+  bottom: 8px;
+  border-right: 1.5px solid var(--cinnabar);
+  border-bottom: 1.5px solid var(--cinnabar);
+  border-radius: 0 0 4px;
+  opacity: 0.45;
+}
+
+.qr-frame > svg {
+  position: relative;
+  z-index: 1;
+  transition: opacity 0.25s ease, filter 0.25s ease;
+}
+
+.qr-frame.is-scanned > svg {
+  opacity: 0.22;
+  filter: blur(1.4px);
+}
+
+.qr-frame__scanned {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 13px;
+  border-radius: 999px;
+  color: #2f8463;
+  background: rgba(232, 246, 239, 0.96);
+  box-shadow: 0 5px 18px rgba(45, 135, 99, 0.13);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  transform: translate(-50%, -50%);
+}
+
+.qr-login__status {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  width: 100%;
+  margin-top: 17px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-soft);
+}
+
+.qr-login__status-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 29px;
+  height: 29px;
+  flex: none;
+  border-radius: 8px;
+  color: var(--primary-deep);
+  background: var(--primary-soft);
+  font-size: 14px;
+}
+
+.qr-login__status-icon.is-scanned {
+  color: var(--jade);
+  background: var(--jade-soft);
+}
+
+.qr-login__status > div {
+  min-width: 0;
+}
+
+.qr-login__status strong {
+  display: block;
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.qr-login__status p {
+  margin-top: 2px;
+  color: var(--ink-muted);
+  font-size: 9px;
+  line-height: 1.6;
+}
+
+.qr-login__context {
+  display: grid;
+  grid-template-columns: 1.1fr 1.35fr 0.65fr;
+  width: 100%;
+  margin-top: 10px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+
+.qr-login__context > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: 8px 9px;
+  border-right: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.qr-login__context > div:last-child {
+  border-right: 0;
+}
+
+.qr-login__context span {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--ink-muted);
+  font-size: 8px;
+  white-space: nowrap;
+}
+
+.qr-login__context strong {
+  overflow: hidden;
+  color: var(--ink-soft);
+  font-size: 9px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qr-login__context strong.qr-login__address {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow: hidden;
+  white-space: normal;
+}
+
+.qr-login__address em {
+  color: var(--ink-muted);
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 7.5px;
+  font-style: normal;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.qr-login__context strong.is-warning {
+  color: var(--cinnabar);
+}
+
+.qr-login__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: auto;
+  padding-top: 13px;
+  color: var(--ink-muted);
+  font-size: 8.5px;
+}
+
+.qr-login__foot > span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.qr-login__live-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--jade);
+  box-shadow: 0 0 0 3px rgba(61, 167, 124, 0.12);
+  animation: qr-login-pulse 1.8s ease-in-out infinite;
+}
+
+.qr-login__foot button {
+  padding: 0;
+  border: 0;
+  color: var(--ink-muted);
+  background: transparent;
+  font-size: 8.5px;
+  cursor: pointer;
+}
+
+.qr-login__foot button:hover {
+  color: var(--primary-deep);
+}
+
+@keyframes qr-login-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 420px) {
+  .qr-login {
+    min-height: 420px;
+  }
+
+  .qr-frame {
+    width: 204px;
+    height: 204px;
+  }
+
+  .qr-frame > svg {
+    width: 174px;
+    height: 174px;
+  }
+
+  .qr-login__context {
+    grid-template-columns: 1fr 1.2fr;
+  }
+
+  .qr-login__context > div {
+    border-bottom: 1px solid var(--line);
+  }
+
+  .qr-login__context > div:nth-child(2) {
+    border-right: 0;
+  }
+
+  .qr-login__context > div:last-child {
+    grid-column: span 2;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 0;
+  }
+}

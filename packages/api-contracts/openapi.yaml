@@ -114,6 +114,148 @@ paths:
           description: 已撤销
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /api/v1/auth/qr:
+    post:
+      tags: [auth]
+      operationId: createQrLogin
+      summary: 创建 Web 扫码登录会话
+      description: |
+        公开接口。返回一次性 secret 与二维码 payload，并记录请求 IP、归属城市、
+        地区和设备。二维码 2 分钟有效；服务端只保存 secret 哈希。
+      security: []
+      responses:
+        "201":
+          description: 二维码已创建
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QrLoginCreate"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /api/v1/auth/qr/{qrID}:
+    get:
+      tags: [auth]
+      operationId: pollQrLogin
+      summary: 轮询扫码登录状态
+      description: |
+        公开接口，以二维码 secret 作为浏览器持有凭证。确认后的第一次轮询会返回
+        Session，并把二维码原子消费；再次轮询返回 QR_ALREADY_USED。
+      security: []
+      parameters:
+        - name: qrID
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: secret
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 20
+            maxLength: 256
+      responses:
+        "200":
+          description: 当前状态；首次确认时带上 session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QrLoginStatus"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /api/v1/auth/qr/{qrID}/scan:
+    post:
+      tags: [auth]
+      operationId: scanQrLogin
+      summary: 手机扫描 Web 登录二维码
+      description: |
+        需要手机端登录会话。把二维码标记为 scanned，并返回请求 IP、归属城市、
+        地区和设备供用户确认。
+      parameters:
+        - $ref: "#/components/parameters/QrID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QrSecret"
+      responses:
+        "200":
+          description: 已扫描，等待手机确认
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QrLoginStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "410":
+          description: 二维码已过期
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/auth/qr/{qrID}/confirm:
+    post:
+      tags: [auth]
+      operationId: confirmQrLogin
+      summary: 手机确认 Web 登录
+      description: 只能由扫码的同一手机账号确认；确认后的 Web 轮询才会签发会话。
+      parameters:
+        - $ref: "#/components/parameters/QrID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QrSecret"
+      responses:
+        "200":
+          description: 已确认
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QrLoginStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "410":
+          description: 二维码已过期
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/auth/qr/{qrID}/cancel:
+    post:
+      tags: [auth]
+      operationId: cancelQrLogin
+      summary: 取消扫码登录
+      description: 公开接口，浏览器或手机都可凭 secret 取消尚未确认的二维码。
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/QrID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QrSecret"
+      responses:
+        "204":
+          description: 已取消
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /api/v1/me:
     get:
       tags: [auth]
@@ -384,6 +526,14 @@ components:
       schema:
         type: string
         format: uuid
+  parameters:
+    QrID:
+      name: qrID
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
   responses:
     Unauthorized:
       description: 未登录或会话失效
@@ -507,6 +657,62 @@ components:
           $ref: "#/components/schemas/User"
         family:
           $ref: "#/components/schemas/Family"
+    QrSecret:
+      type: object
+      additionalProperties: false
+      required: [secret]
+      properties:
+        secret:
+          type: string
+          minLength: 20
+          maxLength: 256
+    QrLoginState:
+      type: string
+      enum: [pending, scanned, confirmed, consumed, expired, cancelled]
+    QrLoginStatus:
+      type: object
+      required: [id, status, expiresAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/QrLoginState"
+        expiresAt:
+          type: string
+          format: date-time
+        scannedAt:
+          type: string
+          format: date-time
+        confirmedAt:
+          type: string
+          format: date-time
+        requestIp:
+          type: string
+        requestCity:
+          type: string
+        requestRegion:
+          type: string
+        requestDevice:
+          type: string
+          description: 服务端从 User-Agent 生成的非敏感设备标签
+        session:
+          $ref: "#/components/schemas/Session"
+    QrLoginCreate:
+      allOf:
+        - $ref: "#/components/schemas/QrLoginStatus"
+        - type: object
+          required: [secret, payload, pollIntervalMs]
+          properties:
+            secret:
+              type: string
+              description: 只返回一次；手机扫码与浏览器轮询的凭证
+            payload:
+              type: string
+              description: familytree://web-login?v=1&id=...&secret=...
+            pollIntervalMs:
+              type: integer
+              minimum: 1000
     User:
       type: object
       required: [id, displayName, loginName, status]

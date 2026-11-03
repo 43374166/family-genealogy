@@ -1,5 +1,7 @@
 # App 运行截图
 
+## Flutter 移动端
+
 以下截图均来自本机 **Pixel 7 / Android 15 (API 35) 模拟器**，Flutter 3.35.5，
 `Impeller (OpenGLES)` 渲染，2026-10-30 运行。
 
@@ -24,3 +26,10 @@
   `apps/mobile/tool/generate_assets.py` 生成。
 - 应用安装包路径：`apps/mobile/build/app/outputs/flutter-apk/app-debug.apk`。
 - 截图中的「原型 / 待服务端接入」提示是刻意保留的能力边界，不代表功能已完成持久化。
+
+## Web 成员端
+
+Web 端截图独立放在 [web/README.md](web/README.md)，使用 React 18 + Vite 7 +
+Semi Design，连接真实 Go API，分别提供桌面端与移动视口截图。其中扫码登录页连接云端
+`https://family.fishdream.xyz:10443`，显示请求 IP 归属城市、设备、IP 和倒计时；
+手机 App 确认后才签发会话。

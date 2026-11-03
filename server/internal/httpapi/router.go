@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/43374166/family-genealogy/server/internal/buildinfo"
+	"github.com/43374166/family-genealogy/server/internal/geoip"
 	"github.com/43374166/family-genealogy/server/internal/obsstore"
 	smssvc "github.com/43374166/family-genealogy/server/internal/sms"
 	"github.com/43374166/family-genealogy/server/internal/store"
@@ -53,6 +54,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	api := &API{
 		Store: deps.Store, Logger: logger,
 		SMS: smsSender, OTP: otpPolicy, Photos: deps.Photos,
+		Geo: geoip.New(),
 	}
 	router.Route("/api/v1", func(r chi.Router) {
 		r.Get("/meta", func(w http.ResponseWriter, _ *http.Request) {
@@ -68,9 +70,14 @@ func NewRouter(deps Dependencies) http.Handler {
 		r.Post("/auth/sms/send", api.sendLoginCode)
 		r.Post("/auth/sms/login", api.loginWithPhone)
 		r.Post("/auth/reset-password", api.resetPassword)
+		r.Post("/auth/qr", api.createQRLogin)
+		r.Get("/auth/qr/{qrID}", api.getQRLogin)
+		r.Post("/auth/qr/{qrID}/cancel", api.cancelQRLogin)
 		r.Group(func(r chi.Router) {
 			r.Use(api.authenticate)
 			r.Post("/auth/logout", api.logout)
+			r.Post("/auth/qr/{qrID}/scan", api.scanQRLogin)
+			r.Post("/auth/qr/{qrID}/confirm", api.confirmQRLogin)
 			r.Post("/auth/phone/send", api.sendBindCode)
 			r.Post("/auth/phone/bind", api.bindPhone)
 			r.Post("/auth/switch-family", api.switchFamily)

@@ -76,6 +76,42 @@ class ApiClient {
     return session;
   }
 
+  Future<ApiQrLoginContext> scanWebLogin({
+    required String id,
+    required String secret,
+  }) async {
+    final body = await _request(
+      'POST',
+      '/api/v1/auth/qr/${Uri.encodeComponent(id)}/scan',
+      body: {'secret': secret},
+    );
+    return ApiQrLoginContext.fromJson(body);
+  }
+
+  Future<ApiQrLoginContext> confirmWebLogin({
+    required String id,
+    required String secret,
+  }) async {
+    final body = await _request(
+      'POST',
+      '/api/v1/auth/qr/${Uri.encodeComponent(id)}/confirm',
+      body: {'secret': secret},
+    );
+    return ApiQrLoginContext.fromJson(body);
+  }
+
+  Future<void> cancelWebLogin({
+    required String id,
+    required String secret,
+  }) async {
+    await _request(
+      'POST',
+      '/api/v1/auth/qr/${Uri.encodeComponent(id)}/cancel',
+      body: {'secret': secret},
+      authenticated: false,
+    );
+  }
+
   Future<ApiMe> switchFamily(String familyId) async {
     final body = await _request(
       'POST',

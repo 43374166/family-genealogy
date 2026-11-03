@@ -35,6 +35,10 @@
 - `GET /api/v1/anniversaries?days=60`（近期生日/祭日，含农历与阳历）
 - `POST /api/v1/auth/phone/send`、`POST /api/v1/auth/phone/bind`（登录后绑定手机号）
 - `POST /api/v1/auth/logout`
+- `POST /api/v1/auth/qr`（创建 2 分钟有效的一次性 Web 扫码登录）
+- `GET /api/v1/auth/qr/{id}?secret=`（轮询；首次确认后签发会话）
+- `POST /api/v1/auth/qr/{id}/scan|confirm`（手机登录后扫码/确认）
+- `POST /api/v1/auth/qr/{id}/cancel`（浏览器/手机取消）
 - `GET /api/v1/invites`、`POST /api/v1/invites`（仅 owner；可邀请普通成员或指定家支的分支管理员）
 - `POST /api/v1/bind-requests`（成员申请绑定族谱人物）
 - `GET /api/v1/bind-requests?status=&mine=`
@@ -76,6 +80,8 @@
 降为普通成员。邀请码创建仍仅限 owner。手机号验证码登录已接入华为云消息&短信
 （MSGSMS）SDK；需要配置应用 app_key/app_secret、通道号、签名和验证码模板，未配置时
 返回 `SMS_UNAVAILABLE`。照片上传、刷新令牌和登录限流尚未实现。
+扫码登录通过 `GEOIP_ENABLED` / `GEOIP_LOOKUP_URL` 配置 IP 归属地查询；生产 Nginx
+必须透传 `X-Real-IP`，服务端只对 loopback/私网来源信任该代理头。
 契约见 [`packages/api-contracts/openapi.yaml`](../packages/api-contracts/openapi.yaml)，
 数据模型说明见 [`docs/backend/data-model.md`](../docs/backend/data-model.md)。
 

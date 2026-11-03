@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
@@ -15,6 +15,8 @@ import '../family/join_family_page.dart';
 import '../family/my_qr_page.dart';
 import '../family/phone_bind_page.dart';
 import '../family/qr_scan_page.dart';
+import '../family/web_login_confirm_page.dart';
+import '../family/web_login_qr.dart';
 import '../gallery/gallery_page.dart';
 import '../person/api_person_detail_page.dart';
 import '../person/avatar_actions.dart';
@@ -61,6 +63,33 @@ class ProfilePage extends StatelessWidget {
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (_) => JoinFamilyPage(initialCode: value.trim().toUpperCase()),
+      ),
+    );
+  }
+
+  Future<void> _scanWebLogin(BuildContext context) async {
+    final value = await Navigator.of(context).push<String>(
+      MaterialPageRoute<String>(
+        builder: (_) => const QrScanPage(
+          title: '扫码登录网页',
+          subtitle: '扫描电脑端「扫码登录」二维码',
+          hint: '识别后会显示电脑所在城市和 IP，由你确认是否登录。',
+          errorHint: '请允许相机权限，或改用账号密码登录网页。',
+        ),
+      ),
+    );
+    if (value == null || value.trim().isEmpty || !context.mounted) return;
+    final payload = parseWebLoginPayload(value);
+    if (payload == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('这不是网页登录二维码，请重新扫描')));
+      return;
+    }
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            WebLoginConfirmPage(qrId: payload.id, secret: payload.secret),
       ),
     );
   }
@@ -261,6 +290,15 @@ class ProfilePage extends StatelessWidget {
                               builder: (_) => const PhoneBindPage(),
                             ),
                           ),
+                        ),
+                        const Divider(height: 1, indent: 47),
+                        _MenuRow(
+                          icon: Icons.qr_code_scanner_rounded,
+                          color: AppColors.primary,
+                          background: AppColors.primarySoft,
+                          label: '扫码登录网页',
+                          trailing: '确认电脑登录',
+                          onTap: () => _scanWebLogin(context),
                         ),
                         const Divider(height: 1, indent: 47),
                         _MenuRow(

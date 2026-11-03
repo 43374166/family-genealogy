@@ -1450,6 +1450,53 @@ class ApiPersonPage {
   }
 }
 
+class ApiQrLoginContext {
+  const ApiQrLoginContext({
+    required this.id,
+    required this.status,
+    required this.requestIp,
+    required this.requestCity,
+    required this.requestRegion,
+    required this.requestDevice,
+    this.expiresAt,
+    this.scannedAt,
+    this.confirmedAt,
+  });
+
+  final String id;
+  final String status;
+  final String requestIp;
+  final String requestCity;
+  final String requestRegion;
+  final String requestDevice;
+  final DateTime? expiresAt;
+  final DateTime? scannedAt;
+  final DateTime? confirmedAt;
+
+  String get locationLabel {
+    final city = requestCity.trim();
+    final region = requestRegion.trim();
+    if (city.isEmpty && region.isEmpty) return 'IP 归属地未知';
+    if (city.isEmpty) return region;
+    if (region.isEmpty || region == city || region.contains(city)) return city;
+    return '$region · $city';
+  }
+
+  factory ApiQrLoginContext.fromJson(Map<String, dynamic> json) {
+    return ApiQrLoginContext(
+      id: _string(json['id']),
+      status: _string(json['status'], fallback: 'unknown'),
+      requestIp: _string(json['requestIp']),
+      requestCity: _string(json['requestCity']),
+      requestRegion: _string(json['requestRegion']),
+      requestDevice: _string(json['requestDevice']),
+      expiresAt: DateTime.tryParse(_string(json['expiresAt'])),
+      scannedAt: DateTime.tryParse(_string(json['scannedAt'])),
+      confirmedAt: DateTime.tryParse(_string(json['confirmedAt'])),
+    );
+  }
+}
+
 class ApiSession {
   const ApiSession({
     required this.token,

@@ -4,7 +4,18 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../core/theme/app_colors.dart';
 
 class QrScanPage extends StatefulWidget {
-  const QrScanPage({super.key});
+  const QrScanPage({
+    super.key,
+    this.title = '扫描邀请码',
+    this.subtitle = '把二维码放入取景框',
+    this.hint = '识别到邀请码后会自动返回并填入。',
+    this.errorHint = '请允许相机权限，或返回手动输入邀请码。',
+  });
+
+  final String title;
+  final String subtitle;
+  final String hint;
+  final String errorHint;
 
   @override
   State<QrScanPage> createState() => _QrScanPageState();
@@ -53,10 +64,13 @@ class _QrScanPageState extends State<QrScanPage> {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    const Text(
-                      '请允许相机权限，或返回手动输入邀请码。',
+                    Text(
+                      widget.errorHint,
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.white54, fontSize: 11),
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 11,
+                      ),
                     ),
                   ],
                 ),
@@ -79,22 +93,22 @@ class _QrScanPageState extends State<QrScanPage> {
                         icon: const Icon(Icons.arrow_back_ios_new_rounded),
                       ),
                       const SizedBox(width: 10),
-                      const Expanded(
+                      Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '扫描邀请码',
-                              style: TextStyle(
+                              widget.title,
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 18,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                            SizedBox(height: 2),
+                            const SizedBox(height: 2),
                             Text(
-                              '把二维码放入取景框',
-                              style: TextStyle(
+                              widget.subtitle,
+                              style: const TextStyle(
                                 color: Colors.white60,
                                 fontSize: 10.5,
                               ),
@@ -113,10 +127,10 @@ class _QrScanPageState extends State<QrScanPage> {
                     color: Colors.black.withValues(alpha: 0.48),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Text(
-                    '识别到邀请码后会自动返回并填入。',
+                  child: Text(
+                    widget.hint,
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white70, fontSize: 11),
+                    style: const TextStyle(color: Colors.white70, fontSize: 11),
                   ),
                 ),
               ],

@@ -208,6 +208,30 @@ class AppSession extends ChangeNotifier {
     }
   }
 
+  Future<ApiQrLoginContext> scanWebLogin({
+    required String id,
+    required String secret,
+  }) {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    return _api.scanWebLogin(id: id, secret: secret);
+  }
+
+  Future<ApiQrLoginContext> confirmWebLogin({
+    required String id,
+    required String secret,
+  }) {
+    if (!isAuthenticated) {
+      throw const ApiException('登录状态已失效，请重新登录');
+    }
+    return _api.confirmWebLogin(id: id, secret: secret);
+  }
+
+  Future<void> cancelWebLogin({required String id, required String secret}) {
+    return _api.cancelWebLogin(id: id, secret: secret);
+  }
+
   Future<ApiPerson> updatePerson({
     required String personId,
     required String surname,

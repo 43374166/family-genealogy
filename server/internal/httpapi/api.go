@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/43374166/family-genealogy/server/internal/auth"
+	"github.com/43374166/family-genealogy/server/internal/geoip"
 	"github.com/43374166/family-genealogy/server/internal/model"
 	"github.com/43374166/family-genealogy/server/internal/obsstore"
 	smssvc "github.com/43374166/family-genealogy/server/internal/sms"
@@ -27,6 +28,7 @@ type API struct {
 	SMS    smssvc.Sender
 	OTP    store.OTPPolicy
 	Photos *obsstore.Store
+	Geo    *geoip.Client
 }
 
 type principalKey struct{}
@@ -225,10 +227,26 @@ func chineseJSONError(err error) error {
 
 func clientIP(r *http.Request) string {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err == nil {
-		return truncate(host, 45)
+	if err != nil {
+		host = r.RemoteAddr
 	}
-	return truncate(r.RemoteAddr, 45)
+	remote := net.ParseIP(host)
+	if remote != nil && (remote.IsLoopback() || remote.IsPrivate()) {
+		// The production API only listens on loopback behind Nginx, which sets
+		// X-Real-IP. Trust that header only for a loopback/private peer so a
+		// direct public client cannot spoof its address.
+		candidates := []string{
+			r.Header.Get("X-Real-IP"),
+			strings.TrimSpace(strings.Split(r.Header.Get("X-Forwarded-For"), ",")[0]),
+		}
+		for _, candidate := range candidates {
+			candidate = strings.TrimSpace(strings.Trim(candidate, "[]"))
+			if parsed := net.ParseIP(candidate); parsed != nil {
+				return truncate(parsed.String(), 45)
+			}
+		}
+	}
+	return truncate(host, 45)
 }
 
 func truncate(value string, max int) string {

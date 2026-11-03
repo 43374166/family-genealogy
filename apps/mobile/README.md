@@ -27,11 +27,15 @@ flutter --no-version-check analyze
 flutter --no-version-check test
 ```
 
+Web 扫码登录相关测试：`test/web_login_qr_test.dart`（二维码协议解析与拒绝外部 URL）。
+
+
 ## 连接线上 / 本地 API
 
 默认 API 地址为线上家庭服务器 `https://family.fishdream.xyz:10443`，Android 与 iOS
-打包后都默认连接云端；登录页仍可直接修改服务器地址。本地开发或 Android 模拟器
-调试时建议覆盖为宿主机地址：
+打包后都默认连接云端；登录页仍可直接修改服务器地址。云端当前可用的 HTTPS 端口是
+**10443**，`10433` 未监听，连接会超时。本地开发或 Android 模拟器调试时建议覆盖为
+宿主机地址：
 
 ```powershell
 flutter --no-version-check build apk --debug `
@@ -46,14 +50,20 @@ iOS 真机使用云端地址无需额外配置；如切回局域网 HTTP 调试�
 
 ## 数据与后端
 
-- `lib/services/api_client.dart`：登录、族谱树、人物详情、成员搜索、资料申请和审核 API。
+- `lib/services/api_client.dart`：登录、Web 扫码登录、族谱树、人物详情、成员搜索、
+  资料申请和审核 API。
 - `lib/services/app_session.dart`：当前账户、家庭、族谱树和登录状态。
+- `lib/features/family/web_login_qr.dart`：解析 `familytree://web-login` 二维码。
+- `lib/features/family/web_login_confirm_page.dart`：展示电脑请求的 IP、归属城市、
+  设备和有效期，由用户确认或取消。
 - `lib/features/tree/tree_layout.dart`：按 API 关系和世代计算的动态族谱布局。
 - `lib/data/demo_data.dart`：尚未接 API 的页面仍从这里读取演示数据。
 
 资料申请支持修改籍贯、现居地、职业、教育和生平；审核通过后由服务端事务写入并记审计。
 底部“添加”可新增人物、添加父母/配偶关系；owner/admin 直接写入，普通成员提交
-写入申请并由族长审核。登录页支持邀请码注册；成员可在“我的”申请绑定族谱人物，
+写入申请并由族长审核。登录页支持邀请码注册；“我的—扫码登录网页”可扫描电脑端登录二维码，确认页会显示
+请求 IP、IP 归属城市、设备和二维码有效期，只有用户点击确认后浏览器才会拿到会话。
+成员可在“我的”申请绑定族谱人物，
 族长在“绑定审核”通过后建立账号与人物关联。手机号字段已预留，短信一键登录未接。族长可生成“分支管理员”邀请码并指定
 管辖家支；分支管理员只能审核和写入本支及下级支。族长可在“分支管理员”页直接
 任命已有成员或撤销权限。邀请码可展示二维码，扫码得到邀请码后注册。

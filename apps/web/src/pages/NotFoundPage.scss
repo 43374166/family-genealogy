@@ -1,0 +1,105 @@
+.not-found-page {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 68vh;
+  overflow: hidden;
+  text-align: center;
+}
+
+.not-found-page__art {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 260px;
+  height: 150px;
+  margin-bottom: 17px;
+}
+
+.not-found-page__art .brand-mark {
+  position: relative;
+  z-index: 2;
+  opacity: 0.85;
+}
+
+.not-found-page__mountain {
+  position: absolute;
+  bottom: 8px;
+  display: block;
+  border-radius: 50% 50% 0 0;
+}
+
+.not-found-page__mountain--back {
+  left: 22px;
+  width: 150px;
+  height: 82px;
+  background: rgba(141, 167, 165, 0.13);
+  transform: skewX(-14deg);
+}
+
+.not-found-page__mountain--front {
+  right: 13px;
+  width: 142px;
+  height: 58px;
+  background: rgba(84, 100, 109, 0.09);
+  transform: skewX(16deg);
+}
+
+.not-found-page__mist {
+  position: absolute;
+  right: 30px;
+  bottom: 48px;
+  width: 190px;
+  height: 1px;
+  background: var(--line-strong);
+  box-shadow: 0 12px 0 var(--line), -30px 26px 0 var(--line);
+}
+
+.not-found-page h1 {
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: clamp(26px, 3vw, 36px);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.not-found-page__desc {
+  max-width: 440px;
+  margin-top: 10px;
+  color: var(--ink-muted);
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+.not-found-page__actions {
+  display: flex;
+  gap: 9px;
+  margin-top: 22px;
+}
+
+.not-found-page__folio {
+  margin-top: 37px;
+  color: var(--ink-muted);
+  font-size: 8px;
+  letter-spacing: 0.2em;
+  opacity: 0.5;
+}
+
+@media (max-width: 760px) {
+  .not-found-page {
+    min-height: 60vh;
+  }
+
+  .not-found-page__art {
+    width: 210px;
+    height: 120px;
+  }
+
+  .not-found-page__actions {
+    flex-direction: column;
+    width: min(260px, 100%);
+  }
+}
