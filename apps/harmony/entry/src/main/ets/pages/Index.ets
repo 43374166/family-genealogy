@@ -252,6 +252,7 @@ struct Index {
   @State private branchEditSort: string = '0';
   @State private branchBusy: boolean = false;
   @State private roleBusy: boolean = false;
+  @State private inviteQrCode: string = '';
 
   @State private branches: ApiBranch[] = [];
   @State private addSurname: string = '';
@@ -263,15 +264,28 @@ struct Index {
   private api = AppServices.api;
   private canvasCtx: CanvasRenderingContext2D =
     new CanvasRenderingContext2D(new RenderingContextSettings(true));
+  private notificationTimer: number = -1;
 
   aboutToAppear(): void {
     this.serverDraft = this.savedServer;
     this.serverMode = this.savedServer === LAN_SERVER ? 1 : 0;
+    this.notificationTimer = setInterval(() => {
+      if (this.loggedIn) {
+        this.refreshUnread();
+      }
+    }, 60000);
     if (this.token.length > 0) {
       this.api.setSession(this.savedServer, this.token);
       this.bootstrap();
     } else {
       this.booting = false;
+    }
+  }
+
+  aboutToDisappear(): void {
+    if (this.notificationTimer >= 0) {
+      clearInterval(this.notificationTimer);
+      this.notificationTimer = -1;
     }
   }
 
@@ -7904,6 +7918,20 @@ struct Index {
                       this.copyText(invite.code);
                       this.toast('邀请码已复制');
                     })
+                  Text(this.inviteQrCode === invite.code ? '收起' : '二维码')
+                    .fontSize(10)
+                    .fontColor('#4E7DF4')
+                    .onClick(() => {
+                      this.inviteQrCode = this.inviteQrCode === invite.code
+                        ? '' : invite.code;
+                    })
+                  if (this.inviteQrCode === invite.code) {
+                    QRCode(invite.code)
+                      .width(54)
+                      .height(54)
+                      .color('#1C2A32')
+                      .backgroundColor(Color.White)
+                  }
                 }
                 .width('100%')
                 .padding({ top: 4, bottom: 4 })
