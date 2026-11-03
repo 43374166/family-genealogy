@@ -434,8 +434,46 @@ func (a *API) listFamilyAccounts(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
-func (a *API) listBranchAdmins(w http.ResponseWriter, r *http.Request) {
+type updateAccountRolePayload struct {
+	Role string `json:"role"`
+}
+
+func (a *API) updateAccountRole(w http.ResponseWriter, r *http.Request) {
 	principal, ok := principalFrom(r.Context())
+	if !ok {
+		writeProblem(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "not authenticated")
+		return
+	}
+	if principal.Membership.Role != "owner" {
+		writeProblem(w, r, http.StatusForbidden, "ACCOUNT_FORBIDDEN", "only the owner can change roles")
+		return
+	}
+	targetUserID := strings.TrimSpace(chi.URLParam(r, "userID"))
+	var payload updateAccountRolePayload
+	if err := decodeJSON(w, r, &payload); err != nil {
+		writeProblem(w, r, http.StatusBadRequest, "INVALID_JSON", err.Error())
+		return
+	}
+	payload.Role = strings.TrimSpace(payload.Role)
+	if payload.Role != "admin" && payload.Role != "member" {
+		writeProblem(w, r, http.StatusUnprocessableEntity, "INVALID_ROLE", "role must be admin or member")
+		return
+	}
+	if targetUserID == principal.User.ID {
+		writeProblem(w, r, http.StatusUnprocessableEntity, "INVALID_TARGET", "you cannot change your own role")
+		return
+	}
+	if err := a.Store.UpdateMemberRole(
+		r.Context(), principal.Family.ID, principal.User.ID, targetUserID,
+		payload.Role, auditMeta(r),
+	); err != nil {
+		a.writeAccessError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (a *API) listBranchAdmins(w http.ResponseWriter, r *http.Request) {	principal, ok := principalFrom(r.Context())
 	if !ok {
 		writeProblem(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "not authenticated")
 		return

@@ -5,6 +5,7 @@ import fs from '@ohos.file.fs';
 import {
   ApiActivityPage,
   ApiAnniversaryPage,
+  ApiBranch,
   ApiBranchPage,
   ApiEditRequest,
   ApiEditRequestPage,
@@ -823,6 +824,39 @@ export class ApiClient {
     return JSON.parse(text) as ApiFamilyAccountPage;
   }
 
+  async updateAccountRole(userId: string, role: string): Promise<void> {
+    const payload: AccountRolePayload = { role: role };
+    await this.request(
+      http.RequestMethod.PATCH,
+      '/api/v1/accounts/' + encodeURIComponent(userId),
+      payload
+    );
+  }
+
+  async createBranch(name: string, sortOrder: number): Promise<ApiBranch> {
+    const payload: BranchPayload = { name: name, sortOrder: sortOrder };
+    const text = await this.request(
+      http.RequestMethod.POST,
+      '/api/v1/branches',
+      payload
+    );
+    return JSON.parse(text) as ApiBranch;
+  }
+
+  async updateBranch(
+    branchId: string,
+    name: string,
+    sortOrder: number
+  ): Promise<ApiBranch> {
+    const payload: BranchPayload = { name: name, sortOrder: sortOrder };
+    const text = await this.request(
+      http.RequestMethod.PATCH,
+      '/api/v1/branches/' + encodeURIComponent(branchId),
+      payload
+    );
+    return JSON.parse(text) as ApiBranch;
+  }
+
   async register(
     loginName: string,
     password: string,
@@ -1223,4 +1257,13 @@ interface UpdateFamilyPayload {
   motto: string;
   region: string;
   description: string;
+}
+
+interface AccountRolePayload {
+  role: string;
+}
+
+interface BranchPayload {
+  name: string;
+  sortOrder: number;
 }

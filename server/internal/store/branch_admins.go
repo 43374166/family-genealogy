@@ -45,6 +45,42 @@ func (s *Store) ListFamilyAccounts(
 	return items, nil
 }
 
+func (s *Store) UpdateMemberRole(
+	ctx context.Context,
+	familyID, actorUserID, targetUserID, role string,
+	meta AuditMeta,
+) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin member role update: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	result, err := tx.ExecContext(ctx, `
+		UPDATE family_memberships
+		SET role = ?, updated_at = UTC_TIMESTAMP(6)
+		WHERE family_id = ? AND user_id = ? AND status = 'active' AND role <> 'owner'`,
+		role, familyID, targetUserID)
+	if err != nil {
+		return fmt.Errorf("update member role: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read member role rows: %w", err)
+	}
+	if affected == 0 {
+		return ErrNotFound
+	}
+	after := []byte(fmt.Sprintf(`{"role":%q}`, role))
+	if err := insertAudit(ctx, tx, familyID, actorUserID, "member.role_changed",
+		"user", targetUserID, "", nil, after, meta); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit member role update: %w", err)
+	}
+	return nil
+}
+
 func (s *Store) ListBranchAdminGrants(
 	ctx context.Context,
 	familyID string,

@@ -59,8 +59,75 @@ func (a *API) listBranches(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"items": branches})
 }
 
-func (a *API) createPerson(w http.ResponseWriter, r *http.Request) {
+type branchPayload struct {
+	Name      string `json:"name"`
+	SortOrder int    `json:"sortOrder"`
+}
+
+func (a *API) createBranch(w http.ResponseWriter, r *http.Request) {
 	principal, ok := principalFrom(r.Context())
+	if !ok {
+		writeProblem(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "not authenticated")
+		return
+	}
+	if !canWrite(principal.Membership.Role) {
+		writeProblem(w, r, http.StatusForbidden, "WRITE_FORBIDDEN", "only an owner or admin can create a branch")
+		return
+	}
+	var payload branchPayload
+	if err := decodeJSON(w, r, &payload); err != nil {
+		writeProblem(w, r, http.StatusBadRequest, "INVALID_JSON", err.Error())
+		return
+	}
+	payload.Name = strings.TrimSpace(payload.Name)
+	if payload.Name == "" || len([]rune(payload.Name)) > 80 || payload.SortOrder < 0 {
+		writeProblem(w, r, http.StatusUnprocessableEntity, "INVALID_BRANCH", "branch name is invalid")
+		return
+	}
+	branch, err := a.Store.CreateBranch(
+		r.Context(), principal.Family.ID, principal.User.ID,
+		payload.Name, payload.SortOrder, auditMeta(r),
+	)
+	if err != nil {
+		a.writeWriteError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, branch)
+}
+
+func (a *API) updateBranch(w http.ResponseWriter, r *http.Request) {
+	principal, ok := principalFrom(r.Context())
+	if !ok {
+		writeProblem(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "not authenticated")
+		return
+	}
+	if !canWrite(principal.Membership.Role) {
+		writeProblem(w, r, http.StatusForbidden, "WRITE_FORBIDDEN", "only an owner or admin can edit a branch")
+		return
+	}
+	var payload branchPayload
+	if err := decodeJSON(w, r, &payload); err != nil {
+		writeProblem(w, r, http.StatusBadRequest, "INVALID_JSON", err.Error())
+		return
+	}
+	payload.Name = strings.TrimSpace(payload.Name)
+	if payload.Name == "" || len([]rune(payload.Name)) > 80 || payload.SortOrder < 0 {
+		writeProblem(w, r, http.StatusUnprocessableEntity, "INVALID_BRANCH", "branch name is invalid")
+		return
+	}
+	branch, err := a.Store.UpdateBranch(
+		r.Context(), principal.Family.ID, principal.User.ID,
+		strings.TrimSpace(chi.URLParam(r, "branchID")),
+		payload.Name, payload.SortOrder, auditMeta(r),
+	)
+	if err != nil {
+		a.writeWriteError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, branch)
+}
+
+func (a *API) createPerson(w http.ResponseWriter, r *http.Request) {	principal, ok := principalFrom(r.Context())
 	if !ok {
 		writeProblem(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "not authenticated")
 		return

@@ -247,6 +247,11 @@ struct Index {
   @State private familyEditRegion: string = '';
   @State private familyEditDescription: string = '';
   @State private familyEditBusy: boolean = false;
+  @State private branchEditId: string = '';
+  @State private branchEditName: string = '';
+  @State private branchEditSort: string = '0';
+  @State private branchBusy: boolean = false;
+  @State private roleBusy: boolean = false;
 
   @State private branches: ApiBranch[] = [];
   @State private addSurname: string = '';
@@ -1971,6 +1976,11 @@ struct Index {
       this.familyEditMotto = family.motto;
       this.familyEditRegion = family.region;
       this.familyEditDescription = family.description;
+      const branches = await this.api.branches();
+      this.dataBranches = branches.items;
+      this.branchEditId = '';
+      this.branchEditName = '';
+      this.branchEditSort = '0';
       if (this.canDelete()) {
         try {
           const accounts = await this.api.accounts();
@@ -2018,6 +2028,58 @@ struct Index {
       this.familyCenterError = this.errorText(error);
     } finally {
       this.familyEditBusy = false;
+    }
+  }
+
+  private startEditBranch(branch: ApiBranch): void {
+    this.branchEditId = branch.id;
+    this.branchEditName = branch.name;
+    this.branchEditSort = String(branch.sortOrder);
+  }
+
+  private async saveBranch(): Promise<void> {
+    if (this.branchBusy) return;
+    const name = this.branchEditName.trim();
+    const sortOrder = Number(this.branchEditSort);
+    if (name.length === 0 || !Number.isInteger(sortOrder) || sortOrder < 0) {
+      this.familyCenterError = '请填写家支名称和非负排序值';
+      return;
+    }
+    this.branchBusy = true;
+    this.familyCenterError = '';
+    try {
+      if (this.branchEditId.length > 0) {
+        await this.api.updateBranch(this.branchEditId, name, sortOrder);
+      } else {
+        await this.api.createBranch(name, sortOrder);
+      }
+      this.branchEditId = '';
+      this.branchEditName = '';
+      this.branchEditSort = '0';
+      const branches = await this.api.branches();
+      this.dataBranches = branches.items;
+      await this.loadTree();
+      this.toast('家支已保存');
+    } catch (error) {
+      this.familyCenterError = this.errorText(error);
+    } finally {
+      this.branchBusy = false;
+    }
+  }
+
+  private async updateMemberRole(account: ApiFamilyAccount): Promise<void> {
+    if (this.roleBusy || account.role === 'owner') return;
+    const nextRole = account.role === 'admin' ? 'member' : 'admin';
+    this.roleBusy = true;
+    this.familyCenterError = '';
+    try {
+      await this.api.updateAccountRole(account.userId, nextRole);
+      await this.loadFamilyCenter();
+      this.toast(nextRole === 'admin' ? '已设为管理员' : '已设为普通成员');
+    } catch (error) {
+      this.familyCenterError = this.errorText(error);
+    } finally {
+      this.roleBusy = false;
     }
   }
 
@@ -7581,6 +7643,85 @@ struct Index {
             .alignItems(HorizontalAlign.Start)
           }
 
+          if (this.canDelete()) {
+            Column({ space: 8 }) {
+              Text('家支管理')
+                .fontSize(13)
+                .fontWeight(FontWeight.Bold)
+                .fontColor('#1C2A32')
+                .width('100%')
+              ForEach(this.dataBranches, (branch: ApiBranch) => {
+                Row({ space: 8 }) {
+                  Text(branch.name)
+                    .fontSize(12)
+                    .fontColor('#1C2A32')
+                    .layoutWeight(1)
+                  Text('编辑')
+                    .fontSize(10)
+                    .fontColor('#4E7DF4')
+                    .onClick(() => {
+                      this.startEditBranch(branch);
+                    })
+                }
+                .width('100%')
+                .padding({ top: 4, bottom: 4 })
+              }, (branch: ApiBranch) => branch.id)
+              TextInput({
+                placeholder: '家支名称',
+                text: this.branchEditName
+              })
+                .height(40)
+                .backgroundColor('#F7F9FA')
+                .borderRadius(8)
+                .fontSize(12)
+                .onChange((value: string) => {
+                  this.branchEditName = value;
+                })
+              TextInput({
+                placeholder: '排序（数字）',
+                text: this.branchEditSort
+              })
+                .height(40)
+                .type(InputType.Number)
+                .backgroundColor('#F7F9FA')
+                .borderRadius(8)
+                .fontSize(12)
+                .onChange((value: string) => {
+                  this.branchEditSort = value;
+                })
+              Row({ space: 8 }) {
+                Button(this.branchEditId.length > 0 ? '保存修改' : '新增家支')
+                  .layoutWeight(1)
+                  .height(38)
+                  .fontSize(11)
+                  .backgroundColor('#EAF0FF')
+                  .fontColor('#4E7DF4')
+                  .enabled(!this.branchBusy)
+                  .onClick(() => {
+                    this.saveBranch();
+                  })
+                if (this.branchEditId.length > 0) {
+                  Button('取消')
+                    .height(38)
+                    .fontSize(11)
+                    .backgroundColor('#F2F5F7')
+                    .fontColor('#6C7B82')
+                    .onClick(() => {
+                      this.branchEditId = '';
+                      this.branchEditName = '';
+                      this.branchEditSort = '0';
+                    })
+                }
+              }
+              .width('100%')
+            }
+            .width('100%')
+            .padding(14)
+            .backgroundColor(Color.White)
+            .borderRadius(13)
+            .alignItems(HorizontalAlign.Start)
+          }
+
           Column({ space: 8 }) {
             Text('加入其他家族')
               .fontSize(13)
@@ -7750,6 +7891,12 @@ struct Index {
                       .fontColor('#B7791F')
                       .onClick(() => {
                         this.confirmTransferOwner(account);
+                      })
+                    Text(account.role === 'admin' ? '设为成员' : '设为管理员')
+                      .fontSize(9)
+                      .fontColor('#4E7DF4')
+                      .onClick(() => {
+                        this.updateMemberRole(account);
                       })
                   }
                   Text(account.personName.length > 0 ? account.personName : '未绑定')
