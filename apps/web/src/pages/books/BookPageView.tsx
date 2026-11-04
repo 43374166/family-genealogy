@@ -145,7 +145,11 @@ export function BookPageView({
         ) : null}
 
         {page.kind === 'writing' ? (
-          <div className="book-writing">
+          <div
+            className={`book-writing ${
+              project.writingDirection === 'rtl' ? 'is-rtl' : 'is-ltr'
+            }`}
+          >
             <div className="book-writing__heading">
               <span>WRITING</span>
               <h3>{page.sectionTitle || '谱书正文'}</h3>

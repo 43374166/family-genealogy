@@ -953,6 +953,12 @@
   line-height: 1.35;
 }
 
+.book-page--writing .book-page__inner {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--book-accent) 52%, transparent),
+    inset 0 0 0 4px #fbf7ec;
+}
+
 .book-writing {
   display: flex;
   flex: 1;
@@ -990,6 +996,7 @@
   flex: 1;
   min-height: 0;
   margin-top: 12px;
+  padding: 0 3px;
   overflow: hidden;
   color: #524736;
   font-family: var(--serif);
@@ -999,6 +1006,20 @@
   writing-mode: vertical-lr;
   text-orientation: mixed;
   white-space: pre-wrap;
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0 calc(17.1px - 0.5px),
+    rgba(164, 44, 38, 0.24) calc(17.1px - 0.5px) 17.1px
+  );
+}
+
+.book-writing.is-rtl .book-writing__body {
+  writing-mode: vertical-rl;
+  background-image: repeating-linear-gradient(
+    270deg,
+    transparent 0 calc(17.1px - 0.5px),
+    rgba(164, 44, 38, 0.24) calc(17.1px - 0.5px) 17.1px
+  );
 }
 
 .book-lineage {
@@ -2070,6 +2091,57 @@
   grid-column: 1 / -1;
 }
 
+.book-form__page-options {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.book-form__page-options > span {
+  color: var(--ink-soft);
+  font-size: 9px;
+}
+
+.book-form__page-options > div {
+  display: flex;
+  gap: 5px;
+}
+
+.book-form__page-options button,
+.book-form__direction button {
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink-muted);
+  background: var(--surface-soft);
+  font-size: 8px;
+  cursor: pointer;
+}
+
+.book-form__page-options button.is-active,
+.book-form__direction button.is-active {
+  border-color: var(--cinnabar);
+  color: var(--cinnabar);
+  background: var(--cinnabar-soft);
+}
+
+.book-form__direction {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+}
+
+.book-form__direction > span {
+  margin-right: 4px;
+  color: var(--ink-muted);
+  font-size: 8px;
+}
+
 .book-step--finish {
   max-width: 880px;
 }
@@ -2634,6 +2706,147 @@
   font-family: var(--serif);
   font-size: 12px;
   line-height: 1.9;
+}
+
+/* A real A5 page you type into, with vertical rules between columns. */
+.writing-editor__page {
+  position: relative;
+  flex: none;
+  overflow: hidden;
+  border: 1px solid var(--writing-accent);
+  box-shadow: 0 18px 44px rgba(35, 45, 40, 0.2);
+}
+
+.writing-editor__page::before {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  z-index: 0;
+  border: 0.5px solid color-mix(in srgb, var(--writing-accent) 42%, transparent);
+  pointer-events: none;
+}
+
+.writing-editor__page .book-page__inner {
+  position: relative;
+  z-index: 1;
+  padding: 32px 34px 24px;
+}
+
+.writing-editor__heading {
+  display: flex;
+  flex: none;
+  align-items: baseline;
+  gap: 10px;
+  padding: 12px 0 8px;
+  border-bottom: 0.5px solid color-mix(in srgb, var(--writing-accent) 28%, transparent);
+}
+
+.writing-editor__heading > span {
+  color: var(--writing-accent);
+  font-family: var(--sans);
+  font-size: 6px;
+  letter-spacing: 0.24em;
+}
+
+.writing-editor__heading h3 {
+  margin: 0;
+  color: #4b4133;
+  font-family: var(--serif);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+}
+
+.writing-editor__heading small {
+  margin-left: auto;
+  color: #9b8d77;
+  font-family: var(--sans);
+  font-size: 6px;
+}
+
+.writing-editor__canvas {
+  flex: 1;
+  min-height: 0;
+  margin-top: 10px;
+  padding: 0 2px;
+  overflow: auto;
+  outline: none;
+  color: #4f4435;
+  font-family: var(--serif);
+  font-size: 11px;
+  line-height: 1.8;
+  letter-spacing: 0.05em;
+  white-space: pre-wrap;
+  writing-mode: vertical-lr;
+  text-orientation: mixed;
+  caret-color: var(--writing-accent);
+  scrollbar-width: none;
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0 calc(19.8px - 0.5px),
+    color-mix(in srgb, var(--writing-accent) 32%, transparent) calc(19.8px - 0.5px) 19.8px
+  );
+}
+
+.writing-editor__page.is-rtl .writing-editor__canvas {
+  writing-mode: vertical-rl;
+  background-image: repeating-linear-gradient(
+    270deg,
+    transparent 0 calc(19.8px - 0.5px),
+    color-mix(in srgb, var(--writing-accent) 32%, transparent) calc(19.8px - 0.5px) 19.8px
+  );
+}
+
+.writing-editor__canvas::-webkit-scrollbar {
+  display: none;
+}
+
+.writing-editor__canvas:empty::before {
+  content: attr(data-placeholder);
+  color: #a99b85;
+  opacity: 0.75;
+}
+
+.writing-editor__frame {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  border: 4px double color-mix(in srgb, var(--writing-accent) 70%, transparent);
+}
+
+.writing-editor__page .book-page__header,
+.writing-editor__page .book-page__footer {
+  color: color-mix(in srgb, var(--writing-accent) 56%, #6b5c48);
+  border-color: color-mix(in srgb, var(--writing-accent) 24%, transparent);
+}
+
+.writing-editor__controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.writing-editor__controls > span {
+  color: var(--ink-muted);
+  font-size: 8px;
+}
+
+.writing-editor__controls button {
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink-muted);
+  background: var(--surface-soft);
+  font-size: 8px;
+  cursor: pointer;
+}
+
+.writing-editor__controls button.is-active {
+  border-color: var(--cinnabar);
+  color: var(--cinnabar);
+  background: var(--cinnabar-soft);
 }
 
 .studio-write__meta {

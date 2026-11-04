@@ -120,6 +120,7 @@ export interface BookProject {
   toGeneration: number;
   includeLineage: boolean;
   includeColophon: boolean;
+  writingDirection: 'ltr' | 'rtl';
   writing: BookWritingSection[];
   createdAt: string;
   updatedAt: string;
@@ -180,6 +181,7 @@ export function loadBooks(familyId: string): BookProject[] {
           : 'classic',
         includeLineage: book.includeLineage ?? true,
         includeColophon: book.includeColophon ?? true,
+        writingDirection: book.writingDirection === 'rtl' ? 'rtl' : 'ltr',
         writing: Array.isArray(book.writing)
           ? book.writing.filter((section) => section && section.id)
           : [],
@@ -217,6 +219,7 @@ export function newBook(familyId: string, familyName: string, surname: string): 
     toGeneration: 0,
     includeLineage: true,
     includeColophon: true,
+    writingDirection: 'ltr',
     writing: [
       {
         id: 'origin',

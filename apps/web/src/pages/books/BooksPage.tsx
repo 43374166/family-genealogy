@@ -36,6 +36,7 @@ import {
 import { BookPreview } from './BookPreview';
 import { BookCoverSpread } from './BookCoverSpread';
 import { BookPageView } from './BookPageView';
+import { BookWritingEditor } from './BookWritingEditor';
 import './BooksPage.scss';
 
 type StudioSection = 'cover' | 'layout' | 'pages' | 'write';
@@ -589,35 +590,40 @@ export default function BooksPage() {
                             </button>
                           </div>
                         </div>
-                        <TextArea
-                          className="studio-write__textarea"
+                        <div className="writing-editor__controls">
+                          <span>
+                            {activeSection.body.length} 字 · 约{' '}
+                            {Math.max(1, Math.ceil(activeSection.body.length / 420))} 页
+                          </span>
+                          <div>
+                            <button
+                              type="button"
+                              className={selected.writingDirection !== 'rtl' ? 'is-active' : ''}
+                              onClick={() => updateSelected({ writingDirection: 'ltr' })}
+                            >
+                              从左往右
+                            </button>
+                            <button
+                              type="button"
+                              className={selected.writingDirection === 'rtl' ? 'is-active' : ''}
+                              onClick={() => updateSelected({ writingDirection: 'rtl' })}
+                            >
+                              从右往左
+                            </button>
+                          </div>
+                        </div>
+                        <BookWritingEditor
+                          key={activeSection.id}
+                          project={selected}
+                          familyName={familyName}
+                          surname={surname}
+                          sectionTitle={activeSection.title}
                           value={activeSection.body}
-                          autosize={{ minRows: 14, maxRows: 26 }}
+                          pageCount={Math.max(1, Math.ceil(activeSection.body.length / 420))}
                           onChange={(value) =>
                             patchWritingSection(activeSection.id, { body: value })
                           }
-                          placeholder="自己写，或从右上角插入现有内容。正文会以竖排、从左往右分列排版。"
                         />
-                        <div className="studio-write__meta">
-                          <span>{activeSection.body.length} 字</span>
-                          <span>竖排预览 · 左 → 右</span>
-                        </div>
-                        <div className="studio-write__preview">
-                          <div className="studio-page-sample">
-                            <BookPageView
-                              page={{
-                                id: 'writing-preview',
-                                kind: 'writing',
-                                sectionTitle: activeSection.title || '谱书正文',
-                                body: activeSection.body || '正文会在这里以竖排显示。',
-                              }}
-                              project={selected}
-                              familyName={familyName}
-                              surname={surname}
-                              branchName={branchName}
-                            />
-                          </div>
-                        </div>
                       </>
                     ) : (
                       <div className="studio-write__empty">
@@ -858,6 +864,42 @@ function BookEditor({
                     }
                   />
                 </label>
+              </div>
+              <div className="book-form__page-options">
+                <span>页内内容</span>
+                <div>
+                  <button
+                    type="button"
+                    className={book.includeLineage !== false ? 'is-active' : ''}
+                    onClick={() => onChange({ includeLineage: book.includeLineage === false })}
+                  >
+                    世系图页
+                  </button>
+                  <button
+                    type="button"
+                    className={book.includeColophon !== false ? 'is-active' : ''}
+                    onClick={() => onChange({ includeColophon: book.includeColophon === false })}
+                  >
+                    谱成页
+                  </button>
+                </div>
+                <div className="book-form__direction">
+                  <span>书写方向</span>
+                  <button
+                    type="button"
+                    className={book.writingDirection !== 'rtl' ? 'is-active' : ''}
+                    onClick={() => onChange({ writingDirection: 'ltr' })}
+                  >
+                    左 → 右
+                  </button>
+                  <button
+                    type="button"
+                    className={book.writingDirection === 'rtl' ? 'is-active' : ''}
+                    onClick={() => onChange({ writingDirection: 'rtl' })}
+                  >
+                    右 → 左
+                  </button>
+                </div>
               </div>
               <label className="book-form__preface">
                 <span>谱序</span>
