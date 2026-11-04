@@ -9,14 +9,16 @@ import {
   ReactFlowProvider,
   useReactFlow,
 } from '@xyflow/react';
-import { Button, Input, Skeleton } from '@douyinfe/semi-ui';
+import { Button, Input, Skeleton, Toast } from '@douyinfe/semi-ui';
 import { SafeSelect as Select } from '@/components/SafeSelect';
 import {
   IconArrowRight,
   IconBranch,
   IconClose,
+  IconDownload,
   IconEdit,
   IconExpand,
+  IconPrint,
   IconRefresh,
   IconSearch,
   IconUserAdd,
@@ -52,6 +54,13 @@ import {
 import { cn } from '@/utils/cn';
 import { dualCalendarDate, type DualCalendarDate } from '@/utils/calendar';
 import { genderLabel, generationShort, lifeYears } from '@/utils/format';
+import {
+  captureNodePng,
+  downloadDataUrl,
+  imageAsPdf,
+  safeFilename,
+} from '@/utils/export';
+import { TreeExportView } from './TreeExportView';
 import './TreePage.scss';
 
 interface FocusRequest {
@@ -72,6 +81,10 @@ export default function TreePage() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [selectedPerson, setSelectedPerson] = useState<PersonSummary | null>(null);
   const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [exporting, setExporting] = useState<'png' | 'pdf' | null>(null);
+  const pageRef = useRef<HTMLDivElement>(null);
+  const printRef = useRef<HTMLDivElement>(null);
 
   const query = useAsync(
     async () => {
@@ -88,6 +101,50 @@ export default function TreePage() {
       familySurname: auth.family?.surname ?? '',
     });
   }, [query.data, auth.family?.surname]);
+
+  useEffect(() => {
+    const sync = () => setIsFullscreen(document.fullscreenElement === pageRef.current);
+    document.addEventListener('fullscreenchange', sync);
+    return () => document.removeEventListener('fullscreenchange', sync);
+  }, []);
+
+  const toggleFullscreen = async () => {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else {
+        await pageRef.current?.requestFullscreen();
+      }
+    } catch {
+      Toast.error('当前浏览器无法进入全屏，可按 F11 使用浏览器全屏');
+    }
+  };
+
+  const exportTree = async (format: 'png' | 'pdf') => {
+    if (!layout || !printRef.current) return;
+    setExporting(format);
+    try {
+      // 5x lossless pixels; the full tree is rendered offscreen at 1:1 layout
+      // coordinates first, so no screen-fit downscaling is baked into the file.
+      const dataUrl = await captureNodePng(printRef.current, {
+        pixelRatio: 5,
+        backgroundColor: '#f6f5ef',
+      });
+      const base = safeFilename(`${auth.family?.name ?? '家族'}-族谱全图`);
+      if (format === 'png') {
+        downloadDataUrl(dataUrl, `${base}.png`);
+        Toast.success('已导出 5x 无损 PNG');
+      } else {
+        await imageAsPdf(dataUrl, `${base}.pdf`, { format: 'a3', marginMm: 8 });
+        Toast.success('已导出 A3 高清 PDF');
+      }
+    } catch (error) {
+      console.error(error);
+      Toast.error('导出失败，请稍后重试');
+    } finally {
+      setExporting(null);
+    }
+  };
 
   const branchName = useMemo(() => {
     if (!query.data) return () => '';
@@ -147,7 +204,7 @@ export default function TreePage() {
   }));
 
   return (
-    <div className="app-page tree-page">
+    <div className="app-page tree-page" ref={pageRef}>
       <PageHeader
         eyebrow="FAMILY TREE"
         title="族谱树"
@@ -163,6 +220,31 @@ export default function TreePage() {
                 定位到我
               </Button>
             ) : null}
+            <Button
+              theme="borderless"
+              icon={isFullscreen ? <IconClose /> : <IconExpand />}
+              onClick={toggleFullscreen}
+            >
+              {isFullscreen ? '退出全屏' : '全屏'}
+            </Button>
+            <Button
+              theme="borderless"
+              icon={<IconDownload />}
+              loading={exporting === 'png'}
+              disabled={Boolean(exporting)}
+              onClick={() => exportTree('png')}
+            >
+              PNG
+            </Button>
+            <Button
+              theme="borderless"
+              icon={<IconPrint />}
+              loading={exporting === 'pdf'}
+              disabled={Boolean(exporting)}
+              onClick={() => exportTree('pdf')}
+            >
+              PDF
+            </Button>
             <Button theme="light" icon={<IconRefresh spin={query.refreshing} />} onClick={query.refresh}>
               刷新
             </Button>
@@ -285,6 +367,11 @@ export default function TreePage() {
                 setGeneration('all');
                 setBranchId('');
               }}
+              isFullscreen={isFullscreen}
+              exporting={exporting}
+              onToggleFullscreen={toggleFullscreen}
+              onExportPng={() => exportTree('png')}
+              onExportPdf={() => exportTree('pdf')}
             />
             {selectedPerson ? (
               <PersonPeek
@@ -327,6 +414,15 @@ export default function TreePage() {
       <p className="tree-footnote">
         <IconBranch size="small" /> 族谱树按父母子女关系自动布局；夫妻并排显示，多配偶会共同置于同一家庭单元。
       </p>
+      {layout ? (
+        <div className="tree-print-host" aria-hidden>
+          <TreeExportView
+            ref={printRef}
+            layout={layout}
+            familyName={auth.family?.name ?? '家族'}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -343,6 +439,11 @@ function TreeCanvas({
   onSelectPerson,
   onClearSelection,
   onFitAll,
+  isFullscreen,
+  exporting,
+  onToggleFullscreen,
+  onExportPng,
+  onExportPdf,
 }: {
   layout: TreeLayoutResult;
   connections: FamilyConnection[];
@@ -355,6 +456,11 @@ function TreeCanvas({
   onSelectPerson: (person: PersonSummary) => void;
   onClearSelection: () => void;
   onFitAll: () => void;
+  isFullscreen: boolean;
+  exporting: 'png' | 'pdf' | null;
+  onToggleFullscreen: () => void;
+  onExportPng: () => void;
+  onExportPdf: () => void;
 }) {
   const { fitView, setCenter } = useReactFlow();
   const isMobile = useMediaQuery('(max-width: 760px)');
@@ -491,6 +597,14 @@ function TreeCanvas({
   }, [currentPersonId, fitView, isMobile, layout, setCenter, unitNodes]);
 
   useEffect(() => {
+    if (!isFullscreen) return;
+    const timer = window.setTimeout(() => {
+      fitView({ padding: 0.12, duration: 420, maxZoom: 0.95 });
+    }, 180);
+    return () => window.clearTimeout(timer);
+  }, [fitView, isFullscreen]);
+
+  useEffect(() => {
     if (generation === 'all') return;
     const targets = unitNodes.filter((node) => node.data.unit.generation === generation);
     if (!targets.length) return;
@@ -553,6 +667,16 @@ function TreeCanvas({
           </span>
           <button type="button" onClick={handleFitAll}>
             查看全谱
+          </button>
+          <i className="tree-canvas__panel-divider" aria-hidden />
+          <button type="button" onClick={onExportPng} disabled={Boolean(exporting)}>
+            {exporting === 'png' ? '导出中…' : 'PNG'}
+          </button>
+          <button type="button" onClick={onExportPdf} disabled={Boolean(exporting)}>
+            {exporting === 'pdf' ? '生成中…' : 'PDF'}
+          </button>
+          <button type="button" onClick={onToggleFullscreen}>
+            {isFullscreen ? '退出全屏' : '全屏'}
           </button>
         </Panel>
       </ReactFlow>

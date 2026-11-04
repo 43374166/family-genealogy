@@ -24,6 +24,7 @@ const MessagesPage = lazy(() => import('@/pages/messages/MessagesPage'));
 const RequestsPage = lazy(() => import('@/pages/requests/RequestsPage'));
 const ProfilePage = lazy(() => import('@/pages/profile/ProfilePage'));
 const FamilyPage = lazy(() => import('@/pages/family/FamilyPage'));
+const BooksPage = lazy(() => import('@/pages/books/BooksPage'));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'));
 
 function ThemeSync() {
@@ -122,6 +123,7 @@ export default function App() {
             <Route path="gallery" element={<GalleryPage />} />
             <Route path="stories" element={<StoriesPage />} />
             <Route path="stories/:storyId" element={<StoryDetailPage />} />
+            <Route path="books" element={<BooksPage />} />
             <Route path="messages" element={<MessagesPage />} />
             <Route path="requests" element={<RequestsPage />} />
             <Route path="profile" element={<ProfilePage />} />

@@ -1,4 +1,5 @@
 import {
+  IconBook,
   IconBranch,
   IconEdit,
   IconGallery,
@@ -35,6 +36,7 @@ export const primaryNav: NavItem[] = [
 ];
 
 export const collaborationNav: NavItem[] = [
+  { key: 'books', label: '谱书工作区', path: '/books', icon: IconBook },
   { key: 'messages', label: '消息', path: '/messages', icon: IconMail },
   { key: 'requests', label: '审核中心', path: '/requests', icon: IconEdit, reviewerOnly: true },
   { key: 'requests', label: '我的申请', path: '/requests', icon: IconEdit, memberOnly: true },
@@ -67,6 +69,7 @@ export function pageTitleForPath(pathname: string): string {
   if (pathname.startsWith('/gallery')) return '家族相册';
   if (pathname.startsWith('/stories/')) return '故事详情';
   if (pathname.startsWith('/stories')) return '家族故事';
+  if (pathname.startsWith('/books')) return '谱书工作区';
   if (pathname.startsWith('/messages')) return '消息';
   if (pathname.startsWith('/requests')) return '审核中心';
   if (pathname.startsWith('/family')) return '家族管理';

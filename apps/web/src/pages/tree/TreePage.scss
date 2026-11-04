@@ -300,6 +300,122 @@ body[theme-mode='dark'] .tree-canvas::after {
   background: rgba(180, 66, 61, 0.25);
 }
 
+/* Offscreen print canvas captured by html-to-image. */
+.tree-print-host {
+  position: fixed;
+  top: 0;
+  left: -200000px;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.tree-print {
+  position: relative;
+  overflow: hidden;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 18% 22%, rgba(255, 255, 255, 0.8), transparent 32%),
+    linear-gradient(135deg, #f8f6ef 0%, #f2efe4 100%);
+  font-family: var(--serif);
+}
+
+.tree-print::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(110, 95, 70, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(110, 95, 70, 0.025) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.tree-print__title {
+  position: absolute;
+  top: 16px;
+  left: 28px;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  color: #7a342f;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.tree-print__title small {
+  color: #8b7d68;
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+}
+
+.tree-print__edges {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: visible;
+}
+
+.tree-print__generation {
+  position: absolute;
+  left: 24px;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  color: #8c7c65;
+  font-family: var(--sans);
+}
+
+.tree-print__generation strong {
+  font-family: var(--serif);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.tree-print__generation span {
+  font-size: 8px;
+}
+
+.tree-print__unit {
+  position: absolute;
+  z-index: 2;
+}
+
+.tree-print__card {
+  position: absolute;
+}
+
+.tree-print .tree-person {
+  box-shadow: 0 4px 14px rgba(34, 64, 74, 0.08), 0 1px 2px rgba(34, 64, 74, 0.04);
+}
+
+.tree-print__mark {
+  position: absolute;
+  right: 24px;
+  bottom: 14px;
+  color: rgba(120, 102, 76, 0.45);
+  font-family: var(--sans);
+  font-size: 9px;
+  letter-spacing: 0.22em;
+}
+
+.tree-print__edges .family-edge-path {
+  stroke: rgba(84, 100, 109, 0.34);
+  stroke-width: 1.15;
+  stroke-linecap: round;
+}
+
+.tree-print__edges .family-edge-path.is-male {
+  stroke: rgba(74, 119, 164, 0.44);
+}
+
+.tree-print__edges .family-edge-path.is-female {
+  stroke: rgba(184, 102, 112, 0.4);
+}
+
 .tree-unit__bond i {
   width: 5px;
   height: 5px;
@@ -489,20 +605,20 @@ body[theme-mode='dark'] .tree-person__gender.is-female {
 
 .tree-person__calendar-row {
   display: flex;
-  gap: 4px;
+  gap: 2px;
   width: 100%;
   min-width: 0;
   text-align: left;
 }
 
 .tree-person__calendar-row > em {
-  width: 9px;
+  width: 7px;
   flex: none;
   color: var(--cinnabar);
-  font-size: 7.5px;
+  font-size: 7px;
   font-style: normal;
   font-weight: 600;
-  line-height: 1.35;
+  line-height: 1.3;
 }
 
 .tree-person__calendar-row > span {
@@ -522,13 +638,13 @@ body[theme-mode='dark'] .tree-person__gender.is-female {
 
 .tree-person__calendar-row strong {
   color: var(--ink-soft);
-  font-size: 8px;
+  font-size: 7.5px;
   font-weight: 500;
 }
 
 .tree-person__calendar-row small {
   color: var(--ink-muted);
-  font-size: 7.5px;
+  font-size: 6.6px;
 }
 
 .tree-handle {
@@ -650,6 +766,36 @@ body[theme-mode='dark'] .tree-canvas__panel {
   background: transparent;
   font-size: 9.5px;
   cursor: pointer;
+}
+
+.tree-canvas__panel button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.tree-canvas__panel-divider {
+  width: 1px;
+  height: 13px;
+  background: var(--line);
+}
+
+.tree-page:fullscreen {
+  height: 100vh;
+  min-height: 0;
+  padding: 0;
+  background: var(--paper);
+}
+
+.tree-page:fullscreen .page-heading,
+.tree-page:fullscreen .tree-toolbar,
+.tree-page:fullscreen .tree-footnote {
+  display: none;
+}
+
+.tree-page:fullscreen .tree-canvas {
+  height: 100vh;
+  border: 0;
+  border-radius: 0;
 }
 
 .tree-canvas .react-flow__controls {
