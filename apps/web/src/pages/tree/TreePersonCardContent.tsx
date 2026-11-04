@@ -27,7 +27,7 @@ export function TreePersonCardContent({
   const death = dualCalendarDate(member.death);
   return (
     <>
-      <PersonAvatar person={member} size={38} ring={selected} />
+      <PersonAvatar person={member} size={38} ring={selected} eager />
       <span className="tree-person__body">
         <span className="tree-person__name-row">
           <strong>{member.fullName}</strong>

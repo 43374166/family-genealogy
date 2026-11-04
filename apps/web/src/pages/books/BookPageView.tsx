@@ -28,7 +28,7 @@ function PersonEntry({
   const death = dualCalendarDate(person.death);
   return (
     <div className="book-person">
-      <PersonAvatar person={person} size={50} />
+      <PersonAvatar person={person} size={50} eager />
       <div className="book-person__text">
         <div className="book-person__name">
           <strong>{person.fullName}</strong>

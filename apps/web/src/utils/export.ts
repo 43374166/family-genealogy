@@ -29,7 +29,8 @@ export async function captureNodePng(
   return toPng(node, {
     pixelRatio: options.pixelRatio ?? 4,
     backgroundColor: options.backgroundColor ?? '#f6f5ef',
-    cacheBust: true,
+    // Do not enable cacheBust here: it appends ?timestamp to blob: URLs and
+    // makes authenticated avatars fail as ERR_FILE_NOT_FOUND during export.
     skipAutoScale: true,
     style: {
       transform: 'none',
