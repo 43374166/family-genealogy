@@ -73,7 +73,7 @@ export function BookPageView({
   if (page.kind === 'cover') {
     return (
       <div
-        className={`${pageClass} book-cover`}
+        className={`${pageClass} book-cover book-cover--${cover.id}`}
         style={
           {
             '--cover-bg': cover.background,
@@ -86,6 +86,9 @@ export function BookPageView({
         <div className="book-cover__grain" />
         <div className="book-cover__frame">
           <span className="book-cover__family">{familyName}</span>
+          {project.hallName ? (
+            <span className="book-cover__hall">{project.hallName}</span>
+          ) : null}
           <div className="book-cover__rule" />
           <h1>{project.title}</h1>
           <p>{project.subtitle}</p>
@@ -140,6 +143,35 @@ export function BookPageView({
           </div>
         ) : null}
 
+        {page.kind === 'lineage' ? (
+          <div className="book-lineage">
+            <div className="book-people__heading">
+              <span>世系总图</span>
+              <small>{page.persons?.length ?? 0} 人 · 按世代排列</small>
+            </div>
+            <div className="book-lineage__body">
+              {Array.from(new Set((page.persons ?? []).map((person) => person.generationNo)))
+                .sort((a, b) => a - b)
+                .map((generation) => {
+                  const list = (page.persons ?? []).filter(
+                    (person) => person.generationNo === generation,
+                  );
+                  return (
+                    <div className="book-lineage__row" key={generation}>
+                      <strong>第{generationText(generation)}世</strong>
+                      <div>
+                        {list.map((person) => (
+                          <span key={person.id}>{person.fullName}</span>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+            <p className="book-lineage__hint">世次自上而下，同世按排行从左至右。</p>
+          </div>
+        ) : null}
+
         {page.kind === 'chapter' ? (
           <div className="book-chapter">
             <span className="book-chapter__index">
@@ -167,7 +199,9 @@ export function BookPageView({
                 {page.persons?.length ?? 0} 人
               </small>
             </div>
-            <div className="book-people__grid">
+            <div
+              className={`book-people__grid book-people__grid--${project.layoutId} book-people__grid--count-${page.persons?.length ?? 0}`}
+            >
               {(page.persons ?? []).map((person) => (
                 <PersonEntry
                   key={person.id}

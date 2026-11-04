@@ -417,6 +417,14 @@ function BookEditor({
                 />
               </label>
               <label>
+                <span>堂号 / 宗祠</span>
+                <Input
+                  value={book.hallName}
+                  onChange={(value) => onChange({ hallName: value })}
+                  placeholder="例如：四知堂"
+                />
+              </label>
+              <label>
                 <span>纂修署名</span>
                 <Input
                   value={book.compiler}
@@ -479,6 +487,7 @@ function BookEditor({
                 }
               >
                 <span>{familyName}</span>
+                {book.hallName ? <em>{book.hallName}</em> : null}
                 <strong>{book.title || '家族谱书'}</strong>
                 <small>{book.subtitle}</small>
                 <i>{surname || '家'}氏</i>
@@ -487,6 +496,10 @@ function BookEditor({
                 <div>
                   <span>封面</span>
                   <strong>{cover.name}</strong>
+                </div>
+                <div>
+                  <span>堂号</span>
+                  <strong>{book.hallName || '未填写'}</strong>
                 </div>
                 <div>
                   <span>版式</span>

@@ -8,11 +8,13 @@ import {
   dataUrlToUint8,
   downloadBlob,
   downloadDataUrl,
+  imageAsPdf,
   imagesAsPdf,
   safeFilename,
 } from '@/utils/export';
 import { formBookPages, type BookPage, type BookProject } from './bookModel';
 import { BookPageView } from './BookPageView';
+import { BookCoverSpread } from './BookCoverSpread';
 import './BooksPage.scss';
 
 const PAGE_WIDTH = 430;
@@ -50,8 +52,10 @@ export function BookPreview({
   const [tube, setTube] = useState(false);
   const [flipping, setFlipping] = useState<'next' | 'prev' | null>(null);
   const [scale, setScale] = useState(0.86);
-  const [exporting, setExporting] = useState<'spread' | 'png' | 'pdf' | null>(null);
+  const [exporting, setExporting] = useState<'spread' | 'png' | 'pdf' | 'cover' | null>(null);
+  const [coverOpen, setCoverOpen] = useState(false);
   const spreadRef = useRef<HTMLDivElement>(null);
+  const coverRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<Array<HTMLDivElement | null>>([]);
   const timerRef = useRef<number | null>(null);
 
@@ -139,6 +143,71 @@ export function BookPreview({
     }
   };
 
+  const exportCover = async (format: 'png' | 'pdf') => {
+    if (!coverRef.current) return;
+    setExporting('cover');
+    try {
+      const dataUrl = await captureNodePng(coverRef.current, {
+        pixelRatio: 5,
+        backgroundColor: '#f6f2e8',
+      });
+      if (format === 'png') {
+        downloadDataUrl(dataUrl, `${baseName}-封面展开.png`);
+        Toast.success('已导出 5x 封面展开图');
+      } else {
+        await imageAsPdf(dataUrl, `${baseName}-封面.pdf`, {
+          format: 'a3',
+          orientation: 'landscape',
+          marginMm: 0,
+        });
+        Toast.success('已导出封面 A3 PDF');
+      }
+    } catch (error) {
+      console.error(error);
+      Toast.error('封面导出失败，请稍后重试');
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const printVector = async () => {
+    const source = document.querySelector('.book-print-host');
+    if (!source) return;
+    // Clone the pages into a top-level print root so the fixed viewer and the
+    // rest of the app shell cannot offset or clip the first printed page.
+    const root = document.createElement('div');
+    root.className = 'book-print-root';
+    const clone = source.cloneNode(true) as HTMLElement;
+    root.appendChild(clone);
+    document.body.appendChild(root);
+    root.querySelectorAll('img').forEach((image) => {
+      image.loading = 'eager';
+    });
+    await Promise.all(
+      [...root.querySelectorAll('img')].map((image) =>
+        image.complete
+          ? Promise.resolve()
+          : new Promise<void>((resolve) => {
+              image.onload = () => resolve();
+              image.onerror = () => resolve();
+              window.setTimeout(resolve, 3000);
+            }),
+      ),
+    );
+    if (document.fonts?.ready) await document.fonts.ready;
+    document.body.classList.add('printing-book');
+    const cleanup = () => {
+      root.remove();
+      document.body.classList.remove('printing-book');
+      window.removeEventListener('afterprint', cleanup);
+    };
+    window.addEventListener('afterprint', cleanup);
+    window.setTimeout(() => {
+      window.print();
+      window.setTimeout(cleanup, 1000);
+    }, 80);
+  };
+
   const exportAllPdf = async () => {
     setExporting('pdf');
     try {
@@ -174,6 +243,9 @@ export function BookPreview({
           <h2>{project.title}</h2>
         </div>
         <div className="book-viewer__actions">
+          <button type="button" onClick={() => setCoverOpen(true)}>
+            封面展开
+          </button>
           <button
             type="button"
             className={tube ? 'is-active' : ''}
@@ -208,11 +280,23 @@ export function BookPreview({
           >
             全本 PDF
           </Button>
+          <Button
+            theme="borderless"
+            icon={<IconPrint />}
+            onClick={() => printVector()}
+          >
+            印刷 PDF
+          </Button>
           <button type="button" className="book-viewer__close" onClick={onClose} aria-label="关闭预览">
             <IconClose />
           </button>
         </div>
       </header>
+
+      <p className="book-viewer__print-hint">
+        印刷 PDF：点“印刷 PDF”后在打印对话框选择“另存为 PDF”，A5 页面、文字保留为矢量；
+        快速 PDF 为 A4 高分辨率图片版。
+      </p>
 
       <div className="book-viewer__stage">
         <div
@@ -273,6 +357,50 @@ export function BookPreview({
           </div>
         </div>
       </div>
+
+      {coverOpen ? (
+        <div className="book-cover-preview" role="dialog" aria-modal="true" aria-label="封面展开图">
+          <header>
+            <div>
+              <span>COVER SPREAD</span>
+              <h3>封面展开 · 封底 / 书脊 / 封面</h3>
+            </div>
+            <div>
+              <Button
+                theme="borderless"
+                icon={<IconDownload />}
+                loading={exporting === 'cover'}
+                disabled={Boolean(exporting)}
+                onClick={() => exportCover('png')}
+              >
+                封面 PNG
+              </Button>
+              <Button
+                theme="borderless"
+                icon={<IconPrint />}
+                disabled={Boolean(exporting)}
+                onClick={() => exportCover('pdf')}
+              >
+                封面 PDF
+              </Button>
+
+              <button type="button" className="book-viewer__close" onClick={() => setCoverOpen(false)}>
+                <IconClose />
+              </button>
+            </div>
+          </header>
+          <div className="book-cover-preview__stage">
+            <BookCoverSpread
+              ref={coverRef}
+              project={project}
+              pageCount={pages.length}
+              familyName={familyName}
+              surname={surname}
+              branchName={branchName}
+            />
+          </div>
+        </div>
+      ) : null}
 
       {opened ? (
         <footer className="book-viewer__footer">

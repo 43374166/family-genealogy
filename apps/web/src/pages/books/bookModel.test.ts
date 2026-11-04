@@ -4,6 +4,8 @@ import {
   COVER_OPTIONS,
   LAYOUT_OPTIONS,
   bookGenerations,
+  bookPeoplePerPage,
+  bookSpineMm,
   formBookPages,
   newBook,
 } from './bookModel';
@@ -43,9 +45,13 @@ const tree: FamilyTree = {
 };
 
 describe('book model', () => {
-  it('ships multiple cover and layout presets', () => {
-    expect(COVER_OPTIONS.length).toBeGreaterThanOrEqual(3);
-    expect(LAYOUT_OPTIONS.map((item) => item.id)).toContain('classic');
+  it('ships six covers, three layouts and density rules', () => {
+    expect(COVER_OPTIONS).toHaveLength(6);
+    expect(LAYOUT_OPTIONS).toHaveLength(3);
+    expect(bookPeoplePerPage('classic')).toBe(4);
+    expect(bookPeoplePerPage('modern')).toBe(6);
+    expect(bookPeoplePerPage('lineage')).toBe(8);
+    expect(bookSpineMm(16)).toBeGreaterThanOrEqual(3);
   });
 
   it('builds a complete book from cover through colophon', () => {
@@ -55,6 +61,7 @@ describe('book model', () => {
     const pages = formBookPages(book, tree);
     expect(pages[0].kind).toBe('cover');
     expect(pages.some((page) => page.kind === 'preface')).toBe(true);
+    expect(pages.some((page) => page.kind === 'lineage')).toBe(true);
     expect(pages.filter((page) => page.kind === 'chapter')).toHaveLength(3);
     expect(pages.filter((page) => page.kind === 'people')).toHaveLength(3);
     expect(pages[pages.length - 1].kind).toBe('colophon');
@@ -73,5 +80,17 @@ describe('book model', () => {
     expect(bookGenerations(tree)).toEqual([1, 2, 3]);
     expect(pages.filter((page) => page.kind === 'chapter')).toHaveLength(1);
     expect(pages.some((page) => page.persons?.some((item) => item.id === 'a'))).toBe(false);
+  });
+
+  it('paginates by the selected interior layout', () => {
+    const book = newBook('family-1', '凌氏家族', '凌');
+    book.fromGeneration = 2;
+    book.toGeneration = 2;
+    book.layoutId = 'modern';
+    const modern = formBookPages(book, tree).filter((page) => page.kind === 'people');
+    book.layoutId = 'lineage';
+    const lineage = formBookPages(book, tree).filter((page) => page.kind === 'people');
+    expect(modern.every((page) => (page.persons?.length ?? 0) <= 6)).toBe(true);
+    expect(lineage.every((page) => (page.persons?.length ?? 0) <= 8)).toBe(true);
   });
 });

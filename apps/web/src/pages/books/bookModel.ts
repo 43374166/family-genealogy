@@ -1,6 +1,12 @@
 import type { FamilyTree, PersonSummary } from '@/types/api';
 
-export type CoverId = 'ivory' | 'indigo' | 'jade' | 'cinnabar';
+export type CoverId =
+  | 'ivory'
+  | 'indigo'
+  | 'jade'
+  | 'cinnabar'
+  | 'minimal'
+  | 'thread';
 export type BookLayoutId = 'classic' | 'modern' | 'lineage';
 
 export interface CoverOption {
@@ -50,6 +56,24 @@ export const COVER_OPTIONS: CoverOption[] = [
     accent: '#e7ca91',
     ink: '#f8edda',
   },
+  {
+    id: 'minimal',
+    name: '素白极简',
+    description: '米白纸面、细黑线，现代排版与摄影都适合',
+    background: '#f6f3ea',
+    backgroundDark: '#e9e3d4',
+    accent: '#3c423e',
+    ink: '#2d332f',
+  },
+  {
+    id: 'thread',
+    name: '青布线装',
+    description: '青灰布面、米色书签，传统线装书的安静气质',
+    background: '#394b4c',
+    backgroundDark: '#293a3b',
+    accent: '#d7c59c',
+    ink: '#f3ead7',
+  },
 ];
 
 export interface BookLayoutOption {
@@ -81,6 +105,7 @@ export interface BookProject {
   familyId: string;
   title: string;
   subtitle: string;
+  hallName: string;
   compiler: string;
   preface: string;
   coverId: CoverId;
@@ -92,7 +117,15 @@ export interface BookProject {
   builtAt?: string;
 }
 
-export type BookPageKind = 'cover' | 'blank' | 'title' | 'preface' | 'chapter' | 'people' | 'colophon';
+export type BookPageKind =
+  | 'cover'
+  | 'blank'
+  | 'title'
+  | 'preface'
+  | 'lineage'
+  | 'chapter'
+  | 'people'
+  | 'colophon';
 
 export interface BookPage {
   id: string;
@@ -120,7 +153,19 @@ export function loadBooks(familyId: string): BookProject[] {
     const raw = window.localStorage.getItem(storageKey(familyId));
     if (!raw) return [];
     const parsed = JSON.parse(raw) as BookProject[];
-    return Array.isArray(parsed) ? parsed.filter((book) => book && book.id) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((book) => book && book.id)
+      .map((book) => ({
+        ...book,
+        hallName: book.hallName ?? '',
+        coverId: COVER_OPTIONS.some((option) => option.id === book.coverId)
+          ? book.coverId
+          : 'ivory',
+        layoutId: LAYOUT_OPTIONS.some((option) => option.id === book.layoutId)
+          ? book.layoutId
+          : 'classic',
+      }));
   } catch {
     return [];
   }
@@ -144,6 +189,7 @@ export function newBook(familyId: string, familyName: string, surname: string): 
     familyId,
     title: `${familyName || '家族'}谱书`,
     subtitle: '世系、人物与家风',
+    hallName: surname ? `${surname}氏宗祠` : '',
     compiler: `${surname || ''}氏修谱`,
     preface:
       '谱者，家之史也。记录世系，也记录一个家族如何在时间里相互扶持、绵延生长。愿后来者翻开此册，知道自己的来处，也看见前人的温度。',
@@ -154,6 +200,17 @@ export function newBook(familyId: string, familyName: string, surname: string): 
     createdAt: now,
     updatedAt: now,
   };
+}
+
+export function bookPeoplePerPage(layoutId: BookLayoutId): number {
+  if (layoutId === 'modern') return 6;
+  if (layoutId === 'lineage') return 8;
+  return 4;
+}
+
+/** Approximate spine width in mm for a 100g/m² paper block. */
+export function bookSpineMm(pageCount: number): number {
+  return Math.max(3, Math.ceil((pageCount / 2) * 0.12));
 }
 
 export function bookGenerations(tree: FamilyTree | null): number[] {
@@ -181,6 +238,10 @@ export function formBookPages(project: BookProject, tree: FamilyTree | null): Bo
     { id: 'preface', kind: 'preface' },
   ];
   let pageNo = 1;
+  if (persons.length) {
+    pages.push({ id: 'lineage', kind: 'lineage', pageNo: pageNo++, persons });
+  }
+  const perPage = bookPeoplePerPage(project.layoutId);
   for (const generation of generations.filter((item) => item >= from && item <= to)) {
     const list = persons
       .filter((person) => person.generationNo === generation)
@@ -198,14 +259,14 @@ export function formBookPages(project: BookProject, tree: FamilyTree | null): Bo
       generationName,
       persons: list,
     });
-    for (let index = 0; index < list.length; index += 4) {
+    for (let index = 0; index < list.length; index += perPage) {
       pages.push({
-        id: `people-${generation}-${index / 4}`,
+        id: `people-${generation}-${index / perPage}`,
         kind: 'people',
         pageNo: pageNo++,
         generation,
         generationName,
-        persons: list.slice(index, index + 4),
+        persons: list.slice(index, index + perPage),
       });
     }
   }
