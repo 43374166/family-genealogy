@@ -1,4 +1,4 @@
-import type { FamilyTree, PersonSummary } from '@/types/api';
+import type { FamilyTree, ParentChildEdge, PersonSummary } from '@/types/api';
 
 export type CoverId =
   | 'ivory'
@@ -134,6 +134,7 @@ export interface BookPage {
   generation?: number;
   generationName?: string;
   persons?: PersonSummary[];
+  parentChild?: ParentChildEdge[];
 }
 
 export function coverOption(id: CoverId): CoverOption {
@@ -239,7 +240,13 @@ export function formBookPages(project: BookProject, tree: FamilyTree | null): Bo
   ];
   let pageNo = 1;
   if (persons.length) {
-    pages.push({ id: 'lineage', kind: 'lineage', pageNo: pageNo++, persons });
+    pages.push({
+      id: 'lineage',
+      kind: 'lineage',
+      pageNo: pageNo++,
+      persons,
+      parentChild: tree.parentChild,
+    });
   }
   const perPage = bookPeoplePerPage(project.layoutId);
   for (const generation of generations.filter((item) => item >= from && item <= to)) {

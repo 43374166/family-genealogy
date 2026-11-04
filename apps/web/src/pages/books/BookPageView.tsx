@@ -3,6 +3,7 @@ import type { PersonSummary } from '@/types/api';
 import { dualCalendarDate } from '@/utils/calendar';
 import { generationShort, lifeYears } from '@/utils/format';
 import { coverOption, type BookPage, type BookProject } from './bookModel';
+import { BookLineageDiagram } from './BookLineageDiagram';
 
 function generationText(value?: number): string {
   if (!value) return '';
@@ -146,29 +147,13 @@ export function BookPageView({
         {page.kind === 'lineage' ? (
           <div className="book-lineage">
             <div className="book-people__heading">
-              <span>世系总图</span>
+              <span>世系图</span>
               <small>{page.persons?.length ?? 0} 人 · 按世代排列</small>
             </div>
-            <div className="book-lineage__body">
-              {Array.from(new Set((page.persons ?? []).map((person) => person.generationNo)))
-                .sort((a, b) => a - b)
-                .map((generation) => {
-                  const list = (page.persons ?? []).filter(
-                    (person) => person.generationNo === generation,
-                  );
-                  return (
-                    <div className="book-lineage__row" key={generation}>
-                      <strong>第{generationText(generation)}世</strong>
-                      <div>
-                        {list.map((person) => (
-                          <span key={person.id}>{person.fullName}</span>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
-            <p className="book-lineage__hint">世次自上而下，同世按排行从左至右。</p>
+            <BookLineageDiagram
+              persons={page.persons ?? []}
+              edges={page.parentChild ?? []}
+            />
           </div>
         ) : null}
 
