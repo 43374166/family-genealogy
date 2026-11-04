@@ -468,6 +468,47 @@
   letter-spacing: 0.3em;
 }
 
+.book-cover--indigo .book-cover__grain {
+  opacity: 0.7;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.055) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.045) 0 1px, transparent 1px 4px);
+  background-size: auto;
+}
+
+.book-cover--jade .book-cover__grain {
+  opacity: 0.55;
+  background:
+    radial-gradient(ellipse at 24% 30%, rgba(222, 210, 178, 0.12), transparent 32%),
+    radial-gradient(ellipse at 76% 64%, rgba(0, 0, 0, 0.18), transparent 38%),
+    repeating-linear-gradient(112deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 6px);
+  mix-blend-mode: soft-light;
+}
+
+.book-cover--cinnabar .book-cover__grain {
+  opacity: 0.42;
+  background:
+    repeating-linear-gradient(42deg, rgba(255, 255, 255, 0.04) 0 1px, transparent 1px 5px),
+    radial-gradient(circle at 72% 22%, rgba(255, 230, 188, 0.08), transparent 42%);
+  mix-blend-mode: soft-light;
+}
+
+.book-cover--minimal .book-cover__grain {
+  opacity: 0.28;
+  background-image:
+    linear-gradient(rgba(55, 62, 56, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(55, 62, 56, 0.05) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mix-blend-mode: multiply;
+}
+
+.book-cover--thread .book-cover__grain {
+  opacity: 0.5;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.06) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.04) 0 1px, transparent 1px 7px);
+}
+
 .book-cover--minimal .book-cover__frame {
   border-width: 0.5px;
 }
