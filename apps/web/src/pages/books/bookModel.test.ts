@@ -93,4 +93,19 @@ describe('book model', () => {
     expect(modern.every((page) => (page.persons?.length ?? 0) <= 6)).toBe(true);
     expect(lineage.every((page) => (page.persons?.length ?? 0) <= 8)).toBe(true);
   });
+
+  it('turns self-written sections into vertical writing pages', () => {
+    const book = newBook('family-1', '凌氏家族', '凌');
+    book.writing[0].body = '甲'.repeat(500);
+    const pages = formBookPages(book, tree);
+    const writing = pages.filter((page) => page.kind === 'writing');
+    expect(writing.length).toBe(2);
+    expect(writing[0].pageNo).toBe(1);
+    expect(writing[1].sectionTitle).toContain('续');
+    book.includeLineage = false;
+    book.includeColophon = false;
+    const trimmed = formBookPages(book, tree);
+    expect(trimmed.some((page) => page.kind === 'lineage')).toBe(false);
+    expect(trimmed.some((page) => page.kind === 'colophon')).toBe(false);
+  });
 });

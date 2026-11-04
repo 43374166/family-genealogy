@@ -144,6 +144,16 @@ export function BookPageView({
           </div>
         ) : null}
 
+        {page.kind === 'writing' ? (
+          <div className="book-writing">
+            <div className="book-writing__heading">
+              <span>WRITING</span>
+              <h3>{page.sectionTitle || '谱书正文'}</h3>
+            </div>
+            <div className="book-writing__body">{page.body}</div>
+          </div>
+        ) : null}
+
         {page.kind === 'lineage' ? (
           <div className="book-lineage">
             <div className="book-people__heading">

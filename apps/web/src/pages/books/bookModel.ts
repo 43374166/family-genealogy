@@ -100,6 +100,12 @@ export const LAYOUT_OPTIONS: BookLayoutOption[] = [
   },
 ];
 
+export interface BookWritingSection {
+  id: string;
+  title: string;
+  body: string;
+}
+
 export interface BookProject {
   id: string;
   familyId: string;
@@ -112,6 +118,9 @@ export interface BookProject {
   layoutId: BookLayoutId;
   fromGeneration: number;
   toGeneration: number;
+  includeLineage: boolean;
+  includeColophon: boolean;
+  writing: BookWritingSection[];
   createdAt: string;
   updatedAt: string;
   builtAt?: string;
@@ -122,6 +131,7 @@ export type BookPageKind =
   | 'blank'
   | 'title'
   | 'preface'
+  | 'writing'
   | 'lineage'
   | 'chapter'
   | 'people'
@@ -135,6 +145,8 @@ export interface BookPage {
   generationName?: string;
   persons?: PersonSummary[];
   parentChild?: ParentChildEdge[];
+  sectionTitle?: string;
+  body?: string;
 }
 
 export function coverOption(id: CoverId): CoverOption {
@@ -166,6 +178,11 @@ export function loadBooks(familyId: string): BookProject[] {
         layoutId: LAYOUT_OPTIONS.some((option) => option.id === book.layoutId)
           ? book.layoutId
           : 'classic',
+        includeLineage: book.includeLineage ?? true,
+        includeColophon: book.includeColophon ?? true,
+        writing: Array.isArray(book.writing)
+          ? book.writing.filter((section) => section && section.id)
+          : [],
       }));
   } catch {
     return [];
@@ -198,6 +215,25 @@ export function newBook(familyId: string, familyName: string, surname: string): 
     layoutId: 'classic',
     fromGeneration: 0,
     toGeneration: 0,
+    includeLineage: true,
+    includeColophon: true,
+    writing: [
+      {
+        id: 'origin',
+        title: '世系源流',
+        body: '',
+      },
+      {
+        id: 'family-precepts',
+        title: '家训',
+        body: '',
+      },
+      {
+        id: 'postscript',
+        title: '后记',
+        body: '',
+      },
+    ],
     createdAt: now,
     updatedAt: now,
   };
@@ -239,7 +275,22 @@ export function formBookPages(project: BookProject, tree: FamilyTree | null): Bo
     { id: 'preface', kind: 'preface' },
   ];
   let pageNo = 1;
-  if (persons.length) {
+  for (const section of project.writing ?? []) {
+    const body = section.body.trim();
+    if (!body) continue;
+    const chunks = splitWriting(body);
+    chunks.forEach((chunk, index) => {
+      pages.push({
+        id: `writing-${section.id}-${index}`,
+        kind: 'writing',
+        pageNo: pageNo++,
+        sectionTitle:
+          index === 0 ? section.title || '谱书正文' : `${section.title || '谱书正文'}（续）`,
+        body: chunk,
+      });
+    });
+  }
+  if (project.includeLineage !== false && persons.length) {
     pages.push({
       id: 'lineage',
       kind: 'lineage',
@@ -277,6 +328,25 @@ export function formBookPages(project: BookProject, tree: FamilyTree | null): Bo
       });
     }
   }
-  pages.push({ id: 'colophon', kind: 'colophon', pageNo: pageNo++ });
+  if (project.includeColophon !== false) {
+    pages.push({ id: 'colophon', kind: 'colophon', pageNo: pageNo++ });
+  }
   return pages;
+}
+
+function splitWriting(body: string): string[] {
+  const normalized = body.replace(/\r\n/g, '\n').trim();
+  if (!normalized) return [];
+  const MAX = 420;
+  const chunks: string[] = [];
+  let rest = normalized;
+  while (rest.length > MAX) {
+    let cut = MAX;
+    const paragraph = rest.lastIndexOf('\n', MAX);
+    if (paragraph > MAX * 0.55) cut = paragraph;
+    chunks.push(rest.slice(0, cut).trim());
+    rest = rest.slice(cut).trimStart();
+  }
+  if (rest) chunks.push(rest);
+  return chunks;
 }

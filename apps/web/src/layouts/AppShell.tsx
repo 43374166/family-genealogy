@@ -36,11 +36,13 @@ import { setMobileNavOpen, setThemeMode, toggleSidebar, type ThemeMode } from '@
 import { cn } from '@/utils/cn';
 import { roleLabel } from '@/utils/format';
 import {
+  bookNav,
   collaborationNav,
   isNavActive,
   mobileNav,
   pageTitleForPath,
   primaryNav,
+  writingNav,
   type NavItem,
 } from './navigation';
 import './AppShell.scss';
@@ -204,6 +206,28 @@ function Sidebar() {
           {primaryNav.map((item) => (
             <NavLinkItem
               key={item.key}
+              item={item}
+              collapsed={collapsed}
+              unreadCount={unreadCount}
+            />
+          ))}
+        </div>
+        <div className="shell-nav__group">
+          {!collapsed ? <p className="shell-nav__group-title">写作</p> : <span className="shell-nav__rule" />}
+          {writingNav.map((item) => (
+            <NavLinkItem
+              key={`${item.key}-${item.path}`}
+              item={item}
+              collapsed={collapsed}
+              unreadCount={unreadCount}
+            />
+          ))}
+        </div>
+        <div className="shell-nav__group">
+          {!collapsed ? <p className="shell-nav__group-title">谱书</p> : <span className="shell-nav__rule" />}
+          {bookNav.map((item) => (
+            <NavLinkItem
+              key={`${item.key}-${item.path}`}
               item={item}
               collapsed={collapsed}
               unreadCount={unreadCount}
@@ -400,6 +424,8 @@ function MobileDrawer() {
 
   const items = [
     ...primaryNav,
+    ...writingNav,
+    ...bookNav,
     ...collaborationNav.filter(
       (item) =>
         (!item.reviewerOnly || isReviewer) &&

@@ -1,14 +1,17 @@
 import {
   IconBook,
+  IconBookOpenStroked,
   IconBranch,
+  IconColumnsStroked,
   IconEdit,
+  IconEditStroked,
+  IconFile,
   IconGallery,
   IconHome,
   IconMail,
   IconSetting,
   IconUser,
   IconUserGroup,
-  IconBookOpenStroked,
 } from '@douyinfe/semi-icons';
 
 export interface NavItem {
@@ -32,11 +35,20 @@ export const primaryNav: NavItem[] = [
   { key: 'tree', label: '族谱树', path: '/tree', icon: IconBranch },
   { key: 'members', label: '成员查询', path: '/members', icon: IconUserGroup },
   { key: 'gallery', label: '家族相册', path: '/gallery', icon: IconGallery },
+];
+
+export const writingNav: NavItem[] = [
   { key: 'stories', label: '家族故事', path: '/stories', icon: IconBookOpenStroked },
 ];
 
+export const bookNav: NavItem[] = [
+  { key: 'book-cover', label: '封面设计', path: '/books/cover', icon: IconBook },
+  { key: 'book-layout', label: '排版设计', path: '/books/layout', icon: IconColumnsStroked },
+  { key: 'book-pages', label: '页内设计', path: '/books/pages', icon: IconFile },
+  { key: 'book-write', label: '谱书书写', path: '/books', icon: IconEditStroked, end: true },
+];
+
 export const collaborationNav: NavItem[] = [
-  { key: 'books', label: '谱书工作区', path: '/books', icon: IconBook },
   { key: 'messages', label: '消息', path: '/messages', icon: IconMail },
   { key: 'requests', label: '审核中心', path: '/requests', icon: IconEdit, reviewerOnly: true },
   { key: 'requests', label: '我的申请', path: '/requests', icon: IconEdit, memberOnly: true },
@@ -58,6 +70,8 @@ export function isNavActive(item: NavItem, pathname: string): boolean {
   if (pathname.startsWith(`${item.path}/`)) return true;
   if (item.key === 'members' && pathname.startsWith('/persons/')) return true;
   if (item.key === 'stories' && pathname.startsWith('/stories/')) return true;
+  if (item.key === 'book-write' && pathname === '/books') return true;
+  if (item.key === 'book-write' && pathname.startsWith('/books/write')) return true;
   return false;
 }
 
@@ -69,7 +83,10 @@ export function pageTitleForPath(pathname: string): string {
   if (pathname.startsWith('/gallery')) return '家族相册';
   if (pathname.startsWith('/stories/')) return '故事详情';
   if (pathname.startsWith('/stories')) return '家族故事';
-  if (pathname.startsWith('/books')) return '谱书工作区';
+  if (pathname.startsWith('/books/cover')) return '封面设计';
+  if (pathname.startsWith('/books/layout')) return '排版设计';
+  if (pathname.startsWith('/books/pages')) return '页内设计';
+  if (pathname.startsWith('/books')) return '谱书书写';
   if (pathname.startsWith('/messages')) return '消息';
   if (pathname.startsWith('/requests')) return '审核中心';
   if (pathname.startsWith('/family')) return '家族管理';

@@ -1,16 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Button, Input, TextArea, Toast } from '@douyinfe/semi-ui';
 import { SafeSelect as Select } from '@/components/SafeSelect';
 import {
   IconArrowLeft,
   IconArrowRight,
   IconBook,
-  IconCheckCircleStroked,
   IconClose,
   IconDelete,
   IconEdit,
   IconEyeOpened,
   IconPlus,
+  IconSave,
 } from '@douyinfe/semi-icons';
 import { PageHeader } from '@/components/PageHeader';
 import { useAsync } from '@/hooks/useAsync';
@@ -22,20 +23,59 @@ import {
   COVER_OPTIONS,
   LAYOUT_OPTIONS,
   bookGenerations,
+  bookPeoplePerPage,
   coverOption,
+  formBookPages,
   layoutOption,
   loadBooks,
   newBook,
   saveBooks,
   type BookProject,
+  type BookWritingSection,
 } from './bookModel';
 import { BookPreview } from './BookPreview';
+import { BookCoverSpread } from './BookCoverSpread';
+import { BookPageView } from './BookPageView';
 import './BooksPage.scss';
+
+type StudioSection = 'cover' | 'layout' | 'pages' | 'write';
+
+const SECTION_META: Record<StudioSection, { title: string; eyebrow: string; description: string }> = {
+  cover: {
+    title: '封面设计',
+    eyebrow: 'BOOK COVER',
+    description: '先确定封面气质、堂号与书名，再查看封底、书脊和封面展开图。',
+  },
+  layout: {
+    title: '排版设计',
+    eyebrow: 'BOOK LAYOUT',
+    description: '选择内页母版和字号密度，谱书会按版式自动分页。',
+  },
+  pages: {
+    title: '页内设计',
+    eyebrow: 'PAGE DESIGN',
+    description: '决定序、世系图、人物页和谱成页的取舍，并检查每一页的版面。',
+  },
+  write: {
+    title: '谱书书写',
+    eyebrow: 'BOOK WRITING',
+    description: '自己写谱序、世系源流、家训和后记，也可以插入现有家族内容。竖排时从左往右成列。',
+  },
+};
 
 const STEPS = ['封面选择', '版式设计', '编辑内容', '制作成谱书'];
 
 export default function BooksPage() {
-  useDocumentTitle('谱书工作区');
+  const { pathname } = useLocation();
+  const section: StudioSection = pathname.endsWith('/cover')
+    ? 'cover'
+    : pathname.endsWith('/layout')
+      ? 'layout'
+      : pathname.endsWith('/pages')
+        ? 'pages'
+        : 'write';
+  const meta = SECTION_META[section];
+  useDocumentTitle(meta.title);
   const auth = useAppSelector((state) => state.auth);
   const familyId = auth.family?.id ?? '';
   const familyName = auth.family?.name ?? '家族';
@@ -55,6 +95,8 @@ export default function BooksPage() {
   const [step, setStep] = useState(0);
   const [preview, setPreview] = useState<BookProject | null>(null);
   const [building, setBuilding] = useState(false);
+  const [selectedId, setSelectedId] = useState('');
+  const [activeSectionId, setActiveSectionId] = useState('');
 
   useEffect(() => {
     if (familyId) setBooks(loadBooks(familyId));
@@ -65,6 +107,41 @@ export default function BooksPage() {
   }, [books, familyId]);
 
   const generations = useMemo(() => bookGenerations(query.data?.tree ?? null), [query.data]);
+  const selected = useMemo(
+    () => books.find((book) => book.id === selectedId) ?? books[0] ?? null,
+    [books, selectedId],
+  );
+  const pages = useMemo(
+    () => (selected ? formBookPages(selected, query.data?.tree ?? null) : []),
+    [query.data?.tree, selected],
+  );
+  const activeSection = useMemo(
+    () =>
+      selected?.writing.find((item) => item.id === activeSectionId) ??
+      selected?.writing[0] ??
+      null,
+    [activeSectionId, selected],
+  );
+
+  useEffect(() => {
+    if (!books.length) {
+      setSelectedId('');
+      return;
+    }
+    if (!books.some((book) => book.id === selectedId)) {
+      setSelectedId(books[0].id);
+    }
+  }, [books, selectedId]);
+
+  useEffect(() => {
+    if (!selected?.writing.length) {
+      setActiveSectionId('');
+      return;
+    }
+    if (!selected.writing.some((item) => item.id === activeSectionId)) {
+      setActiveSectionId(selected.writing[0].id);
+    }
+  }, [activeSectionId, selected]);
 
   const startCreate = () => {
     const draft = newBook(familyId, familyName, surname);
@@ -106,6 +183,7 @@ export default function BooksPage() {
       const saved = persist({ ...editor, builtAt: new Date().toISOString() });
       setBuilding(false);
       setEditor(null);
+      setSelectedId(saved.id);
       setPreview(saved);
       Toast.success('谱书已制作完成');
     }, 700);
@@ -117,117 +195,444 @@ export default function BooksPage() {
     Toast.success('已删除谱书');
   };
 
+  const updateSelected = (patch: Partial<BookProject>) => {
+    if (!selected) return;
+    persist({ ...selected, ...patch });
+  };
+
+  const updateWriting = (next: BookWritingSection[]) => {
+    updateSelected({ writing: next });
+  };
+
+  const addWritingSection = () => {
+    if (!selected) return;
+    const section: BookWritingSection = {
+      id: `section-${Date.now()}`,
+      title: '新章节',
+      body: '',
+    };
+    updateWriting([...selected.writing, section]);
+    setActiveSectionId(section.id);
+  };
+
+  const removeWritingSection = (id: string) => {
+    if (!selected) return;
+    updateWriting(selected.writing.filter((item) => item.id !== id));
+  };
+
+  const patchWritingSection = (id: string, patch: Partial<BookWritingSection>) => {
+    if (!selected) return;
+    updateWriting(
+      selected.writing.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+    );
+  };
+
+  const insertExisting = (kind: 'family' | 'generations' | 'people') => {
+    if (!activeSection || !query.data?.tree) return;
+    const tree = query.data.tree;
+    let text = '';
+    if (kind === 'family') {
+      text = `${familyName}，${auth.family?.region || '世代聚居'}。${auth.family?.description || '家族世系绵延，家风相承。'}`;
+    } else if (kind === 'generations') {
+      text = generations
+        .map((generation) => {
+          const names = tree.persons
+            .filter((person) => person.generationNo === generation)
+            .map((person) => person.fullName);
+          return `第${generation}世：${names.join('、')}。`;
+        })
+        .join('\n');
+    } else {
+      text = tree.persons
+        .filter((person) => person.status !== 'merged')
+        .slice(0, 40)
+        .map((person) => {
+          const years = [
+            person.birth?.year ? `生${person.birth.year}` : '',
+            person.death?.year ? `卒${person.death.year}` : '',
+          ]
+            .filter(Boolean)
+            .join('，');
+          return `${person.fullName}，${person.generationLabel}${years ? `，${years}` : ''}。`;
+        })
+        .join('\n');
+    }
+    const current = activeSection.body;
+    patchWritingSection(activeSection.id, {
+      body: current ? `${current}\n${text}` : text,
+    });
+  };
+
+  const branchName = (id?: string) =>
+    (query.data?.branches ?? []).find((branch) => branch.id === id)?.name ?? '';
+
   return (
     <div className="app-page books-page">
       <PageHeader
-        eyebrow="FAMILY BOOKS"
-        title="谱书工作区"
-        description="把族谱整理成一本可以翻阅、可以印刷的家谱。封面、版式、内容与成书都在这里完成。"
+        eyebrow={meta.eyebrow}
+        title={meta.title}
+        description={meta.description}
         actions={
-          <Button theme="solid" type="primary" icon={<IconPlus />} onClick={startCreate}>
-            新建谱书
-          </Button>
+          <>
+            {selected && query.data?.tree ? (
+              <Button
+                theme="borderless"
+                icon={<IconEyeOpened />}
+                onClick={() => setPreview(selected)}
+              >
+                翻书预览
+              </Button>
+            ) : null}
+            <Button theme="solid" type="primary" icon={<IconPlus />} onClick={startCreate}>
+              新建谱书
+            </Button>
+          </>
         }
       />
 
-      <section className="books-hero">
-        <div className="books-hero__intro">
-          <span className="books-hero__seal">谱</span>
-          <div>
-            <h2>从一张族谱，到一部家谱</h2>
-            <p>
-              选择封面与版式，补上序言和世系内容，制作成可在浏览器中翻页的谱书。
-              所有页面都按印刷尺寸排版，可导出高分辨率 PNG 与 PDF。
-            </p>
-          </div>
-        </div>
-        <div className="books-flow">
-          {STEPS.map((label, index) => (
-            <div className="books-flow__step" key={label}>
-              <span>{String(index + 1).padStart(2, '0')}</span>
-              <strong>{label}</strong>
-              {index < STEPS.length - 1 ? <IconArrowRight /> : null}
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {books.length ? (
-        <section className="books-grid">
-          {books.map((book) => {
-            const cover = coverOption(book.coverId);
-            return (
-              <article className="book-card" key={book.id}>
-                <div
-                  className="book-mini-cover"
-                  style={
-                    {
-                      '--cover-bg': cover.background,
-                      '--cover-bg-dark': cover.backgroundDark,
-                      '--cover-accent': cover.accent,
-                      '--cover-ink': cover.ink,
-                    } as React.CSSProperties
-                  }
-                >
-                  <span className="book-mini-cover__family">{familyName}</span>
-                  <strong>{book.title}</strong>
-                  <small>{book.subtitle}</small>
-                  <i>{surname || '家'}氏</i>
-                  <span className="book-mini-cover__spine" />
-                </div>
-                <div className="book-card__body">
-                  <div className="book-card__head">
-                    <div>
-                      <h3>{book.title}</h3>
-                      <p>{layoutOption(book.layoutId).name} · {book.builtAt ? '已制作' : '草稿'}</p>
-                    </div>
-                    <span className="book-card__status">
-                      {book.builtAt ? <IconCheckCircleStroked /> : null}
-                      {book.builtAt ? '可预览' : '未完成'}
-                    </span>
-                  </div>
-                  <p className="book-card__meta">
-                    第{book.fromGeneration}—{book.toGeneration}世 · 更新于{' '}
-                    {new Date(book.updatedAt).toLocaleDateString('zh-CN')}
-                  </p>
-                  <div className="book-card__actions">
-                    <Button theme="borderless" icon={<IconEdit />} onClick={() => startEdit(book)}>
-                      继续编辑
-                    </Button>
-                    <Button
-                      theme="light"
-                      type="primary"
-                      icon={<IconEyeOpened />}
-                      disabled={!book.builtAt || !query.data?.tree}
-                      onClick={() => setPreview(book)}
-                    >
-                      预览谱书
-                    </Button>
-                    <button
-                      type="button"
-                      className="book-card__delete"
-                      onClick={() => removeBook(book)}
-                      aria-label={`删除${book.title}`}
-                    >
-                      <IconDelete />
-                    </button>
-                  </div>
-                </div>
-              </article>
-            );
-          })}
-        </section>
-      ) : (
+      {!books.length ? (
         <section className="books-empty surface-card">
           <div className="books-empty__icon">
             <IconBook />
           </div>
           <h2>还没有谱书</h2>
-          <p>从封面开始，制作第一部属于这个家族的谱书。</p>
+          <p>先创建一部谱书，再选择封面、版式并开始书写。</p>
           <Button theme="solid" type="primary" icon={<IconPlus />} onClick={startCreate}>
             新建第一部谱书
           </Button>
         </section>
+      ) : (
+        <>
+          <section className="studio-bookbar" aria-label="我的谱书">
+            <div className="studio-bookbar__list">
+              {books.map((book) => {
+                const cover = coverOption(book.coverId);
+                return (
+                  <button
+                    type="button"
+                    key={book.id}
+                    className={`studio-book ${selected?.id === book.id ? 'is-active' : ''}`}
+                    onClick={() => setSelectedId(book.id)}
+                    title={book.title}
+                  >
+                    <span
+                      className="studio-book__cover"
+                      style={
+                        {
+                          '--cover-bg': cover.background,
+                          '--cover-bg-dark': cover.backgroundDark,
+                          '--cover-accent': cover.accent,
+                          '--cover-ink': cover.ink,
+                        } as React.CSSProperties
+                      }
+                    >
+                      <i>{surname || '家'}氏</i>
+                      <strong>{book.title}</strong>
+                    </span>
+                    <span className="studio-book__title">{book.title}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <Button theme="light" icon={<IconPlus />} onClick={startCreate}>
+              新建
+            </Button>
+          </section>
+
+          {selected ? (
+            <div className="book-studio">
+              <div className="book-studio__heading">
+                <div>
+                  <span className="book-studio__kicker">{layoutOption(selected.layoutId).name}</span>
+                  <h2>{selected.title}</h2>
+                  <p>
+                    {selected.hallName || '未填写堂号'} · 第{selected.fromGeneration}—
+                    {selected.toGeneration}世 · {pages.length} 页 ·{' '}
+                    {selected.builtAt ? '已制作' : '草稿'}
+                  </p>
+                </div>
+                <div className="book-studio__heading-actions">
+                  <Button theme="borderless" icon={<IconEdit />} onClick={() => startEdit(selected)}>
+                    编辑信息
+                  </Button>
+                  <Button
+                    theme="borderless"
+                    icon={<IconDelete />}
+                    onClick={() => removeBook(selected)}
+                  >
+                    删除
+                  </Button>
+                </div>
+              </div>
+
+              {section === 'cover' ? (
+                <section className="studio-panel">
+                  <div className="studio-panel__head">
+                    <div>
+                      <span>STEP 01</span>
+                      <h3>封面模板</h3>
+                      <p>选择封面材质与颜色，堂号和书名会同步到封面展开图。</p>
+                    </div>
+                    <label className="studio-inline-field">
+                      <span>堂号 / 宗祠</span>
+                      <Input
+                        value={selected.hallName}
+                        onChange={(value) => updateSelected({ hallName: value })}
+                        placeholder="例如：四知堂"
+                      />
+                    </label>
+                  </div>
+                  <div className="book-cover-options">
+                    {COVER_OPTIONS.map((option) => (
+                      <button
+                        type="button"
+                        key={option.id}
+                        className={selected.coverId === option.id ? 'is-active' : ''}
+                        onClick={() => updateSelected({ coverId: option.id })}
+                      >
+                        <span
+                          className="book-cover-swatch"
+                          style={
+                            {
+                              '--cover-bg': option.background,
+                              '--cover-bg-dark': option.backgroundDark,
+                              '--cover-accent': option.accent,
+                              '--cover-ink': option.ink,
+                            } as React.CSSProperties
+                          }
+                        >
+                          <i>{surname || '家'}氏</i>
+                          <strong>{selected.title}</strong>
+                          <small>{selected.hallName || familyName}</small>
+                        </span>
+                        <b>{option.name}</b>
+                        <small>{option.description}</small>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="studio-cover-stage">
+                    <div className="studio-cover-stage__label">封面展开图 · 封底 / 书脊 / 封面</div>
+                    <BookCoverSpread
+                      project={selected}
+                      pageCount={pages.length}
+                      familyName={familyName}
+                      surname={surname}
+                      branchName={branchName}
+                    />
+                  </div>
+                </section>
+              ) : null}
+
+              {section === 'layout' ? (
+                <section className="studio-panel">
+                  <div className="studio-panel__head">
+                    <div>
+                      <span>STEP 02</span>
+                      <h3>内页母版</h3>
+                      <p>
+                        当前按每页 {bookPeoplePerPage(selected.layoutId)} 人自动分页；下例为实际内页预览。
+                      </p>
+                    </div>
+                  </div>
+                  <div className="book-layout-options">
+                    {LAYOUT_OPTIONS.map((option) => (
+                      <button
+                        type="button"
+                        key={option.id}
+                        className={selected.layoutId === option.id ? 'is-active' : ''}
+                        onClick={() => updateSelected({ layoutId: option.id })}
+                      >
+                        <span className={`book-layout-preview book-layout-preview--${option.id}`}>
+                          <i />
+                          <i />
+                          <i />
+                          <i />
+                        </span>
+                        <b>{option.name}</b>
+                        <small>{option.description}</small>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="studio-layout-samples">
+                    {pages
+                      .filter((page) => page.kind === 'chapter' || page.kind === 'people')
+                      .slice(0, 2)
+                      .map((page) => (
+                        <div className="studio-page-sample" key={page.id}>
+                          <BookPageView
+                            page={page}
+                            project={selected}
+                            familyName={familyName}
+                            surname={surname}
+                            branchName={branchName}
+                          />
+                        </div>
+                      ))}
+                  </div>
+                </section>
+              ) : null}
+
+              {section === 'pages' ? (
+                <section className="studio-panel">
+                  <div className="studio-panel__head">
+                    <div>
+                      <span>STEP 03</span>
+                      <h3>页内结构</h3>
+                      <p>选择是否加入世系图和谱成页；竖排文字页会按内容自动续页。</p>
+                    </div>
+                    <div className="studio-page-toggles">
+                      <button
+                        type="button"
+                        className={selected.includeLineage !== false ? 'is-active' : ''}
+                        onClick={() => updateSelected({ includeLineage: selected.includeLineage === false })}
+                      >
+                        世系图
+                      </button>
+                      <button
+                        type="button"
+                        className={selected.includeColophon !== false ? 'is-active' : ''}
+                        onClick={() => updateSelected({ includeColophon: selected.includeColophon === false })}
+                      >
+                        谱成页
+                      </button>
+                    </div>
+                  </div>
+                  <div className="studio-page-grid">
+                    {pages.map((page, index) => (
+                      <div className="studio-page-thumb" key={page.id}>
+                        <BookPageView
+                          page={page}
+                          project={selected}
+                          familyName={familyName}
+                          surname={surname}
+                          branchName={branchName}
+                        />
+                        <span>
+                          {String(index + 1).padStart(2, '0')} ·{' '}
+                          {page.kind === 'people'
+                            ? '人物'
+                            : page.kind === 'chapter'
+                              ? '世系章节'
+                              : page.kind === 'writing'
+                                ? '书写页'
+                                : page.kind === 'lineage'
+                                  ? '世系图'
+                                  : page.kind}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+
+              {section === 'write' ? (
+                <section className="studio-write">
+                  <aside className="studio-write__sections">
+                    <div className="studio-write__sections-head">
+                      <span>书写章节</span>
+                      <button type="button" onClick={addWritingSection} aria-label="新增章节">
+                        <IconPlus />
+                      </button>
+                    </div>
+                    {selected.writing.map((item) => (
+                      <button
+                        type="button"
+                        key={item.id}
+                        className={`studio-writing-tab ${activeSection?.id === item.id ? 'is-active' : ''}`}
+                        onClick={() => setActiveSectionId(item.id)}
+                      >
+                        <span>{item.title || '未命名章节'}</span>
+                        <small>{item.body.length} 字</small>
+                        {selected.writing.length > 1 ? (
+                          <i
+                            role="button"
+                            tabIndex={0}
+                            aria-label={`删除${item.title}`}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              removeWritingSection(item.id);
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter') removeWritingSection(item.id);
+                            }}
+                          >
+                            <IconDelete />
+                          </i>
+                        ) : null}
+                      </button>
+                    ))}
+                    <p className="studio-write__auto">
+                      <IconSave /> 自动保存到本机
+                    </p>
+                  </aside>
+
+                  <div className="studio-write__editor">
+                    {activeSection ? (
+                      <>
+                        <div className="studio-write__toolbar">
+                          <Input
+                            value={activeSection.title}
+                            onChange={(value) =>
+                              patchWritingSection(activeSection.id, { title: value })
+                            }
+                            placeholder="章节标题"
+                          />
+                          <div>
+                            <button type="button" onClick={() => insertExisting('family')}>
+                              家族简介
+                            </button>
+                            <button type="button" onClick={() => insertExisting('generations')}>
+                              世系名单
+                            </button>
+                            <button type="button" onClick={() => insertExisting('people')}>
+                              人物名录
+                            </button>
+                          </div>
+                        </div>
+                        <TextArea
+                          className="studio-write__textarea"
+                          value={activeSection.body}
+                          autosize={{ minRows: 14, maxRows: 26 }}
+                          onChange={(value) =>
+                            patchWritingSection(activeSection.id, { body: value })
+                          }
+                          placeholder="自己写，或从右上角插入现有内容。正文会以竖排、从左往右分列排版。"
+                        />
+                        <div className="studio-write__meta">
+                          <span>{activeSection.body.length} 字</span>
+                          <span>竖排预览 · 左 → 右</span>
+                        </div>
+                        <div className="studio-write__preview">
+                          <div className="studio-page-sample">
+                            <BookPageView
+                              page={{
+                                id: 'writing-preview',
+                                kind: 'writing',
+                                sectionTitle: activeSection.title || '谱书正文',
+                                body: activeSection.body || '正文会在这里以竖排显示。',
+                              }}
+                              project={selected}
+                              familyName={familyName}
+                              surname={surname}
+                              branchName={branchName}
+                            />
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="studio-write__empty">
+                        <p>还没有书写章节。</p>
+                        <Button theme="light" icon={<IconPlus />} onClick={addWritingSection}>
+                          新增章节
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </section>
+              ) : null}
+            </div>
+          ) : null}
+        </>
       )}
 
       {editor ? (

@@ -124,6 +124,9 @@ export default function App() {
             <Route path="stories" element={<StoriesPage />} />
             <Route path="stories/:storyId" element={<StoryDetailPage />} />
             <Route path="books" element={<BooksPage />} />
+            <Route path="books/cover" element={<BooksPage />} />
+            <Route path="books/layout" element={<BooksPage />} />
+            <Route path="books/pages" element={<BooksPage />} />
             <Route path="messages" element={<MessagesPage />} />
             <Route path="requests" element={<RequestsPage />} />
             <Route path="profile" element={<ProfilePage />} />
