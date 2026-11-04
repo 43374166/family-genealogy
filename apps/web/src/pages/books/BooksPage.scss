@@ -2560,8 +2560,8 @@
 
 .studio-write {
   display: grid;
-  grid-template-columns: 210px minmax(0, 1fr);
-  gap: 20px;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 12px;
   padding-top: 20px;
 }
 
@@ -2709,12 +2709,67 @@
 }
 
 /* A real A5 page you type into, with vertical rules between columns. */
+.writing-editor__spread {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  width: max-content;
+  margin: 0 auto 26px;
+  transform-origin: top center;
+}
+
+.writing-editor__gutter {
+  width: 10px;
+  height: 610px;
+  flex: none;
+  background: linear-gradient(
+    90deg,
+    rgba(74, 54, 32, 0.16),
+    rgba(255, 255, 255, 0.2) 48%,
+    rgba(74, 54, 32, 0.16)
+  );
+}
+
 .writing-editor__page {
   position: relative;
   flex: none;
   overflow: hidden;
   border: 1px solid var(--writing-accent);
   box-shadow: 0 18px 44px rgba(35, 45, 40, 0.2);
+}
+
+.writing-editor__page--continuation {
+  border-color: color-mix(in srgb, var(--writing-accent) 62%, #b7a98f);
+  background: #fbf7ec;
+}
+
+.writing-editor__page--continuation .book-page {
+  width: 430px;
+  height: 610px;
+}
+
+.writing-editor__page-tag {
+  position: absolute;
+  right: 0;
+  bottom: -16px;
+  left: 0;
+  color: var(--ink-muted);
+  font-family: var(--sans);
+  font-size: 7px;
+  text-align: center;
+}
+
+.studio-write__editor {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow-x: auto;
+}
+
+.studio-write__editor > .studio-write__toolbar,
+.studio-write__editor > .writing-editor__controls {
+  align-self: stretch;
 }
 
 .writing-editor__page::before {

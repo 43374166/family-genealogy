@@ -281,7 +281,7 @@ export function formBookPages(project: BookProject, tree: FamilyTree | null): Bo
   for (const section of project.writing ?? []) {
     const body = section.body.trim();
     if (!body) continue;
-    const chunks = splitWriting(body);
+    const chunks = splitBookWriting(body);
     chunks.forEach((chunk, index) => {
       pages.push({
         id: `writing-${section.id}-${index}`,
@@ -337,7 +337,7 @@ export function formBookPages(project: BookProject, tree: FamilyTree | null): Bo
   return pages;
 }
 
-function splitWriting(body: string): string[] {
+export function splitBookWriting(body: string): string[] {
   const normalized = body.replace(/\r\n/g, '\n').trim();
   if (!normalized) return [];
   const MAX = 420;

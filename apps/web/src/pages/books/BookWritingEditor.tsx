@@ -1,5 +1,10 @@
 import { useEffect, useRef } from 'react';
-import { coverOption, type BookProject } from './bookModel';
+import {
+  coverOption,
+  splitBookWriting,
+  type BookProject,
+} from './bookModel';
+import { BookPageView } from './BookPageView';
 
 /**
  * A real page you type into. The body uses vertical writing: Enter starts a new
@@ -25,6 +30,7 @@ export function BookWritingEditor({
   const canvasRef = useRef<HTMLDivElement>(null);
   const cover = coverOption(project.coverId);
   const isRtl = project.writingDirection === 'rtl';
+  const continuation = splitBookWriting(value).slice(1).join('\n');
 
   useEffect(() => {
     const node = canvasRef.current;
@@ -46,53 +52,77 @@ export function BookWritingEditor({
   };
 
   return (
-    <div
-      className={`writing-editor__page book-page book-page--writing ${
-        isRtl ? 'is-rtl' : 'is-ltr'
-      }`}
-      style={
-        {
-          '--writing-accent': cover.accent,
-          '--writing-bg': cover.background,
-        } as React.CSSProperties
-      }
-    >
-      <div className="book-page__inner">
-        <header className="book-page__header">
-          <span>{familyName}谱书</span>
-          <span>谱书书写</span>
-        </header>
-        <div className="writing-editor__heading">
-          <span>WRITING</span>
-          <h3>{sectionTitle || '未命名章节'}</h3>
-          <small>回车换列 · 自动保存</small>
+    <div className="writing-editor__spread">
+      <div
+        className={`writing-editor__page book-page book-page--writing ${
+          isRtl ? 'is-rtl' : 'is-ltr'
+        }`}
+        style={
+          {
+            '--writing-accent': cover.accent,
+            '--writing-bg': cover.background,
+          } as React.CSSProperties
+        }
+      >
+        <div className="book-page__inner">
+          <header className="book-page__header">
+            <span>{familyName}谱书</span>
+            <span>谱书书写 · 第 1 页</span>
+          </header>
+          <div className="writing-editor__heading">
+            <span>WRITING</span>
+            <h3>{sectionTitle || '未命名章节'}</h3>
+            <small>回车换列 · 自动保存</small>
+          </div>
+          <div
+            ref={canvasRef}
+            className="writing-editor__canvas"
+            contentEditable
+            suppressContentEditableWarning
+            role="textbox"
+            aria-multiline="true"
+            aria-label={`${sectionTitle}正文`}
+            data-placeholder="从这里开始写……回车会换到下一列，文字从上往下，列向左右展开。"
+            onInput={handleInput}
+            onKeyDown={handleKeyDown}
+            onPaste={(event) => {
+              event.preventDefault();
+              const text = event.clipboardData.getData('text/plain');
+              document.execCommand('insertText', false, text);
+              handleInput();
+            }}
+          />
+          <footer className="book-page__footer">
+            <span>
+              {surname || '家'}氏 · {familyName}
+            </span>
+            <span>{pageCount > 1 ? `共 ${pageCount} 页` : '01'}</span>
+          </footer>
         </div>
-        <div
-          ref={canvasRef}
-          className="writing-editor__canvas"
-          contentEditable
-          suppressContentEditableWarning
-          role="textbox"
-          aria-multiline="true"
-          aria-label={`${sectionTitle}正文`}
-          data-placeholder="从这里开始写……回车会换到下一列，文字从上往下，列向左右展开。"
-          onInput={handleInput}
-          onKeyDown={handleKeyDown}
-          onPaste={(event) => {
-            event.preventDefault();
-            const text = event.clipboardData.getData('text/plain');
-            document.execCommand('insertText', false, text);
-            handleInput();
-          }}
-        />
-        <footer className="book-page__footer">
-          <span>
-            {surname || '家'}氏 · {familyName}
-          </span>
-          <span>{pageCount > 1 ? `共 ${pageCount} 页 · 续页自动排版` : '01'}</span>
-        </footer>
+        <span className="writing-editor__frame" aria-hidden />
       </div>
-      <span className="writing-editor__frame" aria-hidden />
+
+      <span className="writing-editor__gutter" aria-hidden />
+
+      <div className="writing-editor__page writing-editor__page--continuation">
+        <BookPageView
+          page={{
+            id: 'writing-continuation',
+            kind: 'writing',
+            sectionTitle: continuation
+              ? `${sectionTitle || '正文'}（续）`
+              : '续页',
+            body: continuation,
+          }}
+          project={project}
+          familyName={familyName}
+          surname={surname}
+          branchName={() => ''}
+        />
+        <span className="writing-editor__page-tag">
+          {continuation ? '续页自动排版' : '续页 · 继续写会自动接续'}
+        </span>
+      </div>
     </div>
   );
 }
